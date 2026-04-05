@@ -2,8 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from cordis.backend.api.dependencies import get_admin_user, get_current_user, get_uow
+from cordis.backend.api.dependencies import get_current_user, get_uow
+from cordis.backend.exceptions import AppStatus
 from cordis.backend.models import User
+from cordis.backend.policies import UserPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.user import UserCreateRequest, UserUpdateRequest
 from cordis.backend.schemas.responses.user import (
@@ -13,6 +15,12 @@ from cordis.backend.schemas.responses.user import (
     UserResponse,
 )
 from cordis.backend.services.user import UserService
+from cordis.backend.validators.user import (
+    UserCreateValidator,
+    UserEmailReadValidator,
+    UserReadValidator,
+    UserUpdateValidator,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 admin_router = APIRouter(prefix="/admin/users", tags=["admin-users"])
@@ -33,7 +41,8 @@ async def update_me(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserResponse:
-    updated = await UserService(uow).update_user(current_user.id, email=request.email)
+    user = await UserUpdateValidator.validate(uow=uow, user=current_user, request=request)
+    updated = await UserService(uow).update_user(user, email=request.email)
     return _user_response(updated)
 
 
@@ -58,26 +67,34 @@ async def get_my_repositories(
 @router.get("/emails/{email}", response_model=UserResponse)
 async def get_user_by_email(
     email: str,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserResponse:
-    return _user_response(await UserService(uow).get_user_by_email(email))
+    await authorize(current_user, UserPolicy.authenticated)
+    return _user_response(await UserEmailReadValidator.validate(uow=uow, email=email))
 
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: int,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserResponse:
-    return _user_response(await UserService(uow).get_user(user_id))
+    await authorize(current_user, UserPolicy.authenticated)
+    return _user_response(await UserReadValidator.validate(uow=uow, user_id=user_id))
 
 
 @admin_router.get("", response_model=UserListResponse)
 async def list_users(
-    _admin_user: Annotated[User, Depends(get_admin_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserListResponse:
+    await authorize(
+        current_user,
+        UserPolicy.admin,
+        message="Admin privileges required",
+        app_status=AppStatus.ERROR_ADMIN_PRIVILEGES_REQUIRED,
+    )
     users = await UserService(uow).list_users()
     return UserListResponse(items=[_user_response(user) for user in users])
 
@@ -85,9 +102,16 @@ async def list_users(
 @admin_router.post("", response_model=UserResponse, status_code=201)
 async def create_user(
     request: UserCreateRequest,
-    _admin_user: Annotated[User, Depends(get_admin_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserResponse:
+    await authorize(
+        current_user,
+        UserPolicy.admin,
+        message="Admin privileges required",
+        app_status=AppStatus.ERROR_ADMIN_PRIVILEGES_REQUIRED,
+    )
+    await UserCreateValidator.validate(uow=uow, request=request)
     user = await UserService(uow).create_user(
         email=request.email,
         password=request.password,
@@ -101,11 +125,19 @@ async def create_user(
 async def update_user(
     user_id: int,
     request: UserUpdateRequest,
-    _admin_user: Annotated[User, Depends(get_admin_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserResponse:
+    await authorize(
+        current_user,
+        UserPolicy.admin,
+        message="Admin privileges required",
+        app_status=AppStatus.ERROR_ADMIN_PRIVILEGES_REQUIRED,
+    )
+    user = await UserReadValidator.validate(uow=uow, user_id=user_id)
+    user = await UserUpdateValidator.validate(uow=uow, user=user, request=request)
     user = await UserService(uow).update_user(
-        user_id,
+        user,
         email=request.email,
         is_active=request.is_active,
         is_admin=request.is_admin,
@@ -116,7 +148,14 @@ async def update_user(
 @admin_router.delete("/{user_id}", response_model=UserResponse)
 async def delete_user(
     user_id: int,
-    _admin_user: Annotated[User, Depends(get_admin_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserResponse:
-    return _user_response(await UserService(uow).delete_user(user_id))
+    await authorize(
+        current_user,
+        UserPolicy.admin,
+        message="Admin privileges required",
+        app_status=AppStatus.ERROR_ADMIN_PRIVILEGES_REQUIRED,
+    )
+    user = await UserReadValidator.validate(uow=uow, user_id=user_id)
+    return _user_response(await UserService(uow).delete_user(user))

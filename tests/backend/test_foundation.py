@@ -26,6 +26,8 @@ def test_legacy_backend_error_modules_are_not_importable() -> None:
         importlib.import_module("cordis.backend.errors")
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("cordis.backend.api.errors")
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.backend.services.authorization")
 
 
 def test_legacy_flat_schema_modules_are_not_importable() -> None:
@@ -131,6 +133,15 @@ def test_exceptions_package_exposes_app_status_and_handlers() -> None:
 
     assert hasattr(exceptions, "AppStatus")
     assert callable(exceptions.configure_exception_handlers)
+
+
+def test_policies_package_exposes_authorize_and_domain_policies() -> None:
+    policies = importlib.import_module("cordis.backend.policies")
+
+    assert callable(policies.authorize)
+    assert hasattr(policies, "RepositoryPolicy")
+    assert hasattr(policies, "UserPolicy")
+    assert hasattr(policies, "RolePolicy")
 
 
 def test_schema_packages_expose_request_and_response_modules() -> None:

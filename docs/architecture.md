@@ -16,18 +16,31 @@ The backend owns repository, version, tag, artifact, upload-session, runtime set
 
 - route composition
 - dependency wiring
-- authentication and authorization entrypoints
+- transport-level authentication entrypoints
 
 Versioned routes are mounted under `/api/v1`.
 The backend registers centralized exception handling from `cordis.backend.exceptions`, which also owns the app-status response contract and exception logging.
 
+### Policy layer
+
+`cordis.backend.policies` contains authorization decisions. Routes call policies explicitly so repository and admin access rules are visible at the API boundary.
+
+### Validator layer
+
+`cordis.backend.validators` contains request and domain validation. Validators are responsible for:
+
+- existence checks
+- uniqueness checks
+- cross-entity consistency
+- request normalization and lookup helpers
+
 ### Service layer
 
-`cordis.backend.services` contains business logic and orchestration. Services are responsible for:
+`cordis.backend.services` contains orchestration and transaction flow. Services are responsible for:
 
-- validating workflow-level behavior
-- enforcing domain rules
 - coordinating repositories and storage operations
+- mutating validated domain state
+- committing, refreshing, and sequencing multi-step workflows
 
 ### Repository and unit-of-work layer
 
@@ -80,10 +93,12 @@ This keeps storage concerns separate from HTTP payload concerns.
 Typical backend flow:
 
 1. A route handler receives a request under `/api/v1`.
-2. Dependencies resolve the current user, authorization context, and unit of work.
-3. A service applies business rules and coordinates repositories or storage.
-4. Repository calls load or persist state through the unit of work.
-5. The route returns a response schema.
+2. Dependencies resolve the current user and unit of work.
+3. The route calls a policy for authorization.
+4. The route calls validator helpers to resolve and validate domain state.
+5. A service coordinates repositories or storage and performs the mutation.
+6. Repository calls load or persist state through the unit of work.
+7. The route returns a response schema.
 
 ## Resource Transfer Flow
 

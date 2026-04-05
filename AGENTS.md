@@ -28,8 +28,11 @@ When working on a backend project in this repository, follow these structural pr
 - keep engine and session wiring in `cordis/backend/database.py`, not in a nested `db/` package
 - use `cordis/backend/models/base.py` with `DatabaseModel` as the canonical model base
 - keep backend exceptions under `cordis/backend/exceptions/` with `app_status.py`, `exceptions.py`, and `exception_handlers.py`
+- use `cordis/backend/policies/` for authorization decisions and make route modules call policies explicitly
+- move request and domain checks into `cordis/backend/validators/`, not services
 - use `cordis/backend/schemas/requests/` for request models and `cordis/backend/schemas/responses/` for response models
-- keep FastAPI routes thin, put workflow and business rules in services, and keep persistence access in repositories
+- prefer the flow `api -> policy -> validator -> service -> repository -> model -> database`
+- keep FastAPI routes thin, keep services focused on orchestration and transactions, and keep persistence access in repositories
 - backend utilities should stay backend-runtime-specific; CLI-specific helpers belong under `cordis/cli/`
 - prefer hard-cut refactors over temporary compatibility wrappers unless compatibility is explicitly required
 

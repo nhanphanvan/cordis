@@ -4,12 +4,13 @@ from fastapi import APIRouter, Depends
 
 from cordis.backend.api.dependencies import get_current_user, get_uow
 from cordis.backend.models import User
+from cordis.backend.policies import VersionPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.artifact import ResourceCheckRequest
 from cordis.backend.schemas.responses.artifact import ResourceCheckResponse
-from cordis.backend.services.authorization import AuthorizationService
-from cordis.backend.services.version import VersionService
 from cordis.backend.services.version_artifact import VersionArtifactService
+from cordis.backend.validators.artifact import ResourceCheckValidator
+from cordis.backend.validators.repository import RepositoryAccessValidator
 
 router = APIRouter(prefix="/resources", tags=["resources"])
 
@@ -20,12 +21,13 @@ async def check_resource(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ResourceCheckResponse:
-    version = await VersionService(uow).get_version(request.version_id)
-    await AuthorizationService(uow).require_repository_access(
+    version = await ResourceCheckValidator.validate(uow=uow, request=request)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=version.repository_id,
-        required_role="developer",
         current_user=current_user,
     )
+    await authorize(current_user, VersionPolicy.create, access)
     status, artifact_id = await VersionArtifactService(uow).check_resource(
         version_id=request.version_id,
         path=request.path,

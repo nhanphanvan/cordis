@@ -2,12 +2,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from cordis.backend.api.dependencies import get_admin_user, get_current_user, get_uow
+from cordis.backend.api.dependencies import get_current_user, get_uow
+from cordis.backend.exceptions import AppStatus
 from cordis.backend.models import User
+from cordis.backend.policies import AuthPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.auth import LoginRequest
 from cordis.backend.schemas.responses.auth import CurrentUserResponse, TokenResponse
 from cordis.backend.services.auth import AuthService
+from cordis.backend.validators.auth import LoginValidator
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -17,8 +20,8 @@ async def login(
     request: LoginRequest,
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> TokenResponse:
-    auth_service = AuthService(uow)
-    return await auth_service.login(request)
+    user = await LoginValidator.validate(uow=uow, request=request)
+    return await AuthService(uow).login(user)
 
 
 @router.get("/me", response_model=CurrentUserResponse)
@@ -31,7 +34,13 @@ async def me(current_user: Annotated[User, Depends(get_current_user)]) -> Curren
 
 
 @router.get("/admin-check", response_model=CurrentUserResponse)
-async def admin_check(current_user: Annotated[User, Depends(get_admin_user)]) -> CurrentUserResponse:
+async def admin_check(current_user: Annotated[User, Depends(get_current_user)]) -> CurrentUserResponse:
+    await authorize(
+        current_user,
+        AuthPolicy.admin,
+        message="Admin privileges required",
+        app_status=AppStatus.ERROR_ADMIN_PRIVILEGES_REQUIRED,
+    )
     return CurrentUserResponse(
         email=current_user.email,
         is_active=current_user.is_active,

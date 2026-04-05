@@ -1,20 +1,15 @@
 import logging
 
-from cordis.backend.exceptions import AppStatus, ConflictError, NotFoundError, UnprocessableEntityError
-from cordis.backend.models import UploadSession, UploadSessionPart
+from cordis.backend.exceptions import AppStatus, ConflictError
+from cordis.backend.models import Repository, UploadSession, UploadSessionPart
+from cordis.backend.models.version import Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.services.artifact import ArtifactService
-from cordis.backend.services.version import VersionService
 from cordis.backend.services.version_artifact import VersionArtifactService
-from cordis.backend.storage import (
-    CompletedMultipartUpload,
-    StorageMultipartStateError,
-    StorageObjectRef,
-    UploadedPart,
-)
+from cordis.backend.storage import CompletedMultipartUpload, StorageMultipartStateError, StorageObjectRef, UploadedPart
 from cordis.backend.storage import factory as storage_factory
+from cordis.backend.validators.upload import ArtifactResolutionValidator
 
-TERMINAL_UPLOAD_STATUSES = {"completed", "failed", "aborted"}
 logger = logging.getLogger(__name__)
 
 
@@ -25,43 +20,15 @@ class UploadService:
     async def create_or_resume_session(
         self,
         *,
-        version_id: str,
+        version: Version,
         path: str,
         checksum: str,
         size: int,
     ) -> tuple[UploadSession, bool]:
-        version = await VersionService(self.uow).get_version(version_id)
         normalized_path = path.strip("/")
-        if size < 0:
-            raise UnprocessableEntityError(
-                "Upload size must be non-negative",
-                app_status=AppStatus.ERROR_UPLOAD_SIZE_INVALID,
-            )
-        if not normalized_path:
-            raise UnprocessableEntityError(
-                "Upload path must not be empty",
-                app_status=AppStatus.ERROR_UPLOAD_PATH_INVALID,
-            )
-
-        existing_status, _ = await VersionArtifactService(self.uow).check_resource(
-            version_id=version_id,
-            path=normalized_path,
-            checksum=checksum,
-            size=size,
-        )
-        if existing_status == "exists":
-            raise ConflictError(
-                "Artifact already exists in version",
-                app_status=AppStatus.ERROR_ARTIFACT_ALREADY_EXISTS_IN_VERSION,
-            )
-        if existing_status == "conflict":
-            raise ConflictError(
-                "Artifact path already exists in version with different metadata",
-                app_status=AppStatus.ERROR_ARTIFACT_VERSION_METADATA_CONFLICT,
-            )
 
         resumable = await self.uow.upload_sessions.get_resumable(
-            version_id=version_id,
+            version_id=version.id,
             path=normalized_path,
             checksum=checksum,
             size=size,
@@ -70,14 +37,14 @@ class UploadService:
             logger.info(
                 "Upload session resumed session_id=%s version_id=%s path=%s",
                 resumable.id,
-                version_id,
+                version.id,
                 normalized_path,
             )
             return resumable, False
 
         session = await self.uow.upload_sessions.create(
             repository_id=version.repository_id,
-            version_id=version_id,
+            version_id=version.id,
             path=normalized_path,
             checksum=checksum,
             size=size,
@@ -91,32 +58,18 @@ class UploadService:
         logger.info(
             "Upload session created session_id=%s version_id=%s path=%s",
             session.id,
-            version_id,
+            version.id,
             normalized_path,
         )
         return session, True
 
-    async def get_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
-        session = await self.uow.upload_sessions.get(session_id)
-        if session is None:
-            raise NotFoundError("Upload session not found", app_status=AppStatus.ERROR_UPLOAD_SESSION_NOT_FOUND)
-        parts = await self.uow.upload_session_parts.list_for_session(session_id)
-        return session, parts
-
     async def upload_part(
         self,
         *,
-        session_id: str,
+        session: UploadSession,
         part_number: int,
         content_bytes: bytes,
     ) -> tuple[UploadSession, list[UploadSessionPart]]:
-        session, _ = await self.get_session(session_id)
-        if session.status in TERMINAL_UPLOAD_STATUSES:
-            raise ConflictError(
-                "Upload session is already terminal",
-                app_status=AppStatus.ERROR_UPLOAD_SESSION_TERMINAL,
-            )
-
         uploaded_part = storage_factory.get_storage_adapter().upload_part(
             self._storage_ref(session),
             upload_id=session.upload_id,
@@ -124,12 +77,12 @@ class UploadService:
             body=content_bytes,
         )
         existing = await self.uow.upload_session_parts.get_for_session_and_part_number(
-            session_id=session_id,
+            session_id=session.id,
             part_number=part_number,
         )
         if existing is None:
             await self.uow.upload_session_parts.create(
-                session_id=session_id,
+                session_id=session.id,
                 part_number=uploaded_part.part_number,
                 etag=uploaded_part.etag,
             )
@@ -139,22 +92,18 @@ class UploadService:
         session.status = "in_progress"
         session.error_message = None
         await self.uow.commit()
-        logger.info("Upload part stored session_id=%s part_number=%s", session_id, part_number)
-        return await self.get_session(session_id)
+        parts = await self.uow.upload_session_parts.list_for_session(session.id)
+        logger.info("Upload part stored session_id=%s part_number=%s", session.id, part_number)
+        return session, parts
 
-    async def complete_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
-        session, parts = await self.get_session(session_id)
-        if session.status in TERMINAL_UPLOAD_STATUSES:
-            raise ConflictError(
-                "Upload session is already terminal",
-                app_status=AppStatus.ERROR_UPLOAD_SESSION_TERMINAL,
-            )
-        if not parts:
-            raise UnprocessableEntityError(
-                "Upload session has no uploaded parts",
-                app_status=AppStatus.ERROR_UPLOAD_SESSION_NO_PARTS,
-            )
-
+    async def complete_session(
+        self,
+        *,
+        session: UploadSession,
+        parts: list[UploadSessionPart],
+        version: Version,
+        repository: Repository,
+    ) -> tuple[UploadSession, list[UploadSessionPart]]:
         session.status = "finalizing"
         await self.uow.flush()
         storage = storage_factory.get_storage_adapter()
@@ -168,38 +117,49 @@ class UploadService:
             session.status = "failed"
             session.error_message = "Multipart state invalid"
             await self.uow.commit()
-            logger.error("Upload session failed session_id=%s reason=multipart_state_invalid", session_id)
+            logger.error("Upload session failed session_id=%s reason=multipart_state_invalid", session.id)
             raise
 
         if completed.etag != session.checksum:
             session.status = "failed"
             session.error_message = "Checksum mismatch"
             await self.uow.commit()
-            logger.error("Upload session failed session_id=%s reason=checksum_mismatch", session_id)
+            logger.error("Upload session failed session_id=%s reason=checksum_mismatch", session.id)
             raise ConflictError(
                 "Completed upload checksum does not match expected checksum",
                 app_status=AppStatus.ERROR_UPLOAD_CHECKSUM_MISMATCH,
             )
 
-        artifact = await ArtifactService(self.uow).resolve_or_create_artifact(
+        artifact = await ArtifactResolutionValidator.validate(
+            uow=self.uow,
             repository_id=session.repository_id,
             artifact_id=session.artifact_id,
             path=session.path,
             checksum=session.checksum,
             size=session.size,
         )
-        await VersionArtifactService(self.uow).attach_artifact(version_id=session.version_id, artifact_id=artifact.id)
+        if artifact is None:
+            artifact = await ArtifactService(self.uow).create_artifact(
+                repository=repository,
+                path=session.path,
+                name=session.path.rsplit("/", maxsplit=1)[-1],
+                checksum=session.checksum,
+                size=session.size,
+                artifact_id=session.artifact_id,
+            )
+        await VersionArtifactService(self.uow).attach_artifact(version=version, artifact=artifact)
         session.artifact_id = artifact.id
         session.status = "completed"
         session.error_message = None
         await self.uow.commit()
-        logger.info("Upload session completed session_id=%s artifact_id=%s", session_id, artifact.id)
-        return await self.get_session(session_id)
+        refreshed_parts = await self.uow.upload_session_parts.list_for_session(session.id)
+        logger.info("Upload session completed session_id=%s artifact_id=%s", session.id, artifact.id)
+        return session, refreshed_parts
 
-    async def abort_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
-        session, _ = await self.get_session(session_id)
+    async def abort_session(self, session: UploadSession) -> tuple[UploadSession, list[UploadSessionPart]]:
         if session.status == "aborted":
-            return await self.get_session(session_id)
+            parts = await self.uow.upload_session_parts.list_for_session(session.id)
+            return session, parts
         if session.status == "completed":
             raise ConflictError(
                 "Upload session is already terminal",
@@ -212,8 +172,9 @@ class UploadService:
         session.status = "aborted"
         session.error_message = None
         await self.uow.commit()
-        logger.info("Upload session aborted session_id=%s", session_id)
-        return await self.get_session(session_id)
+        parts = await self.uow.upload_session_parts.list_for_session(session.id)
+        logger.info("Upload session aborted session_id=%s", session.id)
+        return session, parts
 
     def _storage_ref(self, session: UploadSession) -> StorageObjectRef:
         return StorageObjectRef(

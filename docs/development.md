@@ -5,6 +5,8 @@ This guide is for contributors working inside the Cordis repository.
 ## Code Layout
 
 - `cordis/backend/api`: route definitions, dependencies, and API composition
+- `cordis/backend/policies`: authorization rules and route-level access decisions
+- `cordis/backend/validators`: request and domain validation helpers
 - `cordis/backend/services`: business logic and orchestration
 - `cordis/backend/repositories`: persistence access and unit-of-work boundary
 - `cordis/backend/models`: persistence models
@@ -40,12 +42,15 @@ make typecheck
 When adding backend functionality:
 
 1. add or update schemas under `cordis/backend/schemas/requests` and `cordis/backend/schemas/responses`
-2. add service logic for workflow and domain rules
-3. add repository methods if persistence access changes
-4. add or update route handlers and dependencies
-5. add tests in `tests/backend`
+2. add or update policies for authorization
+3. add or update validators for request and domain checks
+4. add service logic for orchestration and transaction flow
+5. add repository methods if persistence access changes
+6. add or update route handlers and dependencies
+7. add tests in `tests/backend`
 
-Keep business rules in services instead of route handlers.
+Keep route modules explicit about policy and validator calls.
+Keep business validation out of services.
 Use module-level loggers for key mutation and auth workflows rather than scattering ad-hoc print-style diagnostics.
 
 ## CLI Extension Pattern

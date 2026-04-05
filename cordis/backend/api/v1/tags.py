@@ -3,12 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from cordis.backend.api.dependencies import get_current_user, get_optional_current_user, get_uow
+from cordis.backend.exceptions import AppStatus
 from cordis.backend.models import User
+from cordis.backend.policies import TagPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.tag import TagCreateRequest
 from cordis.backend.schemas.responses.tag import TagResponse
-from cordis.backend.services.authorization import AuthorizationService
 from cordis.backend.services.tag import TagService
+from cordis.backend.validators.repository import RepositoryAccessValidator
+from cordis.backend.validators.tag import TagCreateValidator, TagLookupValidator, TagReadValidator
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
@@ -29,16 +32,14 @@ async def create_tag(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> TagResponse:
-    await AuthorizationService(uow).require_repository_access(
+    version = await TagCreateValidator.validate(uow=uow, request=request)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=request.repository_id,
-        required_role="developer",
         current_user=current_user,
     )
-    tag = await TagService(uow).create_tag(
-        repository_id=request.repository_id,
-        version_id=request.version_id,
-        name=request.name,
-    )
+    await authorize(current_user, TagPolicy.create, access)
+    tag = await TagService(uow).create_tag(version=version, name=request.name)
     return _tag_response(tag.id, tag.repository_id, tag.name, tag.version_id, tag.version.name)
 
 
@@ -48,11 +49,18 @@ async def get_tag(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> TagResponse:
-    tag = await TagService(uow).get_tag(tag_id)
-    await AuthorizationService(uow).require_repository_access(
+    tag = await TagReadValidator.validate(uow=uow, tag_id=tag_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=tag.repository_id,
-        required_role="viewer",
         current_user=current_user,
+    )
+    await authorize(
+        current_user,
+        TagPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
     return _tag_response(tag.id, tag.repository_id, tag.name, tag.version_id, tag.version.name)
 
@@ -64,12 +72,15 @@ async def lookup_tag(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> TagResponse:
-    await AuthorizationService(uow).require_repository_access(
-        repository_id=repository_id,
-        required_role="viewer",
-        current_user=current_user,
+    access = await RepositoryAccessValidator.validate(uow=uow, repository_id=repository_id, current_user=current_user)
+    await authorize(
+        current_user,
+        TagPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
-    tag = await TagService(uow).get_by_repository_and_name(repository_id=repository_id, name=name)
+    tag = await TagLookupValidator.validate(uow=uow, repository_id=repository_id, name=name)
     return _tag_response(tag.id, tag.repository_id, tag.name, tag.version_id, tag.version.name)
 
 
@@ -79,11 +90,12 @@ async def delete_tag(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> TagResponse:
-    tag = await TagService(uow).get_tag(tag_id)
-    await AuthorizationService(uow).require_repository_access(
+    tag = await TagReadValidator.validate(uow=uow, tag_id=tag_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=tag.repository_id,
-        required_role="developer",
         current_user=current_user,
     )
-    deleted = await TagService(uow).delete_tag(tag_id)
+    await authorize(current_user, TagPolicy.delete, access)
+    deleted = await TagService(uow).delete_tag(tag)
     return _tag_response(deleted.id, deleted.repository_id, deleted.name, deleted.version_id, deleted.version.name)

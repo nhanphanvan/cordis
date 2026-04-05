@@ -1,15 +1,13 @@
 from typing import Annotated
 
-from fastapi import Depends, Path
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials
 
 from cordis.backend.api.dependencies.auth import bearer_scheme
 from cordis.backend.api.dependencies.database import get_uow
-from cordis.backend.exceptions import AppStatus, UnauthorizedError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.services.auth import AuthService
-from cordis.backend.services.authorization import AuthorizationService, RepositoryAccessContext
+from cordis.backend.validators.auth import CurrentUserValidator
 
 
 async def get_optional_current_user(
@@ -18,45 +16,4 @@ async def get_optional_current_user(
 ) -> User | None:
     if credentials is None or not credentials.credentials:
         return None
-    auth_service = AuthService(uow)
-    return await auth_service.get_current_user(credentials.credentials)
-
-
-async def require_repository_viewer(
-    repository_id: Annotated[int, Path()],
-    current_user: Annotated[User | None, Depends(get_optional_current_user)],
-    uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> RepositoryAccessContext:
-    return await AuthorizationService(uow).require_repository_access(
-        repository_id=repository_id,
-        required_role="viewer",
-        current_user=current_user,
-    )
-
-
-async def require_repository_developer(
-    repository_id: Annotated[int, Path()],
-    current_user: Annotated[User, Depends(get_optional_current_user)],
-    uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> RepositoryAccessContext:
-    if current_user is None:
-        raise UnauthorizedError("Missing bearer token", app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN)
-    return await AuthorizationService(uow).require_repository_access(
-        repository_id=repository_id,
-        required_role="developer",
-        current_user=current_user,
-    )
-
-
-async def require_repository_owner_or_admin(
-    repository_id: Annotated[int, Path()],
-    current_user: Annotated[User, Depends(get_optional_current_user)],
-    uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> RepositoryAccessContext:
-    if current_user is None:
-        raise UnauthorizedError("Missing bearer token", app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN)
-    return await AuthorizationService(uow).require_repository_access(
-        repository_id=repository_id,
-        required_role="owner",
-        current_user=current_user,
-    )
+    return await CurrentUserValidator.validate(uow=uow, token=credentials.credentials)

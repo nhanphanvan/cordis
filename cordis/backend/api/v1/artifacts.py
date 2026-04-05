@@ -3,12 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from cordis.backend.api.dependencies import get_current_user, get_optional_current_user, get_uow
+from cordis.backend.exceptions import AppStatus
 from cordis.backend.models import User
+from cordis.backend.policies import ArtifactPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.artifact import ArtifactCreateRequest
 from cordis.backend.schemas.responses.artifact import ArtifactResponse
 from cordis.backend.services.artifact import ArtifactService
-from cordis.backend.services.authorization import AuthorizationService
+from cordis.backend.validators.artifact import ArtifactCreateValidator, ArtifactReadValidator
+from cordis.backend.validators.repository import RepositoryAccessValidator
 
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
@@ -37,16 +40,19 @@ async def create_artifact(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactResponse:
-    await AuthorizationService(uow).require_repository_access(
-        repository_id=request.repository_id,
-        required_role="developer",
+    artifact_input = await ArtifactCreateValidator.validate(uow=uow, request=request)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
+        repository_id=artifact_input.repository.id,
         current_user=current_user,
     )
+    await authorize(current_user, ArtifactPolicy.create, access)
     artifact = await ArtifactService(uow).create_artifact(
-        repository_id=request.repository_id,
-        path=request.path,
-        checksum=request.checksum,
-        size=request.size,
+        repository=artifact_input.repository,
+        path=artifact_input.normalized_path,
+        name=artifact_input.name,
+        checksum=artifact_input.checksum,
+        size=artifact_input.size,
     )
     return _artifact_response(
         artifact.id,
@@ -64,11 +70,18 @@ async def get_artifact(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactResponse:
-    artifact = await ArtifactService(uow).get_artifact(artifact_id)
-    await AuthorizationService(uow).require_repository_access(
+    artifact = await ArtifactReadValidator.validate(uow=uow, artifact_id=artifact_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=artifact.repository_id,
-        required_role="viewer",
         current_user=current_user,
+    )
+    await authorize(
+        current_user,
+        ArtifactPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
     return _artifact_response(
         artifact.id,

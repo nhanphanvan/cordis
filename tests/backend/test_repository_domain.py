@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -188,3 +189,60 @@ def test_non_admin_cannot_create_repository(monkeypatch, tmp_path: Path) -> None
         "message": "Admin privileges required",
         "detail": "Admin privileges required",
     }
+
+
+def test_create_repository_route_calls_policy_then_validator_then_service(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-repository-route-flow.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+
+    calls: list[str] = []
+    fake_user = SimpleNamespace(id=7, email="admin@example.com", is_admin=True)
+    fake_uow = object()
+
+    async def fake_authorize(actor, policy_action, *args, **kwargs) -> None:
+        assert actor is fake_user
+        assert getattr(policy_action, "__name__", "") == "create"
+        calls.append("policy")
+
+    async def fake_validate(*, uow, request) -> None:
+        assert uow is fake_uow
+        assert request.name == "repo-alpha"
+        calls.append("validator")
+
+    async def fake_create_repository(self, *, name, description, is_public, creator, owner_role):
+        assert calls == ["policy", "validator"]
+        assert self.uow is fake_uow
+        assert creator is fake_user
+        assert owner_role is None or owner_role is not None
+        calls.append("service")
+        return SimpleNamespace(id=42, name=name, description=description, is_public=is_public)
+
+    monkeypatch.setattr("cordis.backend.api.v1.repositories.authorize", fake_authorize)
+    monkeypatch.setattr(
+        "cordis.backend.api.v1.repositories.RepositoryCreateValidator.validate",
+        fake_validate,
+    )
+    monkeypatch.setattr(
+        "cordis.backend.api.v1.repositories.RepositoryService.create_repository",
+        fake_create_repository,
+    )
+
+    app = create_app()
+    from cordis.backend.api.dependencies.auth import get_current_user
+    from cordis.backend.api.dependencies.database import get_uow
+
+    app.dependency_overrides[get_current_user] = lambda: fake_user
+    app.dependency_overrides[get_uow] = lambda: fake_uow
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/repositories",
+        json={"name": "repo-alpha", "description": "alpha", "is_public": False},
+    )
+
+    assert response.status_code == 201
+    assert calls == ["policy", "validator", "service"]

@@ -7,7 +7,9 @@ from cordis.backend.api.dependencies import (
     get_optional_current_user,
     get_uow,
 )
+from cordis.backend.exceptions import AppStatus
 from cordis.backend.models import User
+from cordis.backend.policies import DownloadPolicy, VersionPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.artifact import VersionArtifactCreateRequest
 from cordis.backend.schemas.requests.version import VersionCreateRequest
@@ -17,10 +19,13 @@ from cordis.backend.schemas.responses.artifact import (
     ArtifactResponse,
 )
 from cordis.backend.schemas.responses.version import VersionResponse
-from cordis.backend.services.authorization import AuthorizationService
 from cordis.backend.services.download import DownloadService
 from cordis.backend.services.version import VersionService
 from cordis.backend.services.version_artifact import VersionArtifactService
+from cordis.backend.validators.artifact import VersionArtifactAttachValidator
+from cordis.backend.validators.download import VersionArtifactPathReadValidator, VersionArtifactReadValidator
+from cordis.backend.validators.repository import RepositoryAccessValidator
+from cordis.backend.validators.version import VersionCreateValidator, VersionLookupValidator, VersionReadValidator
 
 router = APIRouter(prefix="/versions", tags=["versions"])
 
@@ -53,12 +58,10 @@ async def create_version(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> VersionResponse:
-    await AuthorizationService(uow).require_repository_access(
-        repository_id=request.repository_id,
-        required_role="developer",
-        current_user=current_user,
-    )
-    version = await VersionService(uow).create_version(repository_id=request.repository_id, name=request.name)
+    repository = await VersionCreateValidator.validate(uow=uow, request=request)
+    access = await RepositoryAccessValidator.validate(uow=uow, repository_id=repository.id, current_user=current_user)
+    await authorize(current_user, VersionPolicy.create, access)
+    version = await VersionService(uow).create_version(repository=repository, name=request.name)
     return _version_response(version.id, version.repository_id, version.name)
 
 
@@ -68,11 +71,18 @@ async def get_version(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> VersionResponse:
-    version = await VersionService(uow).get_version(version_id)
-    await AuthorizationService(uow).require_repository_access(
+    version = await VersionReadValidator.validate(uow=uow, version_id=version_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=version.repository_id,
-        required_role="viewer",
         current_user=current_user,
+    )
+    await authorize(
+        current_user,
+        VersionPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
     return _version_response(version.id, version.repository_id, version.name)
 
@@ -84,12 +94,15 @@ async def lookup_version(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> VersionResponse:
-    await AuthorizationService(uow).require_repository_access(
-        repository_id=repository_id,
-        required_role="viewer",
-        current_user=current_user,
+    access = await RepositoryAccessValidator.validate(uow=uow, repository_id=repository_id, current_user=current_user)
+    await authorize(
+        current_user,
+        VersionPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
-    version = await VersionService(uow).get_by_repository_and_name(repository_id=repository_id, name=name)
+    version = await VersionLookupValidator.validate(uow=uow, repository_id=repository_id, name=name)
     return _version_response(version.id, version.repository_id, version.name)
 
 
@@ -99,13 +112,14 @@ async def delete_version(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> VersionResponse:
-    version = await VersionService(uow).get_version(version_id)
-    await AuthorizationService(uow).require_repository_access(
+    version = await VersionReadValidator.validate(uow=uow, version_id=version_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=version.repository_id,
-        required_role="developer",
         current_user=current_user,
     )
-    deleted = await VersionService(uow).delete_version(version_id)
+    await authorize(current_user, VersionPolicy.delete, access)
+    deleted = await VersionService(uow).delete_version(version)
     return _version_response(deleted.id, deleted.repository_id, deleted.name)
 
 
@@ -116,13 +130,19 @@ async def attach_artifact_to_version(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactResponse:
-    version = await VersionService(uow).get_version(version_id)
-    await AuthorizationService(uow).require_repository_access(
+    version = await VersionReadValidator.validate(uow=uow, version_id=version_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=version.repository_id,
-        required_role="developer",
         current_user=current_user,
     )
-    artifact = await VersionArtifactService(uow).attach_artifact(version_id=version_id, artifact_id=request.artifact_id)
+    await authorize(current_user, VersionPolicy.create, access)
+    artifact = await VersionArtifactAttachValidator.validate(
+        uow=uow,
+        version=version,
+        request=request,
+    )
+    artifact = await VersionArtifactService(uow).attach_artifact(version=version, artifact=artifact)
     return _artifact_response(
         artifact.id,
         artifact.repository_id,
@@ -139,13 +159,20 @@ async def list_version_artifacts(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactListResponse:
-    version = await VersionService(uow).get_version(version_id)
-    await AuthorizationService(uow).require_repository_access(
+    version = await VersionReadValidator.validate(uow=uow, version_id=version_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=version.repository_id,
-        required_role="viewer",
         current_user=current_user,
     )
-    artifacts = await VersionArtifactService(uow).list_for_version(version_id)
+    await authorize(
+        current_user,
+        VersionPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
+    )
+    artifacts = await VersionArtifactService(uow).list_for_version(version)
     return ArtifactListResponse(
         items=[
             _artifact_response(
@@ -168,13 +195,20 @@ async def get_version_artifact_by_path(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactResponse:
-    version = await VersionService(uow).get_version(version_id)
-    await AuthorizationService(uow).require_repository_access(
+    version = await VersionReadValidator.validate(uow=uow, version_id=version_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=version.repository_id,
-        required_role="viewer",
         current_user=current_user,
     )
-    artifact = await DownloadService(uow).get_artifact_for_version_by_path(version_id=version_id, path=path)
+    await authorize(
+        current_user,
+        DownloadPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
+    )
+    artifact = await VersionArtifactPathReadValidator.validate(uow=uow, version=version, path=path)
     return _artifact_response(
         artifact.id,
         artifact.repository_id,
@@ -192,16 +226,21 @@ async def create_version_artifact_download(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactDownloadResponse:
-    version = await VersionService(uow).get_version(version_id)
-    await AuthorizationService(uow).require_repository_access(
+    version = await VersionReadValidator.validate(uow=uow, version_id=version_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
         repository_id=version.repository_id,
-        required_role="viewer",
         current_user=current_user,
     )
-    download_url, expires_in = await DownloadService(uow).get_download_url(
-        version_id=version_id,
-        artifact_id=artifact_id,
+    await authorize(
+        current_user,
+        DownloadPolicy.read,
+        access,
+        unauthorized_message="Missing bearer token",
+        unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
+    artifact = await VersionArtifactReadValidator.validate(uow=uow, version=version, artifact_id=artifact_id)
+    download_url, expires_in = await DownloadService(uow).get_download_url(version_id=version_id, artifact=artifact)
     return ArtifactDownloadResponse(
         artifact_id=artifact_id,
         download_url=download_url,
