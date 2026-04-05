@@ -7,7 +7,7 @@ Cordis has two different configuration surfaces:
 
 ## Backend Settings
 
-The backend settings live in `cordis.shared.settings.Settings` and use the `CORDIS_` prefix.
+The backend configuration lives in `cordis.backend.config` and uses the `CORDIS_` environment variable names.
 
 Current settings:
 
@@ -16,6 +16,10 @@ Current settings:
 - `CORDIS_API_V1_PREFIX`
 - `CORDIS_DB_URL`
 - `CORDIS_DB_ECHO`
+- `CORDIS_DB_POOL_SIZE`
+- `CORDIS_DB_MAX_OVERFLOW`
+- `CORDIS_DB_POOL_TIMEOUT`
+- `CORDIS_DB_POOL_RECYCLE`
 - `CORDIS_HOST`
 - `CORDIS_PORT`
 - `CORDIS_STORAGE_PROVIDER`
@@ -38,6 +42,11 @@ Important defaults:
 - default storage bucket: `cordis-artifacts`
 
 The settings object also exposes a derived synchronous database URL for tooling that requires a sync-style database connection string.
+
+The database configuration also exposes a computed `database_engine_args` property used when creating the SQLAlchemy async engine:
+
+- PostgreSQL-style URLs use the full pool tuning surface
+- SQLite URLs use a reduced SQLite-safe subset
 
 ## CLI Configuration
 

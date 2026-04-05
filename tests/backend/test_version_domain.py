@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -76,7 +76,7 @@ def _auth_header(client: TestClient, email: str, password: str) -> dict[str, str
 def test_developer_can_create_get_list_lookup_and_delete_versions(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-version-domain.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -118,7 +118,7 @@ def test_developer_can_create_get_list_lookup_and_delete_versions(monkeypatch, t
 def test_version_name_must_be_unique_within_repository(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-version-unique.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -155,7 +155,7 @@ def test_version_name_must_be_unique_within_repository(monkeypatch, tmp_path: Pa
 def test_viewer_can_read_but_cannot_create_or_delete_versions(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-version-rbac.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())

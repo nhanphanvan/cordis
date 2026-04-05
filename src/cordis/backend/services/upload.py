@@ -1,3 +1,4 @@
+from cordis.backend.errors import ConflictError, NotFoundError, ValidationError
 from cordis.backend.models import UploadSession, UploadSessionPart
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.services.artifact import ArtifactService
@@ -10,7 +11,6 @@ from cordis.backend.storage import (
     UploadedPart,
 )
 from cordis.backend.storage import factory as storage_factory
-from cordis.shared.errors import ConflictError, NotFoundError, ValidationError
 
 TERMINAL_UPLOAD_STATUSES = {"completed", "failed", "aborted"}
 

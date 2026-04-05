@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Application code lives under `src/cordis/`. Use `src/cordis/backend/` for the FastAPI service, `src/cordis/cli/` for the Typer CLI and SDK, and `src/cordis/shared/` for shared settings or cross-cutting utilities. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, and `README.md` define tooling and local workflow.
+Application code lives under `src/cordis/`. Use `src/cordis/backend/` for the FastAPI service and backend-owned runtime concerns, and `src/cordis/cli/` for the Typer CLI and SDK. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, and `README.md` define tooling and local workflow.
 
 ## Build, Test, and Development Commands
 

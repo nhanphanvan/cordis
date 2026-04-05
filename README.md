@@ -61,7 +61,7 @@ make run-cli-help
 
 - `src/cordis/backend/`: FastAPI application, API routers, domain services, repositories, models, and storage integration
 - `src/cordis/cli/`: Typer CLI, SDK client, config handling, and transfer helpers
-- `src/cordis/shared/`: shared settings and cross-cutting utilities
+- `src/cordis/backend/`: includes backend settings, error contracts, and storage integration
 - `tests/backend/`: backend-focused tests
 - `tests/cli/`: CLI-focused tests
 

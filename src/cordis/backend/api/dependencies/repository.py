@@ -5,11 +5,11 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 from cordis.backend.api.dependencies.auth import bearer_scheme
 from cordis.backend.api.dependencies.database import get_uow
+from cordis.backend.errors import AuthenticationError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.services.auth import AuthService
 from cordis.backend.services.authorization import AuthorizationService, RepositoryAccessContext
-from cordis.shared.errors import AuthenticationError
 
 
 async def get_optional_current_user(

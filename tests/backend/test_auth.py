@@ -4,11 +4,11 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import User
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -35,7 +35,7 @@ async def _create_user(*, email: str, password: str, is_active: bool = True, is_
 def test_login_returns_bearer_token_for_valid_credentials(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-auth.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -54,7 +54,7 @@ def test_login_returns_bearer_token_for_valid_credentials(monkeypatch, tmp_path:
 def test_login_rejects_invalid_credentials(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-auth-invalid.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -73,7 +73,7 @@ def test_login_rejects_invalid_credentials(monkeypatch, tmp_path: Path) -> None:
 def test_current_user_endpoint_requires_valid_bearer_token(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-auth-me.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -103,7 +103,7 @@ def test_current_user_endpoint_requires_valid_bearer_token(monkeypatch, tmp_path
 def test_admin_endpoint_rejects_non_admin_users(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-auth-admin.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())

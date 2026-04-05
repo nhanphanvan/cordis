@@ -4,10 +4,10 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from cordis.backend.api.dependencies.database import get_uow
+from cordis.backend.errors import AuthenticationError, AuthorizationError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.services.auth import AuthService
-from cordis.shared.errors import AuthenticationError, AuthorizationError
 
 bearer_scheme = HTTPBearer(auto_error=False)
 

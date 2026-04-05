@@ -4,11 +4,11 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import Role, User
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -55,7 +55,7 @@ def _auth_header(client: TestClient, email: str, password: str) -> dict[str, str
 def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-repository-domain.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -114,7 +114,7 @@ def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_pat
 def test_owner_can_manage_repository_members(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-repository-members.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -165,7 +165,7 @@ def test_owner_can_manage_repository_members(monkeypatch, tmp_path: Path) -> Non
 def test_non_admin_cannot_create_repository(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-repository-create-denied.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())

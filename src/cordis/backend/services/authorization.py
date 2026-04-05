@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
+from cordis.backend.errors import AuthenticationError, AuthorizationError, NotFoundError
 from cordis.backend.models import Repository, RepositoryMember, User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.shared.errors import AuthenticationError, AuthorizationError, NotFoundError
 
 ROLE_RANK = {"viewer": 1, "developer": 2, "owner": 3}
 

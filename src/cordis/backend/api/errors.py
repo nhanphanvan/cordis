@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.responses import Response
 
-from cordis.shared.errors import CordisError
+from cordis.backend.errors import CordisError
 
 
 async def cordis_error_handler(_: Request, exc: CordisError) -> JSONResponse:

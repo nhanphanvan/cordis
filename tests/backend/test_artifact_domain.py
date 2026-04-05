@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -88,7 +88,7 @@ def test_developer_can_register_artifact_associate_it_with_version_and_list_vers
 ) -> None:
     db_path = tmp_path / "cordis-artifact-domain.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -142,7 +142,7 @@ def test_developer_can_register_artifact_associate_it_with_version_and_list_vers
 def test_resource_check_distinguishes_match_conflict_and_missing(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-resource-check.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -213,7 +213,7 @@ def test_resource_check_distinguishes_match_conflict_and_missing(monkeypatch, tm
 def test_viewer_can_read_artifacts_but_cannot_register_or_attach(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-artifact-rbac.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())

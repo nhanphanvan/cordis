@@ -1,15 +1,15 @@
 from fastapi import APIRouter
 
-from cordis.shared.settings import get_settings
-from cordis.shared.version import get_version_payload
+from cordis.backend.config import build_config
+from cordis.backend.versioning import get_version_payload
 
 router = APIRouter()
 
 
 @router.get("/healthz")
 async def healthcheck() -> dict[str, str]:
-    settings = get_settings()
-    return {"service": settings.app_name, "status": "ok"}
+    config = build_config()
+    return {"service": config.app.app_name, "status": "ok"}
 
 
 @router.get("/version")

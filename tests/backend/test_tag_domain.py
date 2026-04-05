@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -85,7 +85,7 @@ def _create_version(client: TestClient, headers: dict[str, str], repository_id: 
 def test_developer_can_create_get_list_lookup_and_delete_tags(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-tag-domain.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -139,7 +139,7 @@ def test_tag_name_must_be_unique_within_repository_and_version_must_match_reposi
 ) -> None:
     db_path = tmp_path / "cordis-tag-unique.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -190,7 +190,7 @@ def test_tag_name_must_be_unique_within_repository_and_version_must_match_reposi
 def test_viewer_can_read_but_cannot_create_or_delete_tags(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-tag-rbac.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())

@@ -1,6 +1,6 @@
+from cordis.backend.errors import ConflictError, NotFoundError
 from cordis.backend.models import Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.shared.errors import ConflictError, NotFoundError
 
 
 class VersionService:

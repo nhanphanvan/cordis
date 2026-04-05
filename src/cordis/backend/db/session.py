@@ -3,16 +3,21 @@ from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from cordis.shared.settings import Settings, get_settings
+from cordis.backend.config import DatabaseConfig, build_config
 
 
-def build_async_engine(settings: Settings) -> AsyncEngine:
-    return create_async_engine(settings.db_url, echo=settings.db_echo, future=True)
+def build_async_engine(config: DatabaseConfig) -> AsyncEngine:
+    return create_async_engine(
+        config.db_url,
+        echo=config.db_echo,
+        future=True,
+        **config.database_engine_args,
+    )
 
 
 @lru_cache(maxsize=1)
 def get_engine() -> AsyncEngine:
-    return build_async_engine(get_settings())
+    return build_async_engine(build_config().database)
 
 
 @lru_cache(maxsize=1)

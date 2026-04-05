@@ -14,7 +14,8 @@ This guide is for contributors working inside the Cordis repository.
 - `src/cordis/cli/sdk`: backend-facing client wrapper
 - `src/cordis/cli/config`: config and workspace-registration helpers
 - `src/cordis/cli/transfer`: local file and cache helpers
-- `src/cordis/shared`: shared settings and small cross-cutting contracts
+- `src/cordis/backend/settings.py`: backend runtime settings
+- `src/cordis/backend/errors.py`: backend error types and API-facing error semantics
 
 ## Quality Gates
 

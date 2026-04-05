@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.security.passwords import hash_password, verify_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -76,7 +76,7 @@ def _auth_header(client: TestClient, email: str, password: str) -> dict[str, str
 def test_user_self_service_and_repository_listing(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-user-surfaces.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -120,7 +120,7 @@ def test_user_self_service_and_repository_listing(monkeypatch, tmp_path: Path) -
 def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-admin-users.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -177,7 +177,7 @@ def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
 def test_admin_can_manage_roles(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-admin-roles.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -217,7 +217,7 @@ def test_admin_can_manage_roles(monkeypatch, tmp_path: Path) -> None:
 def test_admin_user_creation_hashes_password(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-admin-user-password.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())

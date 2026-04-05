@@ -1,7 +1,7 @@
 from functools import lru_cache
 
+from cordis.backend.errors import InfrastructureError
 from cordis.backend.storage.protocol import StorageAdapter
-from cordis.shared.errors import InfrastructureError
 
 
 @lru_cache(maxsize=1)

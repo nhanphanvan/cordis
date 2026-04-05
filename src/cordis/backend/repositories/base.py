@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cordis.backend.db.base import ModelBase
-from cordis.shared.errors import NotFoundError, ValidationError
+from cordis.backend.errors import NotFoundError, ValidationError
 
 
 class HasPrimaryKey(Protocol):

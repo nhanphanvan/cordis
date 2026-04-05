@@ -5,8 +5,8 @@ import json
 import time
 from typing import TypedDict
 
-from cordis.shared.errors import AuthenticationError
-from cordis.shared.settings import get_settings
+from cordis.backend.config import build_config
+from cordis.backend.errors import AuthenticationError
 
 
 class TokenPayload(TypedDict):
@@ -25,7 +25,7 @@ def _b64decode(value: str) -> bytes:
 
 
 def create_access_token(*, subject: str, is_admin: bool) -> str:
-    settings = get_settings()
+    config = build_config()
     payload = {
         "sub": subject,
         "is_admin": is_admin,
@@ -34,7 +34,7 @@ def create_access_token(*, subject: str, is_admin: bool) -> str:
     payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     payload_token = _b64encode(payload_bytes)
     signature = hmac.new(
-        settings.app_name.encode("utf-8"),
+        config.app.app_name.encode("utf-8"),
         payload_token.encode("utf-8"),
         hashlib.sha256,
     ).digest()
@@ -47,9 +47,9 @@ def decode_access_token(token: str) -> TokenPayload:
     except ValueError as error:
         raise AuthenticationError("Invalid bearer token") from error
 
-    settings = get_settings()
+    config = build_config()
     expected_signature = hmac.new(
-        settings.app_name.encode("utf-8"),
+        config.app.app_name.encode("utf-8"),
         payload_token.encode("utf-8"),
         hashlib.sha256,
     ).digest()

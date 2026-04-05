@@ -1,4 +1,4 @@
-from cordis.shared.errors import CordisError
+from cordis.backend.errors import CordisError
 
 
 class StorageObjectNotFoundError(CordisError):

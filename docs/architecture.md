@@ -6,9 +6,7 @@ Cordis is split into a backend service and a CLI surface.
 
 - `cordis.backend`: FastAPI application, domain services, persistence, storage integration, and API schemas
 - `cordis.cli`: Typer command surface, SDK client, config helpers, and transfer utilities
-- `cordis.shared`: cross-cutting settings and small shared contracts
-
-The backend owns repository, version, tag, artifact, and upload-session state. The CLI turns those capabilities into local operator workflows such as login, workspace registration, uploads, downloads, and cache-aware retrieval.
+The backend owns repository, version, tag, artifact, upload-session, runtime settings, and backend error contracts. The CLI turns those capabilities into local operator workflows such as login, workspace registration, uploads, downloads, and cache-aware retrieval.
 
 ## Backend Layers
 

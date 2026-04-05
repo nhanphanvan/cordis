@@ -1,11 +1,11 @@
 from typing import cast
 
+from cordis.backend.config import build_config
+from cordis.backend.errors import NotFoundError
 from cordis.backend.models import Artifact
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.storage import StorageObjectRef
 from cordis.backend.storage import factory as storage_factory
-from cordis.shared.errors import NotFoundError
-from cordis.shared.settings import get_settings
 
 
 class DownloadService:
@@ -32,7 +32,7 @@ class DownloadService:
 
     async def get_download_url(self, *, version_id: str, artifact_id: str) -> tuple[str, int]:
         artifact = await self.get_artifact_for_version(version_id=version_id, artifact_id=artifact_id)
-        expires_in = get_settings().storage_presign_expiry_seconds
+        expires_in = build_config().storage.presign_expiry_seconds
         url = storage_factory.get_storage_adapter().get_download_url(
             StorageObjectRef(
                 repository_id=artifact.repository_id,

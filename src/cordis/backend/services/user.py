@@ -1,7 +1,7 @@
+from cordis.backend.errors import ConflictError, NotFoundError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.errors import ConflictError, NotFoundError
 
 
 class UserService:

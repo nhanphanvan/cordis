@@ -1,12 +1,12 @@
 import uvicorn
 
 from cordis.backend.app import create_app
-from cordis.shared.settings import get_settings
+from cordis.backend.config import build_config
 
 
 def main() -> None:
-    settings = get_settings()
-    uvicorn.run(create_app(), host=settings.host, port=settings.port)
+    config = build_config()
+    uvicorn.run(create_app(), host=config.app.host, port=config.app.port)
 
 
 if __name__ == "__main__":

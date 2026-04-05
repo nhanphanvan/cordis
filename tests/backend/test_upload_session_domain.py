@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -116,7 +116,7 @@ class FakeStorageAdapter:
 def test_developer_can_create_resume_and_complete_upload_session(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-upload-session.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -196,7 +196,7 @@ def test_developer_can_create_resume_and_complete_upload_session(monkeypatch, tm
 def test_checksum_mismatch_marks_session_failed_without_version_artifact(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-upload-session-failed.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -247,7 +247,7 @@ def test_checksum_mismatch_marks_session_failed_without_version_artifact(monkeyp
 def test_developer_can_abort_upload_session(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-upload-session-abort.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())

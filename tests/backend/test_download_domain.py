@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from cordis.backend.app import create_app
+from cordis.backend.config import build_config
 from cordis.backend.db.base import ModelBase
 from cordis.backend.db.session import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.security.passwords import hash_password
-from cordis.shared.settings import get_settings
 
 
 async def _reset_database() -> None:
@@ -108,7 +108,7 @@ class FakeDownloadStorage:
 def test_viewer_can_lookup_version_artifact_by_path_and_request_download(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-download-domain.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -167,7 +167,7 @@ def test_viewer_can_lookup_version_artifact_by_path_and_request_download(monkeyp
 def test_anonymous_user_can_download_from_public_repository(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-download-public.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
@@ -207,7 +207,7 @@ def test_anonymous_user_can_download_from_public_repository(monkeypatch, tmp_pat
 def test_download_is_rejected_for_artifact_not_in_version(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-download-invalid-artifact.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    get_settings.cache_clear()
+    build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
