@@ -17,6 +17,13 @@ def test_shared_package_is_not_importable() -> None:
         importlib.import_module("cordis.shared")
 
 
+def test_cordis_package_is_root_level_not_src_layout() -> None:
+    package = importlib.import_module("cordis")
+    package_path = Path(package.__file__).resolve()
+
+    assert "src" not in package_path.parts
+
+
 def test_database_config_derives_async_and_sync_database_urls() -> None:
     database = DatabaseConfig(
         db_url="postgresql+asyncpg://user:password@localhost:5432/cordis",

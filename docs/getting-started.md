@@ -13,7 +13,7 @@ This guide gets a local Cordis environment running for development.
 make install
 ```
 
-Cordis expects local commands to run with `PYTHONPATH=src`. The `Makefile` already does this, so use the provided targets by default.
+Cordis expects local commands to run from the repo root. The `Makefile` already does this, so use the provided targets by default.
 
 ## Verify the Environment
 

@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Application code lives under `src/cordis/`. Use `src/cordis/backend/` for the FastAPI service and backend-owned runtime concerns, and `src/cordis/cli/` for the Typer CLI and SDK. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, and `README.md` define tooling and local workflow.
+Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI service and backend-owned runtime concerns, and `cordis/cli/` for the Typer CLI and SDK. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, and `README.md` define tooling and local workflow.
 
 ## Build, Test, and Development Commands
 
@@ -20,7 +20,7 @@ Target Python 3.10+ and use 4-space indentation. Prefer explicit type hints on p
 
 ## Testing Guidelines
 
-Pytest is the test framework. Add tests next to the relevant area using `test_*.py` filenames and behavior-focused names such as `test_version_command_prints_project_version`. Run `make test` for the full suite, or scope locally with `PYTHONPATH=src python3 -m poetry run pytest tests/backend/test_app.py -q`.
+Pytest is the test framework. Add tests next to the relevant area using `test_*.py` filenames and behavior-focused names such as `test_version_command_prints_project_version`. Run `make test` for the full suite, or scope locally with `python3 -m poetry run pytest tests/backend/test_app.py -q`.
 
 ## Commit & Pull Request Guidelines
 
@@ -28,4 +28,4 @@ Use short, imperative commit messages. The current history favors Conventional C
 
 ## Environment Notes
 
-Local commands intentionally use `PYTHONPATH=src` and module-based execution. Keep that pattern unless the Poetry environment setup changes, because this repository may be used from an already-active virtual environment. When documenting commands or examples, prefer the Make targets first and fall back to the module-based form only when extra detail matters.
+Local commands intentionally use module-based execution from the repo root. Keep that pattern unless the Poetry environment setup changes, because this repository may be used from an already-active virtual environment. When documenting commands or examples, prefer the Make targets first and fall back to the module-based form only when extra detail matters.

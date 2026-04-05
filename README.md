@@ -24,7 +24,7 @@ Install development and test dependencies with:
 make install
 ```
 
-If Poetry is running inside an already-active virtual environment, keep local commands module-based from `src/` instead of relying on editable-root installation.
+If Poetry is running inside an already-active virtual environment, keep local commands module-based from the repo root instead of relying on editable-root installation.
 
 ## Documentation
 
@@ -59,9 +59,9 @@ make run-cli-help
 
 ## Project Layout
 
-- `src/cordis/backend/`: FastAPI application, API routers, domain services, repositories, models, and storage integration
-- `src/cordis/cli/`: Typer CLI, SDK client, config handling, and transfer helpers
-- `src/cordis/backend/`: includes backend settings, error contracts, and storage integration
+- `cordis/backend/`: FastAPI application, API routers, domain services, repositories, models, and storage integration
+- `cordis/cli/`: Typer CLI, SDK client, config handling, and transfer helpers
+- `cordis/backend/`: includes backend settings, error contracts, and storage integration
 - `tests/backend/`: backend-focused tests
 - `tests/cli/`: CLI-focused tests
 

@@ -4,34 +4,34 @@ install:
 
 .PHONY: lint
 fix:
-	PYTHONPATH=src python3 -m poetry run ruff check --fix ${path}
+	python3 -m poetry run ruff check --fix ${path}
 
 .PHONY: lint
 lint:
 	python3 -m poetry check
-	PYTHONPATH=src python3 -m poetry run ruff check .
-	PYTHONPATH=src python3 -m poetry run pylint src
-	PYTHONPATH=src python3 -m poetry run mypy src
+	python3 -m poetry run ruff check .
+	python3 -m poetry run pylint cordis
+	python3 -m poetry run mypy cordis
 
 .PHONY: format
 format:
-	PYTHONPATH=src python3 -m poetry run ruff format .
+	python3 -m poetry run ruff format .
 
 .PHONY: typecheck
 typecheck:
-	PYTHONPATH=src python3 -m poetry run mypy src
+	python3 -m poetry run mypy cordis
 
 .PHONY: test
 test:
-	PYTHONPATH=src python3 -m poetry run pytest
+	python3 -m poetry run pytest
 
 .PHONY: run-backend
 run-backend:
-	PYTHONPATH=src python3 -m poetry run python -m cordis.backend
+	python3 -m poetry run python -m cordis.backend
 
 .PHONY: run-cli-help
 run-cli-help:
-	PYTHONPATH=src python3 -m poetry run python -m cordis.cli --help
+	python3 -m poetry run python -m cordis.cli --help
 
 .PHONY: clean
 clean:

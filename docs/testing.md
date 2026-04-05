@@ -27,9 +27,9 @@ make test
 Examples:
 
 ```bash
-PYTHONPATH=src python3 -m poetry run pytest tests/backend/test_auth.py -q
-PYTHONPATH=src python3 -m poetry run pytest tests/backend/test_repository_domain.py -q
-PYTHONPATH=src python3 -m poetry run pytest tests/cli/test_main.py -q
+python3 -m poetry run pytest tests/backend/test_auth.py -q
+python3 -m poetry run pytest tests/backend/test_repository_domain.py -q
+python3 -m poetry run pytest tests/cli/test_main.py -q
 ```
 
 ## What the Tests Cover

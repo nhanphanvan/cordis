@@ -1,25 +1,7 @@
 import logging
 from copy import copy
 
-try:
-    from colorama import Fore, Style
-except ImportError:  # pragma: no cover - environment dependent fallback
-    class _FallbackFore:
-        BLACK = ""
-        RED = ""
-        GREEN = ""
-        YELLOW = ""
-        BLUE = ""
-        MAGENTA = ""
-        CYAN = ""
-        WHITE = ""
-
-    class _FallbackStyle:
-        BRIGHT = ""
-        RESET_ALL = ""
-
-    Fore = _FallbackFore()
-    Style = _FallbackStyle()
+from colorama import Fore, Style
 
 
 class ColorFormatter(logging.Formatter):

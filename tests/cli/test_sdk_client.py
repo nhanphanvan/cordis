@@ -68,9 +68,7 @@ def test_download_version_uses_cached_file_before_remote_download(
 ) -> None:
     client = CordisClient(base_url="http://127.0.0.1:8000")
 
-    async def fake_list_version_artifacts(
-        self, *, repository_id: int, version_name: str
-    ) -> list[dict[str, object]]:
+    async def fake_list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
         assert repository_id == 7
         assert version_name == "v1"
         return [{"path": "models/file.bin", "checksum": "sha256:file", "size": 10}]

@@ -4,19 +4,19 @@ This guide is for contributors working inside the Cordis repository.
 
 ## Code Layout
 
-- `src/cordis/backend/api`: route definitions, dependencies, and API composition
-- `src/cordis/backend/services`: business logic and orchestration
-- `src/cordis/backend/repositories`: persistence access and unit-of-work boundary
-- `src/cordis/backend/models`: persistence models
-- `src/cordis/backend/schemas`: request and response contracts
-- `src/cordis/backend/storage`: storage abstraction and provider adapter
-- `src/cordis/backend/utils`: backend logging and utility helpers
-- `src/cordis/cli/commands`: Typer command definitions
-- `src/cordis/cli/sdk`: backend-facing client wrapper
-- `src/cordis/cli/config`: config and workspace-registration helpers
-- `src/cordis/cli/transfer`: local file and cache helpers
-- `src/cordis/backend/settings.py`: backend runtime settings
-- `src/cordis/backend/errors.py`: backend error types and API-facing error semantics
+- `cordis/backend/api`: route definitions, dependencies, and API composition
+- `cordis/backend/services`: business logic and orchestration
+- `cordis/backend/repositories`: persistence access and unit-of-work boundary
+- `cordis/backend/models`: persistence models
+- `cordis/backend/schemas`: request and response contracts
+- `cordis/backend/storage`: storage abstraction and provider adapter
+- `cordis/backend/utils`: backend logging and utility helpers
+- `cordis/cli/commands`: Typer command definitions
+- `cordis/cli/sdk`: backend-facing client wrapper
+- `cordis/cli/config`: config and workspace-registration helpers
+- `cordis/cli/transfer`: local file and cache helpers
+- `cordis/backend/settings.py`: backend runtime settings
+- `cordis/backend/errors.py`: backend error types and API-facing error semantics
 
 ## Quality Gates
 
