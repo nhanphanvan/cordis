@@ -8,7 +8,8 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/backend/services`: business logic and orchestration
 - `cordis/backend/repositories`: persistence access and unit-of-work boundary
 - `cordis/backend/models`: persistence models
-- `cordis/backend/schemas`: request and response contracts
+- `cordis/backend/schemas/requests`: request contracts
+- `cordis/backend/schemas/responses`: response contracts
 - `cordis/backend/storage`: storage abstraction and provider adapter
 - `cordis/backend/utils`: backend logging and utility helpers
 - `cordis/cli/commands`: Typer command definitions
@@ -38,7 +39,7 @@ make typecheck
 
 When adding backend functionality:
 
-1. add or update schemas for request and response contracts
+1. add or update schemas under `cordis/backend/schemas/requests` and `cordis/backend/schemas/responses`
 2. add service logic for workflow and domain rules
 3. add repository methods if persistence access changes
 4. add or update route handlers and dependencies

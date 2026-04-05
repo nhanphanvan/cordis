@@ -3,7 +3,8 @@ import logging
 from cordis.backend.exceptions import AppStatus, NotFoundError, UnauthorizedError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.auth import LoginRequest, TokenResponse
+from cordis.backend.schemas.requests.auth import LoginRequest
+from cordis.backend.schemas.responses.auth import TokenResponse
 from cordis.backend.security import create_access_token, decode_access_token, verify_password
 
 logger = logging.getLogger(__name__)

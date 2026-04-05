@@ -5,13 +5,12 @@ from fastapi import APIRouter, Depends
 from cordis.backend.api.dependencies import get_admin_user, get_current_user, get_uow
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.user import (
-    UserCreateRequest,
+from cordis.backend.schemas.requests.user import UserCreateRequest, UserUpdateRequest
+from cordis.backend.schemas.responses.user import (
     UserListResponse,
     UserRepositoryItem,
     UserRepositoryListResponse,
     UserResponse,
-    UserUpdateRequest,
 )
 from cordis.backend.services.user import UserService
 

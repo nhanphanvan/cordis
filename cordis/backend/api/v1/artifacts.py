@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends
 from cordis.backend.api.dependencies import get_current_user, get_optional_current_user, get_uow
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.artifact import ArtifactCreateRequest, ArtifactResponse
+from cordis.backend.schemas.requests.artifact import ArtifactCreateRequest
+from cordis.backend.schemas.responses.artifact import ArtifactResponse
 from cordis.backend.services.artifact import ArtifactService
 from cordis.backend.services.authorization import AuthorizationService
 

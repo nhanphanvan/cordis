@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends
 from cordis.backend.api.dependencies import get_admin_user, get_current_user, get_uow
 from cordis.backend.models import Role, User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.role import RoleCreateRequest, RoleListResponse, RoleResponse, RoleUpdateRequest
+from cordis.backend.schemas.requests.role import RoleCreateRequest, RoleUpdateRequest
+from cordis.backend.schemas.responses.role import RoleListResponse, RoleResponse
 from cordis.backend.services.role import RoleService
 
 router = APIRouter(prefix="/roles", tags=["roles"])

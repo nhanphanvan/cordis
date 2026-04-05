@@ -36,7 +36,8 @@ The backend registers centralized exception handling from `cordis.backend.except
 ### Models and schemas
 
 - `cordis.backend.models`: persistence models
-- `cordis.backend.schemas`: request and response contracts
+- `cordis.backend.schemas.requests`: request contracts
+- `cordis.backend.schemas.responses`: response contracts
 
 This keeps storage concerns separate from HTTP payload concerns.
 

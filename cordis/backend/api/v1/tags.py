@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, Query
 from cordis.backend.api.dependencies import get_current_user, get_optional_current_user, get_uow
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.tag import TagCreateRequest, TagResponse
+from cordis.backend.schemas.requests.tag import TagCreateRequest
+from cordis.backend.schemas.responses.tag import TagResponse
 from cordis.backend.services.authorization import AuthorizationService
 from cordis.backend.services.tag import TagService
 

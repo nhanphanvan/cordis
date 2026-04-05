@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends
 from cordis.backend.api.dependencies import get_admin_user, get_current_user, get_uow
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.auth import CurrentUserResponse, LoginRequest, TokenResponse
+from cordis.backend.schemas.requests.auth import LoginRequest
+from cordis.backend.schemas.responses.auth import CurrentUserResponse, TokenResponse
 from cordis.backend.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])

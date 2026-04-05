@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, Response, status
 from cordis.backend.api.dependencies import get_current_user, get_uow
 from cordis.backend.models import UploadSession, UploadSessionPart, User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.upload import (
+from cordis.backend.schemas.requests.upload import (
     UploadSessionCreateRequest,
     UploadSessionPartCreateRequest,
+)
+from cordis.backend.schemas.responses.upload import (
     UploadSessionPartResponse,
     UploadSessionResponse,
 )

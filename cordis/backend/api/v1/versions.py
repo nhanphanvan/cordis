@@ -9,13 +9,14 @@ from cordis.backend.api.dependencies import (
 )
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.artifact import (
+from cordis.backend.schemas.requests.artifact import VersionArtifactCreateRequest
+from cordis.backend.schemas.requests.version import VersionCreateRequest
+from cordis.backend.schemas.responses.artifact import (
     ArtifactDownloadResponse,
     ArtifactListResponse,
     ArtifactResponse,
-    VersionArtifactCreateRequest,
 )
-from cordis.backend.schemas.version import VersionCreateRequest, VersionResponse
+from cordis.backend.schemas.responses.version import VersionResponse
 from cordis.backend.services.authorization import AuthorizationService
 from cordis.backend.services.download import DownloadService
 from cordis.backend.services.version import VersionService

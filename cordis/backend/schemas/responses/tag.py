@@ -1,12 +1,6 @@
 from pydantic import BaseModel
 
 
-class TagCreateRequest(BaseModel):
-    repository_id: int
-    version_id: str
-    name: str
-
-
 class TagResponse(BaseModel):
     id: str
     repository_id: int

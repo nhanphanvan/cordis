@@ -8,6 +8,7 @@ Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI se
 
 - `make install`: install Poetry-managed dependencies for development and tests.
 - `make lint`: run `poetry check`, Ruff, Pylint, and MyPy.
+- `make fix`: run Ruff autofixes, then Black on `tests/` and `cordis/`.
 - `make format`: format the repository with Ruff.
 - `make typecheck`: run MyPy only.
 - `make test`: run the full pytest suite.
@@ -17,6 +18,20 @@ Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI se
 ## Coding Style & Naming Conventions
 
 Target Python 3.10+ and use 4-space indentation. Prefer explicit type hints on public functions and module boundaries. Follow existing naming patterns: `snake_case` for functions and modules, `PascalCase` for classes, and short, descriptive package names under `cordis`. Before finishing Python edits, also run `black --line-length=120 --target-version=py310 tests` and `black --line-length=120 --target-version=py310 cordis`. Formatting and static checks are enforced with Ruff, Pylint, and MyPy; run `make lint` before opening a change.
+
+## Preferred Backend Style
+
+When working on a backend project in this repository, follow these structural preferences:
+
+- keep a hard separation between `cordis/backend/` and `cordis/cli/`; do not reintroduce a shared package
+- use `cordis/backend/config.py` for typed backend configuration and keep `cordis/backend/settings.py` as the thin setup/bootstrap layer
+- keep engine and session wiring in `cordis/backend/database.py`, not in a nested `db/` package
+- use `cordis/backend/models/base.py` with `DatabaseModel` as the canonical model base
+- keep backend exceptions under `cordis/backend/exceptions/` with `app_status.py`, `exceptions.py`, and `exception_handlers.py`
+- use `cordis/backend/schemas/requests/` for request models and `cordis/backend/schemas/responses/` for response models
+- keep FastAPI routes thin, put workflow and business rules in services, and keep persistence access in repositories
+- backend utilities should stay backend-runtime-specific; CLI-specific helpers belong under `cordis/cli/`
+- prefer hard-cut refactors over temporary compatibility wrappers unless compatibility is explicitly required
 
 ## Testing Guidelines
 

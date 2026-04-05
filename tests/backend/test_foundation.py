@@ -28,6 +28,13 @@ def test_legacy_backend_error_modules_are_not_importable() -> None:
         importlib.import_module("cordis.backend.api.errors")
 
 
+def test_legacy_flat_schema_modules_are_not_importable() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.backend.schemas.auth")
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.backend.schemas.repository")
+
+
 def test_cordis_package_is_root_level_not_src_layout() -> None:
     package = importlib.import_module("cordis")
     package_path = Path(package.__file__).resolve()
@@ -124,3 +131,12 @@ def test_exceptions_package_exposes_app_status_and_handlers() -> None:
 
     assert hasattr(exceptions, "AppStatus")
     assert callable(exceptions.configure_exception_handlers)
+
+
+def test_schema_packages_expose_request_and_response_modules() -> None:
+    auth_requests = importlib.import_module("cordis.backend.schemas.requests.auth")
+    auth_responses = importlib.import_module("cordis.backend.schemas.responses.auth")
+
+    assert hasattr(auth_requests, "LoginRequest")
+    assert hasattr(auth_responses, "TokenResponse")
+    assert hasattr(auth_responses, "CurrentUserResponse")

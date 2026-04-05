@@ -11,19 +11,21 @@ from cordis.backend.api.dependencies import (
 )
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.repository import (
-    RepositoryAccessResponse,
+from cordis.backend.schemas.requests.repository import (
     RepositoryCreateRequest,
-    RepositoryListResponse,
-    RepositoryMemberItem,
     RepositoryMemberMutationRequest,
     RepositoryMemberRoleUpdateRequest,
-    RepositoryMembersResponse,
-    RepositoryResponse,
     RepositoryUpdateRequest,
 )
-from cordis.backend.schemas.tag import TagListResponse, TagResponse
-from cordis.backend.schemas.version import VersionListResponse, VersionResponse
+from cordis.backend.schemas.responses.repository import (
+    RepositoryAccessResponse,
+    RepositoryListResponse,
+    RepositoryMemberItem,
+    RepositoryMembersResponse,
+    RepositoryResponse,
+)
+from cordis.backend.schemas.responses.tag import TagListResponse, TagResponse
+from cordis.backend.schemas.responses.version import VersionListResponse, VersionResponse
 from cordis.backend.services.authorization import ROLE_RANK, RepositoryAccessContext
 from cordis.backend.services.repository import RepositoryService
 from cordis.backend.services.tag import TagService
