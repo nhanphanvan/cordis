@@ -3,6 +3,10 @@ install:
 	python3 -m poetry install --with dev,test --no-root
 
 .PHONY: lint
+fix:
+	PYTHONPATH=src python3 -m poetry run ruff check --fix ${path}
+
+.PHONY: lint
 lint:
 	python3 -m poetry check
 	PYTHONPATH=src python3 -m poetry run ruff check .
