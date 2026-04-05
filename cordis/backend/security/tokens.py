@@ -6,7 +6,7 @@ import time
 from typing import TypedDict
 
 from cordis.backend.config import build_config
-from cordis.backend.errors import AuthenticationError
+from cordis.backend.exceptions import AppStatus, UnauthorizedError
 
 
 class TokenPayload(TypedDict):
@@ -45,7 +45,7 @@ def decode_access_token(token: str) -> TokenPayload:
     try:
         payload_token, signature_token = token.split(".", maxsplit=1)
     except ValueError as error:
-        raise AuthenticationError("Invalid bearer token") from error
+        raise UnauthorizedError("Invalid bearer token", app_status=AppStatus.ERROR_INVALID_BEARER_TOKEN) from error
 
     config = build_config()
     expected_signature = hmac.new(
@@ -55,11 +55,11 @@ def decode_access_token(token: str) -> TokenPayload:
     ).digest()
     actual_signature = _b64decode(signature_token)
     if not hmac.compare_digest(expected_signature, actual_signature):
-        raise AuthenticationError("Invalid bearer token")
+        raise UnauthorizedError("Invalid bearer token", app_status=AppStatus.ERROR_INVALID_BEARER_TOKEN)
 
     payload = json.loads(_b64decode(payload_token).decode("utf-8"))
     if int(payload["exp"]) < int(time.time()):
-        raise AuthenticationError("Expired bearer token")
+        raise UnauthorizedError("Expired bearer token", app_status=AppStatus.ERROR_EXPIRED_BEARER_TOKEN)
     return {
         "sub": str(payload["sub"]),
         "is_admin": bool(payload["is_admin"]),

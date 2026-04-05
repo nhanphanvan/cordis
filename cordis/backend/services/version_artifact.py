@@ -1,6 +1,6 @@
 from typing import cast
 
-from cordis.backend.errors import ConflictError, NotFoundError, ValidationError
+from cordis.backend.exceptions import AppStatus, ConflictError, NotFoundError, UnprocessableEntityError
 from cordis.backend.models import Artifact, Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 
@@ -13,7 +13,10 @@ class VersionArtifactService:
         version = await self._get_version(version_id)
         artifact = await self._get_artifact(artifact_id)
         if artifact.repository_id != version.repository_id:
-            raise ValidationError("Artifact does not belong to version repository")
+            raise UnprocessableEntityError(
+                "Artifact does not belong to version repository",
+                app_status=AppStatus.ERROR_ARTIFACT_REPOSITORY_MISMATCH,
+            )
 
         existing_for_path = await self.uow.version_artifacts.get_for_version_and_path(
             version_id=version_id,
@@ -22,7 +25,10 @@ class VersionArtifactService:
         if existing_for_path is not None:
             if existing_for_path.artifact_id == artifact_id:
                 return cast(Artifact, existing_for_path.artifact)
-            raise ConflictError("Artifact path already exists in version")
+            raise ConflictError(
+                "Artifact path already exists in version",
+                app_status=AppStatus.ERROR_ARTIFACT_VERSION_PATH_CONFLICT,
+            )
 
         await self.uow.version_artifacts.create(version_id=version_id, artifact_id=artifact_id)
         await self.uow.commit()
@@ -57,11 +63,11 @@ class VersionArtifactService:
     async def _get_version(self, version_id: str) -> Version:
         version = await self.uow.versions.get(version_id)
         if version is None:
-            raise NotFoundError("Version not found")
+            raise NotFoundError("Version not found", app_status=AppStatus.ERROR_VERSION_NOT_FOUND)
         return version
 
     async def _get_artifact(self, artifact_id: str) -> Artifact:
         artifact = await self.uow.artifacts.get(artifact_id)
         if artifact is None:
-            raise NotFoundError("Artifact not found")
+            raise NotFoundError("Artifact not found", app_status=AppStatus.ERROR_ARTIFACT_NOT_FOUND)
         return artifact

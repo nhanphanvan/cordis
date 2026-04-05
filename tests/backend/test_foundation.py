@@ -21,6 +21,13 @@ def test_backend_db_package_is_not_importable() -> None:
         importlib.import_module("cordis.backend.db")
 
 
+def test_legacy_backend_error_modules_are_not_importable() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.backend.errors")
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.backend.api.errors")
+
+
 def test_cordis_package_is_root_level_not_src_layout() -> None:
     package = importlib.import_module("cordis")
     package_path = Path(package.__file__).resolve()
@@ -110,3 +117,10 @@ def test_database_module_exposes_async_session_helpers() -> None:
     assert callable(database.get_engine)
     assert callable(database.get_session_factory)
     assert callable(database.get_async_session)
+
+
+def test_exceptions_package_exposes_app_status_and_handlers() -> None:
+    exceptions = importlib.import_module("cordis.backend.exceptions")
+
+    assert hasattr(exceptions, "AppStatus")
+    assert callable(exceptions.configure_exception_handlers)

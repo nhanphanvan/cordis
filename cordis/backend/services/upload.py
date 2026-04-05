@@ -1,6 +1,6 @@
 import logging
 
-from cordis.backend.errors import ConflictError, NotFoundError, ValidationError
+from cordis.backend.exceptions import AppStatus, ConflictError, NotFoundError, UnprocessableEntityError
 from cordis.backend.models import UploadSession, UploadSessionPart
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.services.artifact import ArtifactService
@@ -33,9 +33,15 @@ class UploadService:
         version = await VersionService(self.uow).get_version(version_id)
         normalized_path = path.strip("/")
         if size < 0:
-            raise ValidationError("Upload size must be non-negative")
+            raise UnprocessableEntityError(
+                "Upload size must be non-negative",
+                app_status=AppStatus.ERROR_UPLOAD_SIZE_INVALID,
+            )
         if not normalized_path:
-            raise ValidationError("Upload path must not be empty")
+            raise UnprocessableEntityError(
+                "Upload path must not be empty",
+                app_status=AppStatus.ERROR_UPLOAD_PATH_INVALID,
+            )
 
         existing_status, _ = await VersionArtifactService(self.uow).check_resource(
             version_id=version_id,
@@ -44,9 +50,15 @@ class UploadService:
             size=size,
         )
         if existing_status == "exists":
-            raise ConflictError("Artifact already exists in version")
+            raise ConflictError(
+                "Artifact already exists in version",
+                app_status=AppStatus.ERROR_ARTIFACT_ALREADY_EXISTS_IN_VERSION,
+            )
         if existing_status == "conflict":
-            raise ConflictError("Artifact path already exists in version with different metadata")
+            raise ConflictError(
+                "Artifact path already exists in version with different metadata",
+                app_status=AppStatus.ERROR_ARTIFACT_VERSION_METADATA_CONFLICT,
+            )
 
         resumable = await self.uow.upload_sessions.get_resumable(
             version_id=version_id,
@@ -87,7 +99,7 @@ class UploadService:
     async def get_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
         session = await self.uow.upload_sessions.get(session_id)
         if session is None:
-            raise NotFoundError("Upload session not found")
+            raise NotFoundError("Upload session not found", app_status=AppStatus.ERROR_UPLOAD_SESSION_NOT_FOUND)
         parts = await self.uow.upload_session_parts.list_for_session(session_id)
         return session, parts
 
@@ -100,7 +112,10 @@ class UploadService:
     ) -> tuple[UploadSession, list[UploadSessionPart]]:
         session, _ = await self.get_session(session_id)
         if session.status in TERMINAL_UPLOAD_STATUSES:
-            raise ConflictError("Upload session is already terminal")
+            raise ConflictError(
+                "Upload session is already terminal",
+                app_status=AppStatus.ERROR_UPLOAD_SESSION_TERMINAL,
+            )
 
         uploaded_part = storage_factory.get_storage_adapter().upload_part(
             self._storage_ref(session),
@@ -130,9 +145,15 @@ class UploadService:
     async def complete_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
         session, parts = await self.get_session(session_id)
         if session.status in TERMINAL_UPLOAD_STATUSES:
-            raise ConflictError("Upload session is already terminal")
+            raise ConflictError(
+                "Upload session is already terminal",
+                app_status=AppStatus.ERROR_UPLOAD_SESSION_TERMINAL,
+            )
         if not parts:
-            raise ValidationError("Upload session has no uploaded parts")
+            raise UnprocessableEntityError(
+                "Upload session has no uploaded parts",
+                app_status=AppStatus.ERROR_UPLOAD_SESSION_NO_PARTS,
+            )
 
         session.status = "finalizing"
         await self.uow.flush()
@@ -155,7 +176,10 @@ class UploadService:
             session.error_message = "Checksum mismatch"
             await self.uow.commit()
             logger.error("Upload session failed session_id=%s reason=checksum_mismatch", session_id)
-            raise ConflictError("Completed upload checksum does not match expected checksum")
+            raise ConflictError(
+                "Completed upload checksum does not match expected checksum",
+                app_status=AppStatus.ERROR_UPLOAD_CHECKSUM_MISMATCH,
+            )
 
         artifact = await ArtifactService(self.uow).resolve_or_create_artifact(
             repository_id=session.repository_id,
@@ -177,7 +201,10 @@ class UploadService:
         if session.status == "aborted":
             return await self.get_session(session_id)
         if session.status == "completed":
-            raise ConflictError("Completed upload session cannot be aborted")
+            raise ConflictError(
+                "Upload session is already terminal",
+                app_status=AppStatus.ERROR_UPLOAD_SESSION_TERMINAL,
+            )
         storage_factory.get_storage_adapter().abort_multipart_upload(
             self._storage_ref(session),
             upload_id=session.upload_id,

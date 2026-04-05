@@ -1,6 +1,12 @@
 import logging
 
-from cordis.backend.errors import ConflictError, NotFoundError, ValidationError
+from cordis.backend.exceptions import (
+    AppStatus,
+    InternalServerError,
+    NotFoundError,
+    NotUniqueError,
+    UnprocessableEntityError,
+)
 from cordis.backend.models import Repository, RepositoryMember, User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 
@@ -21,12 +27,15 @@ class RepositoryService:
     ) -> Repository:
         existing, _ = await self.uow.repositories.list(limit=1000, offset=0)
         if any(repository.name == name for repository in existing):
-            raise ConflictError("Repository name already exists")
+            raise NotUniqueError(
+                "Repository name already exists",
+                app_status=AppStatus.ERROR_REPOSITORY_NAME_ALREADY_EXISTS,
+            )
 
         repository = await self.uow.repositories.create(name=name, description=description, is_public=is_public)
         owner_role = await self.uow.roles.get_by_name("owner")
         if owner_role is None:
-            raise ValidationError("Owner role is missing")
+            raise InternalServerError("Owner role is missing", app_status=AppStatus.ERROR_OWNER_ROLE_MISSING)
 
         await self.uow.repository_members.create(
             repository_id=repository.id,
@@ -46,7 +55,7 @@ class RepositoryService:
     async def get_repository(self, repository_id: int) -> Repository:
         repository = await self.uow.repositories.get(repository_id)
         if repository is None:
-            raise NotFoundError("Repository not found")
+            raise NotFoundError("Repository not found", app_status=AppStatus.ERROR_REPOSITORY_NOT_FOUND)
         return repository
 
     async def list_repositories(self) -> list[Repository]:
@@ -84,14 +93,20 @@ class RepositoryService:
             repository_id=repository_id,
         )
         if existing is not None:
-            raise ConflictError("Repository member already exists")
+            raise NotUniqueError(
+                "Repository member already exists",
+                app_status=AppStatus.ERROR_REPOSITORY_MEMBER_ALREADY_EXISTS,
+            )
 
         user = await self.uow.users.get(user_id)
         if user is None:
-            raise NotFoundError("User not found")
+            raise NotFoundError("User not found", app_status=AppStatus.ERROR_USER_NOT_FOUND)
         role = await self.uow.roles.get_by_name(role_name)
         if role is None:
-            raise ValidationError("Invalid repository role")
+            raise UnprocessableEntityError(
+                "Invalid repository role",
+                app_status=AppStatus.ERROR_REPOSITORY_ROLE_INVALID,
+            )
 
         membership = await self.uow.repository_members.create(
             repository_id=repository_id,
@@ -113,10 +128,13 @@ class RepositoryService:
             repository_id=repository_id,
         )
         if membership is None:
-            raise NotFoundError("Repository member not found")
+            raise NotFoundError("Repository member not found", app_status=AppStatus.ERROR_REPOSITORY_MEMBER_NOT_FOUND)
         role = await self.uow.roles.get_by_name(role_name)
         if role is None:
-            raise ValidationError("Invalid repository role")
+            raise UnprocessableEntityError(
+                "Invalid repository role",
+                app_status=AppStatus.ERROR_REPOSITORY_ROLE_INVALID,
+            )
 
         membership.role_id = role.id
         membership.role = role
@@ -135,7 +153,7 @@ class RepositoryService:
             repository_id=repository_id,
         )
         if membership is None:
-            raise NotFoundError("Repository member not found")
+            raise NotFoundError("Repository member not found", app_status=AppStatus.ERROR_REPOSITORY_MEMBER_NOT_FOUND)
         await self.uow.repository_members.delete(membership)
         await self.uow.commit()
         logger.info("Repository member removed repository_id=%s user_id=%s", repository_id, user_id)

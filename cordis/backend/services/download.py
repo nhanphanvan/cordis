@@ -2,7 +2,7 @@ import logging
 from typing import cast
 
 from cordis.backend.config import build_config
-from cordis.backend.errors import NotFoundError
+from cordis.backend.exceptions import AppStatus, NotFoundError
 from cordis.backend.models import Artifact
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.storage import StorageObjectRef
@@ -21,7 +21,7 @@ class DownloadService:
             path=path.strip("/"),
         )
         if association is None:
-            raise NotFoundError("Artifact not found in version")
+            raise NotFoundError("Artifact not found in version", app_status=AppStatus.ERROR_ARTIFACT_NOT_FOUND)
         return cast(Artifact, association.artifact)
 
     async def get_artifact_for_version(self, *, version_id: str, artifact_id: str) -> Artifact:
@@ -30,7 +30,7 @@ class DownloadService:
             artifact_id=artifact_id,
         )
         if association is None:
-            raise NotFoundError("Artifact not found in version")
+            raise NotFoundError("Artifact not found in version", app_status=AppStatus.ERROR_ARTIFACT_NOT_FOUND)
         return cast(Artifact, association.artifact)
 
     async def get_download_url(self, *, version_id: str, artifact_id: str) -> tuple[str, int]:

@@ -179,11 +179,17 @@ def test_tag_name_must_be_unique_within_repository_and_version_must_match_reposi
     assert first_response.status_code == 201
     assert duplicate_same_repo.status_code == 409
     assert duplicate_same_repo.json() == {
-        "error": {"code": "conflict", "message": "Tag name already exists in repository"},
+        "status_code": 409,
+        "app_status_code": 1501,
+        "message": "Tag name already exists in repository",
+        "detail": "Tag name already exists in repository",
     }
     assert wrong_repository_version.status_code == 422
     assert wrong_repository_version.json() == {
-        "error": {"code": "validation_error", "message": "Version does not belong to repository"},
+        "status_code": 422,
+        "app_status_code": 1502,
+        "message": "Version does not belong to repository",
+        "detail": "Version does not belong to repository",
     }
 
 

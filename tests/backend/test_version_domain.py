@@ -147,7 +147,10 @@ def test_version_name_must_be_unique_within_repository(monkeypatch, tmp_path: Pa
     assert first_response.status_code == 201
     assert duplicate_same_repo.status_code == 409
     assert duplicate_same_repo.json() == {
-        "error": {"code": "conflict", "message": "Version name already exists in repository"},
+        "status_code": 409,
+        "app_status_code": 1401,
+        "message": "Version name already exists in repository",
+        "detail": "Version name already exists in repository",
     }
     assert same_name_other_repo.status_code == 201
 

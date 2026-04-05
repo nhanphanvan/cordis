@@ -236,5 +236,5 @@ def test_download_is_rejected_for_artifact_not_in_version(monkeypatch, tmp_path:
     )
 
     assert download_response.status_code == 404
-    assert download_response.json()["error"]["code"] == "not_found"
+    assert download_response.json()["app_status_code"] == 1600
     assert fake_storage.calls == []

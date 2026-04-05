@@ -183,5 +183,8 @@ def test_non_admin_cannot_create_repository(monkeypatch, tmp_path: Path) -> None
 
     assert response.status_code == 403
     assert response.json() == {
-        "error": {"code": "authorization_error", "message": "Admin privileges required"},
+        "status_code": 403,
+        "app_status_code": 1005,
+        "message": "Admin privileges required",
+        "detail": "Admin privileges required",
     }

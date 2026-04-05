@@ -4,7 +4,7 @@ from typing import Any, Generic, Protocol, TypeVar, cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cordis.backend.errors import NotFoundError, ValidationError
+from cordis.backend.exceptions import AppStatus, NotFoundError, UnprocessableEntityError
 from cordis.backend.models.base import DatabaseModel
 
 
@@ -39,7 +39,10 @@ class BaseRepository(Generic[ModelType]):
 
     async def list(self, limit: int = 100, offset: int = 0) -> tuple[Sequence[ModelType], int]:
         if limit < 0 or offset < 0:
-            raise ValidationError("limit and offset must be non-negative")
+            raise UnprocessableEntityError(
+                "limit and offset must be non-negative",
+                app_status=AppStatus.ERROR_VALIDATION,
+            )
 
         items = (await self.session.execute(select(self.model).limit(limit).offset(offset))).scalars().all()
         total = await self.session.scalar(select(func.count()).select_from(self.model))  # pylint: disable=not-callable

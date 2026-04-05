@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cordis.backend.errors import AuthenticationError, AuthorizationError, NotFoundError
+from cordis.backend.exceptions import AppStatus, ForbiddenOperationError, NotFoundError, UnauthorizedError
 from cordis.backend.models import Repository, RepositoryMember, User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 
@@ -27,7 +27,7 @@ class AuthorizationService:
     ) -> RepositoryAccessContext:
         repository = await self.uow.repositories.get(repository_id)
         if repository is None:
-            raise NotFoundError("Repository not found")
+            raise NotFoundError("Repository not found", app_status=AppStatus.ERROR_REPOSITORY_NOT_FOUND)
 
         if current_user is not None and current_user.is_admin:
             return RepositoryAccessContext(repository=repository, membership=None, access=required_role)
@@ -46,11 +46,17 @@ class AuthorizationService:
             return RepositoryAccessContext(repository=repository, membership=membership, access="viewer")
 
         if current_user is None:
-            raise AuthenticationError("Missing bearer token")
+            raise UnauthorizedError("Missing bearer token", app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN)
 
         if role_name is None:
-            raise AuthorizationError("Repository access denied")
+            raise ForbiddenOperationError(
+                "Repository access denied",
+                app_status=AppStatus.ERROR_REPOSITORY_ACCESS_DENIED,
+            )
         if ROLE_RANK[role_name] < ROLE_RANK[required_role]:
-            raise AuthorizationError("Repository access denied")
+            raise ForbiddenOperationError(
+                "Repository access denied",
+                app_status=AppStatus.ERROR_REPOSITORY_ACCESS_DENIED,
+            )
 
         return RepositoryAccessContext(repository=repository, membership=membership, access=required_role)

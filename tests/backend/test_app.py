@@ -1,12 +1,12 @@
-import asyncio
 import logging
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cordis.backend.__main__ import main
-from cordis.backend.api.errors import cordis_error_handler
 from cordis.backend.app import create_app
-from cordis.backend.errors import AuthenticationError
+from cordis.backend.exceptions import AppStatus, UnauthorizedError, configure_exception_handlers
+from cordis.backend.exceptions.exception_handlers import _custom_unauthorized_error_handler
 
 
 def test_health_endpoint_reports_service_status() -> None:
@@ -87,14 +87,84 @@ def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch
 
 def test_cordis_error_handler_logs_exception(caplog) -> None:
     caplog.set_level(logging.ERROR)
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/auth-error",
+        "headers": [],
+        "query_string": b"",
+        "scheme": "http",
+        "server": ("testserver", 80),
+        "client": ("testclient", 50000),
+        "root_path": "",
+    }
+    from starlette.requests import Request
 
-    async def call_handler():
-        return await cordis_error_handler(
-            None,
-            AuthenticationError("Invalid credentials"),
-        )
-
-    response = asyncio.run(call_handler())
+    response = _custom_unauthorized_error_handler(
+        Request(scope),
+        UnauthorizedError("Invalid credentials", app_status=AppStatus.ERROR_INVALID_CREDENTIALS),
+    )
 
     assert response.status_code == 401
-    assert any("Invalid credentials" in message and "authentication_error" in message for message in caplog.messages)
+    assert any("Invalid credentials" in message and "1001" in message for message in caplog.messages)
+
+
+def test_backend_errors_use_app_status_payload() -> None:
+    app = FastAPI()
+    configure_exception_handlers(app)
+
+    @app.get("/auth-error")
+    async def auth_error() -> dict[str, str]:
+        raise UnauthorizedError("Invalid credentials", app_status=AppStatus.ERROR_INVALID_CREDENTIALS)
+
+    client = TestClient(app)
+
+    response = client.get("/auth-error")
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "status_code": 401,
+        "app_status_code": 1001,
+        "message": "Invalid credentials",
+        "detail": "Invalid credentials",
+    }
+
+
+def test_request_validation_errors_are_normalized() -> None:
+    app = FastAPI()
+    configure_exception_handlers(app)
+
+    @app.get("/typed")
+    async def typed(limit: int) -> dict[str, int]:
+        return {"limit": limit}
+
+    client = TestClient(app)
+
+    response = client.get("/typed", params={"limit": "oops"})
+
+    assert response.status_code == 422
+    assert response.json()["status_code"] == 422
+    assert response.json()["app_status_code"] == 1000
+    assert response.json()["message"] == "Validation error"
+    assert isinstance(response.json()["detail"], list)
+
+
+def test_unhandled_exceptions_are_normalized() -> None:
+    app = FastAPI()
+    configure_exception_handlers(app)
+
+    @app.get("/boom")
+    async def boom() -> dict[str, str]:
+        raise RuntimeError("boom")
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.get("/boom")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "status_code": 500,
+        "app_status_code": 500,
+        "message": "Internal server error",
+        "detail": "boom",
+    }

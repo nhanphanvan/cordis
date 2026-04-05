@@ -66,7 +66,10 @@ def test_login_rejects_invalid_credentials(monkeypatch, tmp_path: Path) -> None:
 
     assert response.status_code == 401
     assert response.json() == {
-        "error": {"code": "authentication_error", "message": "Invalid credentials"},
+        "status_code": 401,
+        "app_status_code": 1001,
+        "message": "Invalid credentials",
+        "detail": "Invalid credentials",
     }
 
 
@@ -96,7 +99,10 @@ def test_current_user_endpoint_requires_valid_bearer_token(monkeypatch, tmp_path
 
     assert invalid_response.status_code == 401
     assert invalid_response.json() == {
-        "error": {"code": "authentication_error", "message": "Invalid bearer token"},
+        "status_code": 401,
+        "app_status_code": 1002,
+        "message": "Invalid bearer token",
+        "detail": "Invalid bearer token",
     }
 
 
@@ -117,5 +123,8 @@ def test_admin_endpoint_rejects_non_admin_users(monkeypatch, tmp_path: Path) -> 
 
     assert response.status_code == 403
     assert response.json() == {
-        "error": {"code": "authorization_error", "message": "Admin privileges required"},
+        "status_code": 403,
+        "app_status_code": 1005,
+        "message": "Admin privileges required",
+        "detail": "Admin privileges required",
     }

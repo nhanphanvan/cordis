@@ -1,4 +1,4 @@
-from cordis.backend.errors import ConflictError, NotFoundError
+from cordis.backend.exceptions import AppStatus, NotFoundError, NotUniqueError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.security.passwords import hash_password
@@ -11,13 +11,13 @@ class UserService:
     async def get_user(self, user_id: int) -> User:
         user = await self.uow.users.get(user_id)
         if user is None:
-            raise NotFoundError("User not found")
+            raise NotFoundError("User not found", app_status=AppStatus.ERROR_USER_NOT_FOUND)
         return user
 
     async def get_user_by_email(self, email: str) -> User:
         user = await self.uow.users.get_by_email(email)
         if user is None:
-            raise NotFoundError("User not found")
+            raise NotFoundError("User not found", app_status=AppStatus.ERROR_USER_NOT_FOUND)
         return user
 
     async def list_users(self) -> list[User]:
@@ -36,7 +36,7 @@ class UserService:
         if email is not None and email != user.email:
             existing = await self.uow.users.get_by_email(email)
             if existing is not None and existing.id != user.id:
-                raise ConflictError("User email already exists")
+                raise NotUniqueError("User email already exists", app_status=AppStatus.ERROR_USER_EMAIL_ALREADY_EXISTS)
             user.email = email
         if is_active is not None:
             user.is_active = is_active
@@ -55,7 +55,7 @@ class UserService:
     ) -> User:
         existing = await self.uow.users.get_by_email(email)
         if existing is not None:
-            raise ConflictError("User email already exists")
+            raise NotUniqueError("User email already exists", app_status=AppStatus.ERROR_USER_EMAIL_ALREADY_EXISTS)
         user = await self.uow.users.create(
             email=email,
             password_hash=hash_password(password),

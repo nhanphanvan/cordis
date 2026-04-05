@@ -4,7 +4,9 @@ install:
 
 .PHONY: lint
 fix:
-	python3 -m poetry run ruff check --fix ${path}
+	python3 -m poetry run ruff check --fix .
+	python3 -m poetry run black --line-length=120 --target-version=py310 tests
+	python3 -m poetry run black --line-length=120 --target-version=py310 cordis
 
 .PHONY: lint
 lint:

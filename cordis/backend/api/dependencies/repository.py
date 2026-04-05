@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 from cordis.backend.api.dependencies.auth import bearer_scheme
 from cordis.backend.api.dependencies.database import get_uow
-from cordis.backend.errors import AuthenticationError
+from cordis.backend.exceptions import AppStatus, UnauthorizedError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.services.auth import AuthService
@@ -40,7 +40,7 @@ async def require_repository_developer(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> RepositoryAccessContext:
     if current_user is None:
-        raise AuthenticationError("Missing bearer token")
+        raise UnauthorizedError("Missing bearer token", app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN)
     return await AuthorizationService(uow).require_repository_access(
         repository_id=repository_id,
         required_role="developer",
@@ -54,7 +54,7 @@ async def require_repository_owner_or_admin(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> RepositoryAccessContext:
     if current_user is None:
-        raise AuthenticationError("Missing bearer token")
+        raise UnauthorizedError("Missing bearer token", app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN)
     return await AuthorizationService(uow).require_repository_access(
         repository_id=repository_id,
         required_role="owner",

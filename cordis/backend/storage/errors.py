@@ -1,31 +1,31 @@
-from cordis.backend.errors import CordisError
+from cordis.backend.exceptions import AppStatus, ConflictError, ExternalServiceError, NotFoundError
 
 
-class StorageObjectNotFoundError(CordisError):
+class StorageObjectNotFoundError(NotFoundError):
     def __init__(self, message: str = "Storage object not found") -> None:
-        super().__init__(code="storage_object_not_found", message=message, status_code=404)
+        super().__init__(message=message, app_status=AppStatus.ERROR_STORAGE_OBJECT_NOT_FOUND)
 
 
-class StorageConflictError(CordisError):
+class StorageConflictError(ConflictError):
     def __init__(self, message: str = "Storage object conflict") -> None:
-        super().__init__(code="storage_conflict", message=message, status_code=409)
+        super().__init__(message=message, app_status=AppStatus.ERROR_STORAGE_CONFLICT)
 
 
-class StorageMultipartStateError(CordisError):
+class StorageMultipartStateError(ConflictError):
     def __init__(self, message: str = "Storage multipart state invalid") -> None:
-        super().__init__(code="storage_multipart_state_error", message=message, status_code=409)
+        super().__init__(message=message, app_status=AppStatus.ERROR_STORAGE_MULTIPART_STATE_INVALID)
 
 
-class StorageAuthorizationError(CordisError):
+class StorageAuthorizationError(ExternalServiceError):
     def __init__(self, message: str = "Storage provider authorization failed") -> None:
-        super().__init__(code="storage_authorization_error", message=message, status_code=502)
+        super().__init__(message=message, app_status=AppStatus.ERROR_STORAGE_PROVIDER_AUTHORIZATION)
 
 
-class StorageTransientError(CordisError):
+class StorageTransientError(ExternalServiceError):
     def __init__(self, message: str = "Transient storage provider failure") -> None:
-        super().__init__(code="storage_transient_error", message=message, status_code=503)
+        super().__init__(message=message, app_status=AppStatus.ERROR_STORAGE_PROVIDER_TRANSIENT)
 
 
-class StorageProviderError(CordisError):
+class StorageProviderError(ExternalServiceError):
     def __init__(self, message: str = "Unrecoverable storage provider failure") -> None:
-        super().__init__(code="storage_provider_error", message=message, status_code=502)
+        super().__init__(message=message, app_status=AppStatus.ERROR_STORAGE_PROVIDER_FAILURE)

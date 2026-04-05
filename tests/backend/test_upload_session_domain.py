@@ -237,7 +237,7 @@ def test_checksum_mismatch_marks_session_failed_without_version_artifact(monkeyp
     version_artifacts_response = client.get(f"/api/v1/versions/{version_id}/artifacts", headers=headers)
 
     assert complete_response.status_code == 409
-    assert complete_response.json()["error"]["code"] == "conflict"
+    assert complete_response.json()["app_status_code"] == 1703
     assert get_response.status_code == 200
     assert get_response.json()["status"] == "failed"
     assert version_artifacts_response.status_code == 200

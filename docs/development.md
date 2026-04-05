@@ -16,7 +16,7 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/cli/config`: config and workspace-registration helpers
 - `cordis/cli/transfer`: local file and cache helpers
 - `cordis/backend/settings.py`: backend runtime settings
-- `cordis/backend/errors.py`: backend error types and API-facing error semantics
+- `cordis/backend/exceptions/`: app status catalog, backend exception types, and centralized exception handlers
 
 ## Quality Gates
 

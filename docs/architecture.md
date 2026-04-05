@@ -4,9 +4,9 @@ Cordis is split into a backend service and a CLI surface.
 
 ## High-Level Shape
 
-- `cordis.backend`: FastAPI application, domain services, persistence, storage integration, and API schemas
+- `cordis.backend`: FastAPI application, domain services, persistence, exception handling, storage integration, and API schemas
 - `cordis.cli`: Typer command surface, SDK client, config helpers, and transfer utilities
-The backend owns repository, version, tag, artifact, upload-session, runtime settings, and backend error contracts. The CLI turns those capabilities into local operator workflows such as login, workspace registration, uploads, downloads, and cache-aware retrieval.
+The backend owns repository, version, tag, artifact, upload-session, runtime settings, and app-status exception contracts. The CLI turns those capabilities into local operator workflows such as login, workspace registration, uploads, downloads, and cache-aware retrieval.
 
 ## Backend Layers
 
@@ -17,10 +17,9 @@ The backend owns repository, version, tag, artifact, upload-session, runtime set
 - route composition
 - dependency wiring
 - authentication and authorization entrypoints
-- exception mapping
 
 Versioned routes are mounted under `/api/v1`.
-Centralized error logging also happens at the API layer through the shared exception handler.
+The backend registers centralized exception handling from `cordis.backend.exceptions`, which also owns the app-status response contract and exception logging.
 
 ### Service layer
 
@@ -45,9 +44,13 @@ This keeps storage concerns separate from HTTP payload concerns.
 
 `cordis.backend.storage` defines the storage protocol, transfer-related types, and provider error mapping. The current implementation is S3-compatible, but the rest of the backend works against the adapter boundary rather than provider-specific calls.
 
+### Exceptions
+
+`cordis.backend.exceptions` defines the app-status catalog, backend exception classes, and FastAPI exception handlers. It normalizes domain errors, request validation errors, and uncaught exceptions into the same response contract.
+
 ### Utilities
 
-`cordis.backend.utils` currently holds backend logging helpers and an outbound HTTP utility. Logging is part of the active runtime path; the HTTP utility is not yet wired into production code because there is no current outbound HTTP integration in the backend.
+`cordis.backend.utils` currently holds backend logging helpers. Logging is part of the active runtime path and is initialized during backend startup.
 
 ## CLI Layers
 
@@ -58,6 +61,10 @@ This keeps storage concerns separate from HTTP payload concerns.
 ### SDK
 
 `cordis.cli.sdk` contains the backend-facing client wrapper used by the CLI. It centralizes HTTP request construction and higher-level transfer workflows.
+
+### CLI utilities
+
+`cordis.cli.utils` contains CLI-owned support code such as the shared HTTP transport used by the SDK.
 
 ### Config
 

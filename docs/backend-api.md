@@ -148,4 +148,17 @@ In broad terms:
 - repository visibility and membership determine viewer/developer/owner behavior
 - write operations use stronger access requirements than read operations
 
+Handled backend errors use a top-level app-status payload:
+
+```json
+{
+  "status_code": 404,
+  "app_status_code": 1100,
+  "message": "Repository not found",
+  "detail": "Repository not found"
+}
+```
+
+`message` comes from the backend app-status catalog. `detail` carries the context-specific exception detail or validation payload.
+
 For implementation details, read the route dependencies and service layer together with [Architecture](./architecture.md).
