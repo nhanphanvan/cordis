@@ -33,7 +33,7 @@ def test_login_persists_token_and_email(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
 
     class FakeClient:
-        def login(self, *, email: str, password: str) -> str:
+        async def login(self, *, email: str, password: str) -> str:
             assert email == "user@example.com"
             assert password == "password123"
             return "token-123"
@@ -101,7 +101,7 @@ def test_user_me_uses_sdk_client(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
 
     class FakeClient:
-        def get_me(self) -> dict[str, object]:
+        async def get_me(self) -> dict[str, object]:
             return {"id": 3, "email": "user@example.com"}
 
     monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
@@ -117,7 +117,7 @@ def test_repository_ls_uses_sdk_client(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
 
     class FakeClient:
-        def list_my_repositories(self) -> list[dict[str, object]]:
+        async def list_my_repositories(self) -> list[dict[str, object]]:
             return [{"repository_id": 7, "repository_name": "repo-one", "role_name": "developer"}]
 
     monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
@@ -134,7 +134,7 @@ def test_repository_create_prints_created_repository(monkeypatch, tmp_path: Path
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
 
     class FakeClient:
-        def create_repository(self, *, name: str, is_public: bool) -> dict[str, object]:
+        async def create_repository(self, *, name: str, is_public: bool) -> dict[str, object]:
             assert name == "repo-two"
             assert is_public is True
             return {"id": 8, "name": "repo-two", "is_public": True}
@@ -159,22 +159,22 @@ def test_tag_commands_use_registered_repository(monkeypatch, tmp_path: Path) -> 
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 7}), encoding="utf-8")
 
         class FakeClient:
-            def get_tag(self, *, repository_id: int, name: str) -> dict[str, object]:
+            async def get_tag(self, *, repository_id: int, name: str) -> dict[str, object]:
                 assert repository_id == 7
                 assert name == "stable"
                 return {"id": "tag-1", "name": "stable", "version_name": "v1"}
 
-            def list_tags(self, *, repository_id: int) -> list[dict[str, object]]:
+            async def list_tags(self, *, repository_id: int) -> list[dict[str, object]]:
                 assert repository_id == 7
                 return [{"id": "tag-1", "name": "stable", "version_name": "v1"}]
 
-            def create_tag(self, *, repository_id: int, version_name: str, name: str) -> dict[str, object]:
+            async def create_tag(self, *, repository_id: int, version_name: str, name: str) -> dict[str, object]:
                 assert repository_id == 7
                 assert version_name == "v1"
                 assert name == "stable"
                 return {"id": "tag-1", "name": "stable", "version_name": "v1"}
 
-            def delete_tag(self, *, repository_id: int, name: str) -> None:
+            async def delete_tag(self, *, repository_id: int, name: str) -> None:
                 assert repository_id == 7
                 assert name == "stable"
 
@@ -205,7 +205,7 @@ def test_resource_download_item_uses_registered_repository_and_version(monkeypat
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 9, "version": "v2"}), encoding="utf-8")
 
         class FakeClient:
-            def download_item(
+            async def download_item(
                 self,
                 *,
                 repository_id: int,
@@ -247,11 +247,11 @@ def test_repository_versions_and_users_use_registered_repository(monkeypatch, tm
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 12}), encoding="utf-8")
 
         class FakeClient:
-            def list_repository_versions(self, *, repository_id: int) -> list[dict[str, object]]:
+            async def list_repository_versions(self, *, repository_id: int) -> list[dict[str, object]]:
                 assert repository_id == 12
                 return [{"id": "version-1", "name": "v1"}]
 
-            def list_repository_members(self, *, repository_id: int) -> list[dict[str, object]]:
+            async def list_repository_members(self, *, repository_id: int) -> list[dict[str, object]]:
                 assert repository_id == 12
                 return [{"email": "user@example.com", "role": "developer"}]
 
@@ -277,17 +277,17 @@ def test_version_commands_use_registered_repository(monkeypatch, tmp_path: Path)
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 14}), encoding="utf-8")
 
         class FakeClient:
-            def get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+            async def get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
                 assert repository_id == 14
                 assert name == "v1"
                 return {"id": "version-1", "name": "v1"}
 
-            def create_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+            async def create_version(self, *, repository_id: int, name: str) -> dict[str, object]:
                 assert repository_id == 14
                 assert name == "v2"
                 return {"id": "version-2", "name": "v2"}
 
-            def delete_version(self, *, repository_id: int, name: str) -> None:
+            async def delete_version(self, *, repository_id: int, name: str) -> None:
                 assert repository_id == 14
                 assert name == "v2"
 
@@ -315,7 +315,7 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 9, "version": "v2"}), encoding="utf-8")
 
         class FakeClient:
-            def list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
+            async def list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
                 assert repository_id == 9
                 assert version_name == "v2"
                 return [
@@ -342,19 +342,19 @@ def test_repository_member_mutation_commands_use_registered_repository(monkeypat
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 21}), encoding="utf-8")
 
         class FakeClient:
-            def add_repository_member(self, *, repository_id: int, email: str, role: str) -> dict[str, object]:
+            async def add_repository_member(self, *, repository_id: int, email: str, role: str) -> dict[str, object]:
                 assert repository_id == 21
                 assert email == "user@example.com"
                 assert role == "developer"
                 return {"email": email, "role": role}
 
-            def update_repository_member(self, *, repository_id: int, email: str, role: str) -> dict[str, object]:
+            async def update_repository_member(self, *, repository_id: int, email: str, role: str) -> dict[str, object]:
                 assert repository_id == 21
                 assert email == "user@example.com"
                 assert role == "viewer"
                 return {"email": email, "role": role}
 
-            def delete_repository_member(self, *, repository_id: int, email: str) -> dict[str, object]:
+            async def delete_repository_member(self, *, repository_id: int, email: str) -> dict[str, object]:
                 assert repository_id == 21
                 assert email == "user@example.com"
                 return {"email": email, "role": "viewer"}
@@ -387,13 +387,13 @@ def test_user_listing_and_info_commands_use_sdk_client(monkeypatch, tmp_path: Pa
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
 
     class FakeClient:
-        def list_users(self) -> list[dict[str, object]]:
+        async def list_users(self) -> list[dict[str, object]]:
             return [
                 {"id": 1, "email": "admin@example.com", "is_admin": True},
                 {"id": 2, "email": "user@example.com", "is_admin": False},
             ]
 
-        def get_user_by_email(self, *, email: str) -> dict[str, object]:
+        async def get_user_by_email(self, *, email: str) -> dict[str, object]:
             assert email == "user@example.com"
             return {"id": 2, "email": "user@example.com", "is_admin": False}
 
@@ -423,12 +423,12 @@ def test_repository_create_and_delete_version_commands_use_registered_repository
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 15}), encoding="utf-8")
 
         class FakeClient:
-            def create_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+            async def create_version(self, *, repository_id: int, name: str) -> dict[str, object]:
                 assert repository_id == 15
                 assert name == "v3"
                 return {"id": "version-3", "name": "v3"}
 
-            def delete_version(self, *, repository_id: int, name: str) -> None:
+            async def delete_version(self, *, repository_id: int, name: str) -> None:
                 assert repository_id == 15
                 assert name == "v3"
 
@@ -453,12 +453,12 @@ def test_repository_update_and_delete_use_registered_repository(monkeypatch, tmp
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 31}), encoding="utf-8")
 
         class FakeClient:
-            def update_repository(self, *, repository_id: int, is_public: bool) -> dict[str, object]:
+            async def update_repository(self, *, repository_id: int, is_public: bool) -> dict[str, object]:
                 assert repository_id == 31
                 assert is_public is True
                 return {"id": 31, "name": "repo-31", "is_public": True}
 
-            def delete_repository(self, *, repository_id: int) -> dict[str, object]:
+            async def delete_repository(self, *, repository_id: int) -> dict[str, object]:
                 assert repository_id == 31
                 return {"id": 31, "name": "repo-31"}
 
@@ -488,7 +488,7 @@ def test_resource_upload_uses_registered_repository_and_version(monkeypatch, tmp
         (upload_dir / "file.txt").write_text("hello", encoding="utf-8")
 
         class FakeClient:
-            def upload_directory(
+            async def upload_directory(
                 self,
                 *,
                 repository_id: int,
@@ -523,7 +523,7 @@ def test_resource_upload_can_create_missing_version(monkeypatch, tmp_path: Path)
         (upload_dir / "file.txt").write_text("hello", encoding="utf-8")
 
         class FakeClient:
-            def upload_directory(
+            async def upload_directory(
                 self,
                 *,
                 repository_id: int,
@@ -555,7 +555,13 @@ def test_resource_download_uses_registered_repository_and_version(monkeypatch, t
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 42, "version": "v6"}), encoding="utf-8")
 
         class FakeClient:
-            def download_version(self, *, repository_id: int, version_name: str, save_dir: str) -> dict[str, object]:
+            async def download_version(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                save_dir: str,
+            ) -> dict[str, object]:
                 assert repository_id == 42
                 assert version_name == "v6"
                 assert save_dir == "downloads"
@@ -568,3 +574,21 @@ def test_resource_download_uses_registered_repository_and_version(monkeypatch, t
         assert result.exit_code == 0
         assert "models/a.bin" in result.stdout
         assert "README.md" in result.stdout
+
+
+def test_login_command_awaits_async_client_call(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    calls: list[tuple[str, str]] = []
+
+    class FakeClient:
+        async def login(self, *, email: str, password: str) -> str:
+            calls.append((email, password))
+            return "token-async"
+
+    monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["login", "--email", "async@example.com", "--password", "secret"])
+
+    assert result.exit_code == 0
+    assert calls == [("async@example.com", "secret")]

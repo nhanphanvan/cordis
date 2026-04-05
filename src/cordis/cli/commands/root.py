@@ -1,3 +1,7 @@
+import asyncio
+from collections.abc import Coroutine
+from typing import Any, TypeVar
+
 import typer
 from typer import Context
 
@@ -19,6 +23,11 @@ repository_app = typer.Typer(help="Repository commands.")
 resource_app = typer.Typer(help="Resource transfer commands.")
 tag_app = typer.Typer(help="Tag commands.")
 version_app = typer.Typer(help="Version commands.", invoke_without_command=True)
+T = TypeVar("T")
+
+
+def run_async(awaitable: Coroutine[Any, Any, T]) -> T:
+    return asyncio.run(awaitable)
 
 
 @app.callback()
@@ -41,7 +50,7 @@ def login(
     if endpoint is not None:
         update_config_value(get_global_config_path(), "endpoint", endpoint)
     client = get_client()
-    token = client.login(email=email, password=password)
+    token = str(run_async(client.login(email=email, password=password)))
     update_config_value(get_global_config_path(), "token", token)
     update_config_value(get_global_config_path(), "email", email)
     typer.echo("Login successfully")
@@ -81,20 +90,20 @@ def tag() -> None:
 
 @user_app.command("me")
 def user_me() -> None:
-    me = get_client().get_me()
+    me = run_async(get_client().get_me())
     typer.echo(f"{me['id']} {me['email']}")
 
 
 @user_app.command("ls")
 def list_users_command() -> None:
-    items = get_client().list_users()
+    items = run_async(get_client().list_users())
     for item in items:
         typer.echo(f"{item['id']} {item['email']} admin={item['is_admin']}")
 
 
 @user_app.command("info")
 def get_user_info(email: str = typer.Option(..., "--email")) -> None:
-    item = get_client().get_user_by_email(email=email)
+    item = run_async(get_client().get_user_by_email(email=email))
     typer.echo(f"{item['id']} {item['email']} admin={item['is_admin']}")
 
 
@@ -143,7 +152,7 @@ def _get_registered_version(explicit_version: str | None = None) -> str:
 
 @repository_app.command("ls")
 def list_repositories() -> None:
-    items = get_client().list_my_repositories()
+    items = run_async(get_client().list_my_repositories())
     for item in items:
         typer.echo(f"{item['repository_id']} {item['repository_name']} {item['role_name']}")
 
@@ -153,7 +162,7 @@ def create_repository(
     name: str = typer.Option(..., "--name"),
     public: bool = typer.Option(False, "--public"),
 ) -> None:
-    created = get_client().create_repository(name=name, is_public=public)
+    created = run_async(get_client().create_repository(name=name, is_public=public))
     typer.echo(f"{created['id']} {created['name']} public={created['is_public']}")
 
 
@@ -162,22 +171,24 @@ def update_repository_command(
     public: bool = typer.Option(False, "--public"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    item = get_client().update_repository(
-        repository_id=_get_registered_repo_id(repo_id),
-        is_public=public,
+    item = run_async(
+        get_client().update_repository(
+            repository_id=_get_registered_repo_id(repo_id),
+            is_public=public,
+        )
     )
     typer.echo(f"{item['id']} {item['name']} public={item['is_public']}")
 
 
 @repository_app.command("delete")
 def delete_repository_command(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
-    item = get_client().delete_repository(repository_id=_get_registered_repo_id(repo_id))
+    item = run_async(get_client().delete_repository(repository_id=_get_registered_repo_id(repo_id)))
     typer.echo(f"{item['id']} {item['name']} deleted")
 
 
 @repository_app.command("versions")
 def repository_versions(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
-    items = get_client().list_repository_versions(repository_id=_get_registered_repo_id(repo_id))
+    items = run_async(get_client().list_repository_versions(repository_id=_get_registered_repo_id(repo_id)))
     for item in items:
         typer.echo(f"{item['id']} {item['name']}")
 
@@ -187,7 +198,7 @@ def repository_create_version(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    version_item = get_client().create_version(repository_id=_get_registered_repo_id(repo_id), name=name)
+    version_item = run_async(get_client().create_version(repository_id=_get_registered_repo_id(repo_id), name=name))
     typer.echo(f"{version_item['id']} {version_item['name']}")
 
 
@@ -196,13 +207,13 @@ def repository_delete_version(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    get_client().delete_version(repository_id=_get_registered_repo_id(repo_id), name=name)
+    run_async(get_client().delete_version(repository_id=_get_registered_repo_id(repo_id), name=name))
     typer.echo(f"Version {name} deleted")
 
 
 @repository_app.command("users")
 def repository_users(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
-    items = get_client().list_repository_members(repository_id=_get_registered_repo_id(repo_id))
+    items = run_async(get_client().list_repository_members(repository_id=_get_registered_repo_id(repo_id)))
     for item in items:
         typer.echo(f"{item['email']} {item['role']}")
 
@@ -213,10 +224,12 @@ def repository_add_user(
     role: str = typer.Option(..., "--role"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    item = get_client().add_repository_member(
-        repository_id=_get_registered_repo_id(repo_id),
-        email=email,
-        role=role,
+    item = run_async(
+        get_client().add_repository_member(
+            repository_id=_get_registered_repo_id(repo_id),
+            email=email,
+            role=role,
+        )
     )
     typer.echo(f"{item['email']} {item['role']}")
 
@@ -227,10 +240,12 @@ def repository_update_user(
     role: str = typer.Option(..., "--role"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    item = get_client().update_repository_member(
-        repository_id=_get_registered_repo_id(repo_id),
-        email=email,
-        role=role,
+    item = run_async(
+        get_client().update_repository_member(
+            repository_id=_get_registered_repo_id(repo_id),
+            email=email,
+            role=role,
+        )
     )
     typer.echo(f"{item['email']} {item['role']}")
 
@@ -240,16 +255,18 @@ def repository_delete_user(
     email: str = typer.Option(..., "--email"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    item = get_client().delete_repository_member(
-        repository_id=_get_registered_repo_id(repo_id),
-        email=email,
+    item = run_async(
+        get_client().delete_repository_member(
+            repository_id=_get_registered_repo_id(repo_id),
+            email=email,
+        )
     )
     typer.echo(f"{item['email']} removed")
 
 
 @tag_app.command("ls")
 def list_tags(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
-    items = get_client().list_tags(repository_id=_get_registered_repo_id(repo_id))
+    items = run_async(get_client().list_tags(repository_id=_get_registered_repo_id(repo_id)))
     for item in items:
         typer.echo(f"{item['id']} {item['name']} {item['version_name']}")
 
@@ -259,7 +276,7 @@ def get_tag(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    tag_item = get_client().get_tag(repository_id=_get_registered_repo_id(repo_id), name=name)
+    tag_item = run_async(get_client().get_tag(repository_id=_get_registered_repo_id(repo_id), name=name))
     typer.echo(f"{tag_item['id']} {tag_item['name']} {tag_item['version_name']}")
 
 
@@ -269,10 +286,12 @@ def create_tag(
     version_name: str = typer.Option(..., "--version"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    tag_item = get_client().create_tag(
-        repository_id=_get_registered_repo_id(repo_id),
-        version_name=version_name,
-        name=name,
+    tag_item = run_async(
+        get_client().create_tag(
+            repository_id=_get_registered_repo_id(repo_id),
+            version_name=version_name,
+            name=name,
+        )
     )
     typer.echo(f"{tag_item['id']} {tag_item['name']} {tag_item['version_name']}")
 
@@ -282,7 +301,7 @@ def delete_tag(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    get_client().delete_tag(repository_id=_get_registered_repo_id(repo_id), name=name)
+    run_async(get_client().delete_tag(repository_id=_get_registered_repo_id(repo_id), name=name))
     typer.echo(f"Tag {name} deleted")
 
 
@@ -291,9 +310,11 @@ def list_resources(
     repo_id: int | None = typer.Option(None, "--repo-id"),
     version_name: str | None = typer.Option(None, "--version"),
 ) -> None:
-    items = get_client().list_version_artifacts(
-        repository_id=_get_registered_repo_id(repo_id),
-        version_name=_get_registered_version(version_name),
+    items = run_async(
+        get_client().list_version_artifacts(
+            repository_id=_get_registered_repo_id(repo_id),
+            version_name=_get_registered_version(version_name),
+        )
     )
     for item in items:
         typer.echo(f"{item['path']} {item['checksum']} {item['size']}")
@@ -305,10 +326,12 @@ def download_resources(
     repo_id: int | None = typer.Option(None, "--repo-id"),
     version_name: str | None = typer.Option(None, "--version"),
 ) -> None:
-    result = get_client().download_version(
-        repository_id=_get_registered_repo_id(repo_id),
-        version_name=_get_registered_version(version_name),
-        save_dir=path,
+    result = run_async(
+        get_client().download_version(
+            repository_id=_get_registered_repo_id(repo_id),
+            version_name=_get_registered_version(version_name),
+            save_dir=path,
+        )
     )
     for item in result["downloaded"]:
         typer.echo(item)
@@ -321,11 +344,13 @@ def upload_resources(
     repo_id: int | None = typer.Option(None, "--repo-id"),
     version_name: str | None = typer.Option(None, "--version"),
 ) -> None:
-    result = get_client().upload_directory(
-        repository_id=_get_registered_repo_id(repo_id),
-        version_name=_get_registered_version(version_name),
-        folder_path=path,
-        create_version_if_missing=create_version,
+    result = run_async(
+        get_client().upload_directory(
+            repository_id=_get_registered_repo_id(repo_id),
+            version_name=_get_registered_version(version_name),
+            folder_path=path,
+            create_version_if_missing=create_version,
+        )
     )
     for item in result["uploaded"]:
         typer.echo(item)
@@ -338,11 +363,13 @@ def download_item(
     repo_id: int | None = typer.Option(None, "--repo-id"),
     version_name: str | None = typer.Option(None, "--version"),
 ) -> None:
-    result = get_client().download_item(
-        repository_id=_get_registered_repo_id(repo_id),
-        version_name=_get_registered_version(version_name),
-        path=path,
-        save_path=save_path,
+    result = run_async(
+        get_client().download_item(
+            repository_id=_get_registered_repo_id(repo_id),
+            version_name=_get_registered_version(version_name),
+            path=path,
+            save_path=save_path,
+        )
     )
     typer.echo(result["download_url"])
 
@@ -352,7 +379,7 @@ def get_version_command(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    version_item = get_client().get_version(repository_id=_get_registered_repo_id(repo_id), name=name)
+    version_item = run_async(get_client().get_version(repository_id=_get_registered_repo_id(repo_id), name=name))
     typer.echo(f"{version_item['id']} {version_item['name']}")
 
 
@@ -361,7 +388,7 @@ def create_version_command(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    version_item = get_client().create_version(repository_id=_get_registered_repo_id(repo_id), name=name)
+    version_item = run_async(get_client().create_version(repository_id=_get_registered_repo_id(repo_id), name=name))
     typer.echo(f"{version_item['id']} {version_item['name']}")
 
 
@@ -370,7 +397,7 @@ def delete_version_command(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
 ) -> None:
-    get_client().delete_version(repository_id=_get_registered_repo_id(repo_id), name=name)
+    run_async(get_client().delete_version(repository_id=_get_registered_repo_id(repo_id), name=name))
     typer.echo(f"Version {name} deleted")
 
 

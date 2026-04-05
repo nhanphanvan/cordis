@@ -20,6 +20,7 @@ The backend owns repository, version, tag, artifact, upload-session, runtime set
 - exception mapping
 
 Versioned routes are mounted under `/api/v1`.
+Centralized error logging also happens at the API layer through the shared exception handler.
 
 ### Service layer
 
@@ -43,6 +44,10 @@ This keeps storage concerns separate from HTTP payload concerns.
 ### Storage boundary
 
 `cordis.backend.storage` defines the storage protocol, transfer-related types, and provider error mapping. The current implementation is S3-compatible, but the rest of the backend works against the adapter boundary rather than provider-specific calls.
+
+### Utilities
+
+`cordis.backend.utils` currently holds backend logging helpers and an outbound HTTP utility. Logging is part of the active runtime path; the HTTP utility is not yet wired into production code because there is no current outbound HTTP integration in the backend.
 
 ## CLI Layers
 

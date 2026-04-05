@@ -20,6 +20,7 @@ Current settings:
 - `CORDIS_DB_MAX_OVERFLOW`
 - `CORDIS_DB_POOL_TIMEOUT`
 - `CORDIS_DB_POOL_RECYCLE`
+- `CORDIS_LOG_LEVEL`
 - `CORDIS_HOST`
 - `CORDIS_PORT`
 - `CORDIS_STORAGE_PROVIDER`
@@ -37,6 +38,7 @@ Important defaults:
 - API prefix: `/api/v1`
 - default host: `127.0.0.1`
 - default port: `8000`
+- default log level: `INFO`
 - default database URL: `sqlite+aiosqlite:///./.cordis/cordis.db`
 - default storage provider: `s3`
 - default storage bucket: `cordis-artifacts`
@@ -47,6 +49,8 @@ The database configuration also exposes a computed `database_engine_args` proper
 
 - PostgreSQL-style URLs use the full pool tuning surface
 - SQLite URLs use a reduced SQLite-safe subset
+
+Backend process logging is configured during startup from `CORDIS_LOG_LEVEL`. The backend uses the logging helper under `cordis.backend.utils.logging` for console output and key application workflow logs.
 
 ## CLI Configuration
 
