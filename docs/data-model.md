@@ -1,0 +1,62 @@
+# Data Model
+
+Cordis revolves around repositories, versioned content, and transfer sessions.
+
+## Core Entities
+
+### User
+
+A user can authenticate, access repositories, and perform CLI or API workflows. Users can also be marked as admins.
+
+### Role
+
+Roles define repository-scoped access levels. In practice the main access levels are viewer, developer, and owner, with admin as a system-level override.
+
+### Repository
+
+A repository is the main ownership and authorization boundary. It has a name, optional description, and visibility policy.
+
+### Repository Membership
+
+A repository membership links a user to a repository with a role. Membership controls read and write access within that repository.
+
+### Version
+
+A version is a named snapshot-like grouping of artifact associations within a repository. Versions are repository-scoped and are the main unit for upload and download workflows.
+
+### Version Tag
+
+A version tag binds a stable name to a repository-scoped version.
+
+### Artifact
+
+An artifact represents file content metadata such as path, checksum, size, and repository ownership.
+
+### Version Artifact
+
+A version-artifact link associates an artifact to a specific version. This is what makes content visible as part of a version’s downloadable contents.
+
+### Upload Session
+
+An upload session tracks an in-progress or completed content upload for a target version and path. It stores workflow state, expected checksum, size, and storage-side upload identifiers.
+
+### Upload Session Part
+
+An upload session part records uploaded multipart progress for resumable uploads.
+
+## Relationship Summary
+
+- a repository has many versions
+- a repository has many members
+- a repository has many artifacts
+- a version belongs to one repository
+- a tag belongs to one repository and points to one version
+- a version can have many artifacts through version-artifact associations
+- an upload session belongs to one repository/version target and can have many uploaded parts
+
+## Why the Boundaries Matter
+
+- repository boundaries drive authorization
+- version boundaries drive content lifecycle and retrieval
+- artifact metadata lets content be reasoned about independently from storage transport
+- upload sessions make large-file workflows explicit and resumable
