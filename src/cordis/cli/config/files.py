@@ -1,0 +1,81 @@
+import json
+import os
+import shutil
+from pathlib import Path
+from typing import Any, cast
+
+
+def get_cordis_home() -> Path:
+    return Path(os.environ.get("CORDIS_HOME", Path.home() / ".cordis"))
+
+
+def get_global_config_path() -> Path:
+    return get_cordis_home() / "config.json"
+
+
+def get_cache_dir() -> Path:
+    return get_cordis_home() / "cache"
+
+
+def get_project_config_dir() -> Path:
+    return Path.cwd() / ".cordis"
+
+
+def get_project_config_path() -> Path:
+    return get_project_config_dir() / "config.json"
+
+
+def ensure_global_config() -> Path:
+    config_path = get_global_config_path()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    get_cache_dir().mkdir(parents=True, exist_ok=True)
+    if not config_path.exists():
+        config_path.write_text("{}", encoding="utf-8")
+    return config_path
+
+
+def ensure_project_config() -> Path:
+    config_path = get_project_config_path()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    if not config_path.exists():
+        config_path.write_text("{}", encoding="utf-8")
+    return config_path
+
+
+def read_config(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+
+
+def write_config(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=True, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def update_config_value(path: Path, field: str, value: Any) -> None:
+    data = read_config(path)
+    data[field] = value
+    write_config(path, data)
+
+
+def remove_config_value(path: Path, field: str) -> None:
+    data = read_config(path)
+    data.pop(field, None)
+    write_config(path, data)
+
+
+def clear_project_registration() -> None:
+    config_path = get_project_config_path()
+    if config_path.exists():
+        config_path.unlink()
+    config_dir = get_project_config_dir()
+    if config_dir.exists() and not any(config_dir.iterdir()):
+        config_dir.rmdir()
+
+
+def clean_cache() -> None:
+    cache_dir = get_cache_dir()
+    if cache_dir.exists():
+        shutil.rmtree(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
