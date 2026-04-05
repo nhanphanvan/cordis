@@ -69,7 +69,14 @@ def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch
     fake_config = type(
         "FakeConfig",
         (),
-        {"app": type("FakeAppConfig", (), {"log_level": "WARNING"})()},
+        {
+            "app": type("FakeAppConfig", (), {"log_level": "WARNING"})(),
+            "security": type(
+                "FakeSecurityConfig",
+                (),
+                {"secret_key": "secret-key", "jwt_algorithm": "HS256", "access_token_expire_minutes": 90},
+            )(),
+        },
     )()
 
     monkeypatch.setattr("cordis.backend.settings.build_config", lambda: fake_config)
@@ -77,12 +84,26 @@ def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch
         "cordis.backend.settings.setup_logging",
         lambda *, log_level: calls.append(("setup_logging", log_level)),
     )
+    monkeypatch.setattr(
+        "cordis.backend.settings.setup_security",
+        lambda **kwargs: calls.append(("setup_security", kwargs)),
+    )
 
     from cordis.backend.settings import setup
 
     setup()
 
-    assert calls == [("setup_logging", "WARNING")]
+    assert calls == [
+        ("setup_logging", "WARNING"),
+        (
+            "setup_security",
+            {
+                "secret_key": "secret-key",
+                "jwt_algorithm": "HS256",
+                "access_token_expire_minutes": 90,
+            },
+        ),
+    ]
 
 
 def test_cordis_error_handler_logs_exception(caplog) -> None:

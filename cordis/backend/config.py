@@ -84,11 +84,25 @@ class StorageConfig(BaseSettings):
     presign_expiry_seconds: int = Field(3600, validation_alias="CORDIS_STORAGE_PRESIGN_EXPIRY_SECONDS")
 
 
+class SecurityConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=(".env", ".env.local"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    secret_key: str = Field("cordis-dev-secret-key", validation_alias="CORDIS_SECRET_KEY")
+    jwt_algorithm: str = Field("HS256", validation_alias="CORDIS_JWT_ALGORITHM")
+    access_token_expire_minutes: int = Field(60, validation_alias="CORDIS_ACCESS_TOKEN_EXPIRE_MINUTES")
+
+
 class Config(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     app: AppConfig
     database: DatabaseConfig
+    security: SecurityConfig
     storage: StorageConfig
 
 
@@ -97,5 +111,6 @@ def build_config() -> Config:
     return Config(
         app=AppConfig(),
         database=DatabaseConfig(),
+        security=SecurityConfig(),
         storage=StorageConfig(),
     )

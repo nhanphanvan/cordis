@@ -9,7 +9,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 - A FastAPI backend with versioned API routes under `/api/v1`
 - A Typer CLI for login, repository, version, tag, user, and resource workflows
 - Artifact metadata, upload-session, and download flows for large object handling
-- Backend-owned configuration, app-status exceptions, and storage integration
+- Backend-owned configuration, JWT security, app-status exceptions, and storage integration
 
 ## Requirements
 
@@ -59,7 +59,7 @@ make run-cli-help
 
 ## Project Layout
 
-- `cordis/backend/`: FastAPI application, API routers, domain services, repositories, models, exception handling, and storage integration
+- `cordis/backend/`: FastAPI application, API routers, policies, validators, services, repositories, security, exception handling, and storage integration
 - `cordis/cli/`: Typer CLI, SDK client, config handling, and transfer helpers
 - `tests/backend/`: backend-focused tests
 - `tests/cli/`: CLI-focused tests

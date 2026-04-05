@@ -14,4 +14,4 @@ class AuthService:
 
     async def login(self, user: User) -> TokenResponse:
         logger.info("Authentication succeeded user_id=%s email=%s", user.id, user.email)
-        return TokenResponse(access_token=create_access_token(subject=str(user.id), is_admin=user.is_admin))
+        return TokenResponse(access_token=create_access_token({"sub": str(user.id), "is_admin": user.is_admin}))

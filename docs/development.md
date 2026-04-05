@@ -10,6 +10,7 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/backend/services`: business logic and orchestration
 - `cordis/backend/repositories`: persistence access and unit-of-work boundary
 - `cordis/backend/models`: persistence models
+- `cordis/backend/security`: password hashing, JWT handling, bearer authentication, and authenticated principal types
 - `cordis/backend/schemas/requests`: request contracts
 - `cordis/backend/schemas/responses`: response contracts
 - `cordis/backend/storage`: storage abstraction and provider adapter
@@ -18,7 +19,7 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/cli/sdk`: backend-facing client wrapper
 - `cordis/cli/config`: config and workspace-registration helpers
 - `cordis/cli/transfer`: local file and cache helpers
-- `cordis/backend/settings.py`: backend runtime settings
+- `cordis/backend/settings.py`: backend startup wiring for logging and security
 - `cordis/backend/exceptions/`: app status catalog, backend exception types, and centralized exception handlers
 
 ## Quality Gates

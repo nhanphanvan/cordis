@@ -2,7 +2,7 @@ from cordis.backend.exceptions import AppStatus, NotFoundError, UnauthorizedErro
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.auth import LoginRequest
-from cordis.backend.security import decode_access_token, verify_password
+from cordis.backend.security import UserInfo, verify_password
 
 from .base import BaseValidator
 
@@ -20,10 +20,8 @@ class LoginValidator(BaseValidator):
 
 class CurrentUserValidator(BaseValidator):
     @classmethod
-    async def validate(cls, *, uow: UnitOfWork, token: str) -> User:
-        payload = decode_access_token(token)
-        subject = payload["sub"]
-        user = await uow.users.get(int(subject))
+    async def validate(cls, *, uow: UnitOfWork, userinfo: UserInfo) -> User:
+        user = await uow.users.get(int(userinfo.identity))
         if user is None:
             raise NotFoundError("User not found", app_status=AppStatus.ERROR_USER_NOT_FOUND)
         if not user.is_active:

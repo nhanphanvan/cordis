@@ -5,6 +5,7 @@ Cordis is split into a backend service and a CLI surface.
 ## High-Level Shape
 
 - `cordis.backend`: FastAPI application, domain services, persistence, exception handling, storage integration, and API schemas
+- `cordis.backend`: FastAPI application, domain services, persistence, security, exception handling, storage integration, and API schemas
 - `cordis.cli`: Typer command surface, SDK client, config helpers, and transfer utilities
 The backend owns repository, version, tag, artifact, upload-session, runtime settings, and app-status exception contracts. The CLI turns those capabilities into local operator workflows such as login, workspace registration, uploads, downloads, and cache-aware retrieval.
 
@@ -45,6 +46,10 @@ The backend registers centralized exception handling from `cordis.backend.except
 ### Repository and unit-of-work layer
 
 `cordis.backend.repositories` holds persistence access. The unit-of-work object provides a single boundary for transaction-scoped repository usage.
+
+### Security
+
+`cordis.backend.security` owns password hashing, JWT creation and verification, bearer-token authentication backends, and the authenticated `UserInfo` principal type. Backend startup initializes this package through `cordis.backend.settings.setup()`.
 
 ### Models and schemas
 

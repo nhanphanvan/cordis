@@ -25,6 +25,8 @@ When working on a backend project in this repository, follow these structural pr
 
 - keep a hard separation between `cordis/backend/` and `cordis/cli/`; do not reintroduce a shared package
 - use `cordis/backend/config.py` for typed backend configuration and keep `cordis/backend/settings.py` as the thin setup/bootstrap layer
+- keep backend security under `cordis/backend/security/` with `core.py`, `authentication/`, and `userinfo.py`
+- initialize logging and security from `cordis/backend/settings.py`
 - keep engine and session wiring in `cordis/backend/database.py`, not in a nested `db/` package
 - use `cordis/backend/models/base.py` with `DatabaseModel` as the canonical model base
 - keep backend exceptions under `cordis/backend/exceptions/` with `app_status.py`, `exceptions.py`, and `exception_handlers.py`

@@ -9,7 +9,7 @@ from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.models.base import DatabaseModel
-from cordis.backend.security.passwords import hash_password
+from cordis.backend.security import get_password_hash
 
 
 async def _reset_database() -> None:
@@ -37,7 +37,7 @@ async def _create_user(*, email: str, password: str, is_admin: bool = False) -> 
     async with session_factory() as session:
         user = User(
             email=email,
-            password_hash=hash_password(password),
+            password_hash=get_password_hash(password),
             is_active=True,
             is_admin=is_admin,
         )

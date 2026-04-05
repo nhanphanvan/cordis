@@ -1,6 +1,6 @@
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.security.passwords import hash_password
+from cordis.backend.security import get_password_hash
 
 
 class UserService:
@@ -44,7 +44,7 @@ class UserService:
     ) -> User:
         user = await self.uow.users.create(
             email=email,
-            password_hash=hash_password(password),
+            password_hash=get_password_hash(password),
             is_active=is_active,
             is_admin=is_admin,
         )
