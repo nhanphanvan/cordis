@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 from cordis.backend.config import AppConfig, DatabaseConfig, build_config
-from cordis.backend.db.base import ModelBase
 from cordis.backend.versioning import get_version_payload
 
 
@@ -15,6 +14,11 @@ def test_shared_version_payload_exposes_name_and_version() -> None:
 def test_shared_package_is_not_importable() -> None:
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("cordis.shared")
+
+
+def test_backend_db_package_is_not_importable() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.backend.db")
 
 
 def test_cordis_package_is_root_level_not_src_layout() -> None:
@@ -85,6 +89,24 @@ def test_app_config_loads_from_env_files(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_model_metadata_registers_phase_3_baseline_tables() -> None:
-    table_names = set(ModelBase.metadata.tables)
+    database_model = importlib.import_module("cordis.backend.models.base").DatabaseModel
+    table_names = set(database_model.metadata.tables)
 
     assert {"users", "roles", "repositories", "repository_members"} <= table_names
+
+
+def test_models_base_exposes_database_model_not_legacy_split() -> None:
+    models_base = importlib.import_module("cordis.backend.models.base")
+
+    assert hasattr(models_base, "DatabaseModel")
+    assert not hasattr(models_base, "TimestampedModel")
+    assert not hasattr(models_base, "ModelBase")
+
+
+def test_database_module_exposes_async_session_helpers() -> None:
+    database = importlib.import_module("cordis.backend.database")
+
+    assert callable(database.build_async_engine)
+    assert callable(database.get_engine)
+    assert callable(database.get_session_factory)
+    assert callable(database.get_async_session)

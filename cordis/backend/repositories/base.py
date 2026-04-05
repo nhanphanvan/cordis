@@ -4,15 +4,15 @@ from typing import Any, Generic, Protocol, TypeVar, cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cordis.backend.db.base import ModelBase
 from cordis.backend.errors import NotFoundError, ValidationError
+from cordis.backend.models.base import DatabaseModel
 
 
 class HasPrimaryKey(Protocol):
     id: Any
 
 
-ModelType = TypeVar("ModelType", bound=ModelBase)
+ModelType = TypeVar("ModelType", bound=DatabaseModel)
 
 
 class BaseRepository(Generic[ModelType]):

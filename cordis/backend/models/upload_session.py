@@ -3,10 +3,10 @@ from uuid import uuid4
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cordis.backend.models.base import TimestampedModel
+from cordis.backend.models.base import DatabaseModel
 
 
-class UploadSession(TimestampedModel):
+class UploadSession(DatabaseModel):
     __tablename__ = "upload_sessions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))

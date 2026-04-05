@@ -1,10 +1,10 @@
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cordis.backend.models.base import TimestampedModel
+from cordis.backend.models.base import DatabaseModel
 
 
-class VersionArtifact(TimestampedModel):
+class VersionArtifact(DatabaseModel):
     __tablename__ = "version_artifacts"
     __table_args__ = (UniqueConstraint("version_id", "artifact_id", name="uq_version_artifacts_version_artifact"),)
 

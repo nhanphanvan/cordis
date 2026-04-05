@@ -3,10 +3,10 @@ from uuid import uuid4
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cordis.backend.models.base import TimestampedModel
+from cordis.backend.models.base import DatabaseModel
 
 
-class Version(TimestampedModel):
+class Version(DatabaseModel):
     __tablename__ = "versions"
     __table_args__ = (UniqueConstraint("repository_id", "name", name="uq_versions_repository_name"),)
 

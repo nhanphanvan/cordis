@@ -1,10 +1,10 @@
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cordis.backend.models.base import TimestampedModel
+from cordis.backend.models.base import DatabaseModel
 
 
-class Repository(TimestampedModel):
+class Repository(DatabaseModel):
     __tablename__ = "repositories"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

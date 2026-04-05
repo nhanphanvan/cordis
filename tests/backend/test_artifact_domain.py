@@ -6,17 +6,17 @@ from sqlalchemy import select
 
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
-from cordis.backend.db.base import ModelBase
-from cordis.backend.db.session import get_engine, get_session_factory
+from cordis.backend.database import get_engine, get_session_factory
 from cordis.backend.models import Repository, RepositoryMember, Role, User
+from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security.passwords import hash_password
 
 
 async def _reset_database() -> None:
     engine = get_engine()
     async with engine.begin() as connection:
-        await connection.run_sync(ModelBase.metadata.drop_all)
-        await connection.run_sync(ModelBase.metadata.create_all)
+        await connection.run_sync(DatabaseModel.metadata.drop_all)
+        await connection.run_sync(DatabaseModel.metadata.create_all)
 
 
 async def _seed_roles() -> None:

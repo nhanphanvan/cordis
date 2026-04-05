@@ -2,7 +2,7 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cordis.backend.db.session import get_async_session
+from cordis.backend.database import get_async_session
 from cordis.backend.repositories.unit_of_work import UnitOfWork, get_unit_of_work
 
 

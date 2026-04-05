@@ -1,10 +1,10 @@
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cordis.backend.models.base import TimestampedModel
+from cordis.backend.models.base import DatabaseModel
 
 
-class RepositoryMember(TimestampedModel):
+class RepositoryMember(DatabaseModel):
     __tablename__ = "repository_members"
     __table_args__ = (UniqueConstraint("repository_id", "user_id", name="uq_repository_members_repository_user"),)
 

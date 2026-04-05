@@ -16,7 +16,7 @@ Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI se
 
 ## Coding Style & Naming Conventions
 
-Target Python 3.10+ and use 4-space indentation. Prefer explicit type hints on public functions and module boundaries. Follow existing naming patterns: `snake_case` for functions and modules, `PascalCase` for classes, and short, descriptive package names under `cordis`. Formatting and static checks are enforced with Ruff, Pylint, and MyPy; run `make lint` before opening a change.
+Target Python 3.10+ and use 4-space indentation. Prefer explicit type hints on public functions and module boundaries. Follow existing naming patterns: `snake_case` for functions and modules, `PascalCase` for classes, and short, descriptive package names under `cordis`. Before finishing Python edits, also run `black --line-length=120 --target-version=py310 tests` and `black --line-length=120 --target-version=py310 cordis`. Formatting and static checks are enforced with Ruff, Pylint, and MyPy; run `make lint` before opening a change.
 
 ## Testing Guidelines
 

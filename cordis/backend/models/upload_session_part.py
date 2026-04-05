@@ -1,10 +1,10 @@
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cordis.backend.models.base import TimestampedModel
+from cordis.backend.models.base import DatabaseModel
 
 
-class UploadSessionPart(TimestampedModel):
+class UploadSessionPart(DatabaseModel):
     __tablename__ = "upload_session_parts"
     __table_args__ = (UniqueConstraint("session_id", "part_number", name="uq_upload_session_parts_session_part"),)
 

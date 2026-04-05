@@ -4,7 +4,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cordis.backend.db.session import get_session_factory
+from cordis.backend.database import get_session_factory
 from cordis.backend.repositories.artifact import ArtifactRepository
 from cordis.backend.repositories.repository import RepositoryRepository
 from cordis.backend.repositories.repository_member import RepositoryMemberRepository

@@ -3,10 +3,10 @@ from uuid import uuid4
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cordis.backend.models.base import TimestampedModel
+from cordis.backend.models.base import DatabaseModel
 
 
-class Artifact(TimestampedModel):
+class Artifact(DatabaseModel):
     __tablename__ = "artifacts"
     __table_args__ = (UniqueConstraint("repository_id", "path", name="uq_artifacts_repository_path"),)
 
