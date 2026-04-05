@@ -1,3 +1,5 @@
+import logging
+
 from cordis.backend.errors import ConflictError, NotFoundError, ValidationError
 from cordis.backend.models import UploadSession, UploadSessionPart
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -13,6 +15,7 @@ from cordis.backend.storage import (
 from cordis.backend.storage import factory as storage_factory
 
 TERMINAL_UPLOAD_STATUSES = {"completed", "failed", "aborted"}
+logger = logging.getLogger(__name__)
 
 
 class UploadService:
@@ -52,6 +55,12 @@ class UploadService:
             size=size,
         )
         if resumable is not None:
+            logger.info(
+                "Upload session resumed session_id=%s version_id=%s path=%s",
+                resumable.id,
+                version_id,
+                normalized_path,
+            )
             return resumable, False
 
         session = await self.uow.upload_sessions.create(
@@ -67,6 +76,12 @@ class UploadService:
         session_ref = self._storage_ref(session)
         session.upload_id = storage_factory.get_storage_adapter().create_multipart_upload(session_ref)
         await self.uow.commit()
+        logger.info(
+            "Upload session created session_id=%s version_id=%s path=%s",
+            session.id,
+            version_id,
+            normalized_path,
+        )
         return session, True
 
     async def get_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
@@ -109,6 +124,7 @@ class UploadService:
         session.status = "in_progress"
         session.error_message = None
         await self.uow.commit()
+        logger.info("Upload part stored session_id=%s part_number=%s", session_id, part_number)
         return await self.get_session(session_id)
 
     async def complete_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
@@ -131,12 +147,14 @@ class UploadService:
             session.status = "failed"
             session.error_message = "Multipart state invalid"
             await self.uow.commit()
+            logger.error("Upload session failed session_id=%s reason=multipart_state_invalid", session_id)
             raise
 
         if completed.etag != session.checksum:
             session.status = "failed"
             session.error_message = "Checksum mismatch"
             await self.uow.commit()
+            logger.error("Upload session failed session_id=%s reason=checksum_mismatch", session_id)
             raise ConflictError("Completed upload checksum does not match expected checksum")
 
         artifact = await ArtifactService(self.uow).resolve_or_create_artifact(
@@ -151,6 +169,7 @@ class UploadService:
         session.status = "completed"
         session.error_message = None
         await self.uow.commit()
+        logger.info("Upload session completed session_id=%s artifact_id=%s", session_id, artifact.id)
         return await self.get_session(session_id)
 
     async def abort_session(self, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
@@ -166,6 +185,7 @@ class UploadService:
         session.status = "aborted"
         session.error_message = None
         await self.uow.commit()
+        logger.info("Upload session aborted session_id=%s", session_id)
         return await self.get_session(session_id)
 
     def _storage_ref(self, session: UploadSession) -> StorageObjectRef:

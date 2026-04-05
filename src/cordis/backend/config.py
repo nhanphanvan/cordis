@@ -21,6 +21,10 @@ class AppConfig(BaseSettings):
     api_v1_prefix: str = Field("/api/v1", validation_alias="CORDIS_API_V1_PREFIX")
     host: str = Field("127.0.0.1", validation_alias="CORDIS_HOST")
     port: int = Field(8000, validation_alias="CORDIS_PORT")
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        "INFO",
+        validation_alias="CORDIS_LOG_LEVEL",
+    )
 
 
 class DatabaseConfig(BaseSettings):

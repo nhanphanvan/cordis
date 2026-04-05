@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Awaitable, Callable
 from typing import cast
 
@@ -7,8 +8,18 @@ from starlette.responses import Response
 
 from cordis.backend.errors import CordisError
 
+logger = logging.getLogger(__name__)
 
-async def cordis_error_handler(_: Request, exc: CordisError) -> JSONResponse:
+
+async def cordis_error_handler(request: Request | None, exc: CordisError) -> JSONResponse:
+    request_path = "<unknown>" if request is None else str(request.url.path)
+    logger.error(
+        "Cordis error handled path=%s status=%s code=%s message=%s",
+        request_path,
+        exc.status_code,
+        exc.code,
+        exc.message,
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": exc.code, "message": exc.message}},

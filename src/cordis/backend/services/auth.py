@@ -1,8 +1,12 @@
+import logging
+
 from cordis.backend.errors import AuthenticationError
 from cordis.backend.models import User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.auth import LoginRequest, TokenResponse
 from cordis.backend.security import create_access_token, decode_access_token, verify_password
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -12,19 +16,20 @@ class AuthService:
     async def login(self, credentials: LoginRequest) -> TokenResponse:
         user = await self.uow.users.get_by_email(credentials.email)
         if user is None or not user.is_active:
+            logger.warning("Authentication failed for email=%s reason=missing_or_inactive", credentials.email)
             raise AuthenticationError("Invalid credentials")
         if not verify_password(credentials.password, user.password_hash):
+            logger.warning("Authentication failed for email=%s reason=invalid_password", credentials.email)
             raise AuthenticationError("Invalid credentials")
 
+        logger.info("Authentication succeeded user_id=%s email=%s", user.id, user.email)
         return TokenResponse(access_token=create_access_token(subject=str(user.id), is_admin=user.is_admin))
 
     async def get_current_user(self, token: str) -> User:
         payload = decode_access_token(token)
-        subject = payload.get("sub")
-        if subject is None:
-            raise AuthenticationError("Invalid bearer token")
-
+        subject = payload["sub"]
         user = await self.uow.users.get(int(subject))
         if user is None or not user.is_active:
+            logger.warning("Bearer token rejected user_id=%s reason=missing_or_inactive", subject)
             raise AuthenticationError("Invalid bearer token")
         return user

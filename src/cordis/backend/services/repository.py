@@ -1,6 +1,10 @@
+import logging
+
 from cordis.backend.errors import ConflictError, NotFoundError, ValidationError
 from cordis.backend.models import Repository, RepositoryMember, User
 from cordis.backend.repositories.unit_of_work import UnitOfWork
+
+logger = logging.getLogger(__name__)
 
 
 class RepositoryService:
@@ -31,6 +35,12 @@ class RepositoryService:
         )
         await self.uow.commit()
         await self.uow.refresh(repository)
+        logger.info(
+            "Repository created repository_id=%s name=%s creator_id=%s",
+            repository.id,
+            repository.name,
+            creator.id,
+        )
         return repository
 
     async def get_repository(self, repository_id: int) -> Repository:
@@ -55,6 +65,7 @@ class RepositoryService:
         repository.is_public = is_public
         await self.uow.flush()
         await self.uow.commit()
+        logger.info("Repository updated repository_id=%s is_public=%s", repository.id, repository.is_public)
         return repository
 
     async def delete_repository(self, repository_id: int) -> Repository:
@@ -64,6 +75,7 @@ class RepositoryService:
             await self.uow.repository_members.delete(membership)
         await self.uow.repositories.delete(repository)
         await self.uow.commit()
+        logger.info("Repository deleted repository_id=%s name=%s", repository.id, repository.name)
         return repository
 
     async def add_member(self, *, repository_id: int, user_id: int, role_name: str) -> RepositoryMember:
@@ -92,6 +104,7 @@ class RepositoryService:
             user_id=user_id,
             repository_id=repository_id,
         )
+        logger.info("Repository member added repository_id=%s user_id=%s role=%s", repository_id, user_id, role_name)
         return refreshed_membership or membership
 
     async def update_member_role(self, *, repository_id: int, user_id: int, role_name: str) -> RepositoryMember:
@@ -113,6 +126,7 @@ class RepositoryService:
             user_id=user_id,
             repository_id=repository_id,
         )
+        logger.info("Repository member updated repository_id=%s user_id=%s role=%s", repository_id, user_id, role_name)
         return refreshed_membership or membership
 
     async def remove_member(self, *, repository_id: int, user_id: int) -> RepositoryMember:
@@ -124,4 +138,5 @@ class RepositoryService:
             raise NotFoundError("Repository member not found")
         await self.uow.repository_members.delete(membership)
         await self.uow.commit()
+        logger.info("Repository member removed repository_id=%s user_id=%s", repository_id, user_id)
         return membership
