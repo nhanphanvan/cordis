@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
@@ -50,11 +51,11 @@ def _repository_response(repository_id: int, name: str, description: str | None,
     return RepositoryResponse(id=repository_id, name=name, description=description, is_public=is_public)
 
 
-def _version_response(version_id: str, repository_id: int, name: str) -> VersionResponse:
-    return VersionResponse(id=version_id, repository_id=repository_id, name=name)
+def _version_response(version_id: UUID, repository_id: int, name: str, description: str | None) -> VersionResponse:
+    return VersionResponse(id=version_id, repository_id=repository_id, name=name, description=description)
 
 
-def _tag_response(tag_id: str, repository_id: int, name: str, version_id: str, version_name: str) -> TagResponse:
+def _tag_response(tag_id: UUID, repository_id: int, name: str, version_id: UUID, version_name: str) -> TagResponse:
     return TagResponse(
         id=tag_id,
         repository_id=repository_id,
@@ -213,7 +214,9 @@ async def list_versions(
         unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
     versions = await VersionService(uow).list_for_repository(access.repository)
-    return VersionListResponse(items=[_version_response(item.id, item.repository_id, item.name) for item in versions])
+    return VersionListResponse(
+        items=[_version_response(item.id, item.repository_id, item.name, item.description) for item in versions]
+    )
 
 
 @router.get("/{repository_id}/tags", response_model=TagListResponse)

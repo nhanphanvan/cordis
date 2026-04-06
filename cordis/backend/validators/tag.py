@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from cordis.backend.exceptions import AppStatus, NotFoundError, NotUniqueError, UnprocessableEntityError
 from cordis.backend.models import Version, VersionTag
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -31,7 +33,7 @@ class TagCreateValidator(BaseValidator):
 
 class TagReadValidator(BaseValidator):
     @classmethod
-    async def validate(cls, *, uow: UnitOfWork, tag_id: str) -> VersionTag:
+    async def validate(cls, *, uow: UnitOfWork, tag_id: UUID) -> VersionTag:
         tag = await uow.version_tags.get_with_version(tag_id)
         if tag is None:
             raise NotFoundError("Tag not found", app_status=AppStatus.ERROR_TAG_NOT_FOUND)

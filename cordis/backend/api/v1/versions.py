@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
@@ -30,17 +31,18 @@ from cordis.backend.validators.version import VersionCreateValidator, VersionLoo
 router = APIRouter(prefix="/versions", tags=["versions"])
 
 
-def _version_response(version_id: str, repository_id: int, name: str) -> VersionResponse:
-    return VersionResponse(id=version_id, repository_id=repository_id, name=name)
+def _version_response(version_id: UUID, repository_id: int, name: str, description: str | None) -> VersionResponse:
+    return VersionResponse(id=version_id, repository_id=repository_id, name=name, description=description)
 
 
 def _artifact_response(
-    artifact_id: str,
+    artifact_id: UUID,
     repository_id: int,
     path: str,
     name: str,
     checksum: str,
     size: int,
+    storage_version_id: str,
 ) -> ArtifactResponse:
     return ArtifactResponse(
         id=artifact_id,
@@ -49,6 +51,7 @@ def _artifact_response(
         name=name,
         checksum=checksum,
         size=size,
+        storage_version_id=storage_version_id,
     )
 
 
@@ -61,13 +64,17 @@ async def create_version(
     repository = await VersionCreateValidator.validate(uow=uow, request=request)
     access = await RepositoryAccessValidator.validate(uow=uow, repository_id=repository.id, current_user=current_user)
     await authorize(current_user, VersionPolicy.create, access)
-    version = await VersionService(uow).create_version(repository=repository, name=request.name)
-    return _version_response(version.id, version.repository_id, version.name)
+    version = await VersionService(uow).create_version(
+        repository=repository,
+        name=request.name,
+        description=request.description,
+    )
+    return _version_response(version.id, version.repository_id, version.name, version.description)
 
 
 @router.get("/{version_id}", response_model=VersionResponse)
 async def get_version(
-    version_id: str,
+    version_id: UUID,
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> VersionResponse:
@@ -84,7 +91,7 @@ async def get_version(
         unauthorized_message="Missing bearer token",
         unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
-    return _version_response(version.id, version.repository_id, version.name)
+    return _version_response(version.id, version.repository_id, version.name, version.description)
 
 
 @router.get("", response_model=VersionResponse)
@@ -103,12 +110,12 @@ async def lookup_version(
         unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
     version = await VersionLookupValidator.validate(uow=uow, repository_id=repository_id, name=name)
-    return _version_response(version.id, version.repository_id, version.name)
+    return _version_response(version.id, version.repository_id, version.name, version.description)
 
 
 @router.delete("/{version_id}", response_model=VersionResponse)
 async def delete_version(
-    version_id: str,
+    version_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> VersionResponse:
@@ -120,12 +127,12 @@ async def delete_version(
     )
     await authorize(current_user, VersionPolicy.delete, access)
     deleted = await VersionService(uow).delete_version(version)
-    return _version_response(deleted.id, deleted.repository_id, deleted.name)
+    return _version_response(deleted.id, deleted.repository_id, deleted.name, deleted.description)
 
 
 @router.post("/{version_id}/artifacts", response_model=ArtifactResponse, status_code=201)
 async def attach_artifact_to_version(
-    version_id: str,
+    version_id: UUID,
     request: VersionArtifactCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
@@ -150,12 +157,13 @@ async def attach_artifact_to_version(
         artifact.name,
         artifact.checksum,
         artifact.size,
+        artifact.storage_version_id,
     )
 
 
 @router.get("/{version_id}/artifacts", response_model=ArtifactListResponse)
 async def list_version_artifacts(
-    version_id: str,
+    version_id: UUID,
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactListResponse:
@@ -182,6 +190,7 @@ async def list_version_artifacts(
                 artifact.name,
                 artifact.checksum,
                 artifact.size,
+                artifact.storage_version_id,
             )
             for artifact in artifacts
         ]
@@ -190,7 +199,7 @@ async def list_version_artifacts(
 
 @router.get("/{version_id}/artifacts/by-path", response_model=ArtifactResponse)
 async def get_version_artifact_by_path(
-    version_id: str,
+    version_id: UUID,
     path: Annotated[str, Query()],
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
@@ -216,13 +225,14 @@ async def get_version_artifact_by_path(
         artifact.name,
         artifact.checksum,
         artifact.size,
+        artifact.storage_version_id,
     )
 
 
 @router.post("/{version_id}/artifacts/{artifact_id}/download", response_model=ArtifactDownloadResponse)
 async def create_version_artifact_download(
-    version_id: str,
-    artifact_id: str,
+    version_id: UUID,
+    artifact_id: UUID,
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactDownloadResponse:

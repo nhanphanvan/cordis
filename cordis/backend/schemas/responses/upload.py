@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 
@@ -7,10 +9,10 @@ class UploadSessionPartResponse(BaseModel):
 
 
 class UploadSessionResponse(BaseModel):
-    id: str
+    id: UUID
     repository_id: int
-    version_id: str
-    artifact_id: str | None
+    version_id: UUID
+    artifact_id: UUID | None
     path: str
     checksum: str
     size: int

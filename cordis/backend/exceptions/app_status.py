@@ -5,6 +5,22 @@ from starlette import status
 
 
 class AppStatus(Enum):
+    """Application status catalog for API error responses.
+
+    Code ranges:
+    - `4xx` and `5xx`: generic HTTP-aligned fallback statuses
+    - `1000-1099`: authentication, bearer token, and general validation errors
+    - `1100-1199`: repository and repository membership errors
+    - `1200-1299`: role errors
+    - `1300-1399`: user errors
+    - `1400-1499`: version errors
+    - `1500-1599`: tag errors
+    - `1600-1699`: artifact and version-artifact errors
+    - `1700-1799`: upload session and upload validation errors
+    - `1800-1899`: storage provider and object-state errors
+    - `1900-1999`: backend configuration and invariant errors
+    """
+
     ERROR_INTERNAL_SERVER_ERROR = status.HTTP_500_INTERNAL_SERVER_ERROR, 500, "Internal server error"
     ERROR_NOT_FOUND = status.HTTP_404_NOT_FOUND, 404, "Resource not found"
     ERROR_BAD_REQUEST = status.HTTP_400_BAD_REQUEST, 400, "Bad request"
@@ -98,6 +114,7 @@ class AppStatus(Enum):
         "Storage adapter is not configured",
     )
     ERROR_OWNER_ROLE_MISSING = status.HTTP_500_INTERNAL_SERVER_ERROR, 1901, "Owner role is missing"
+    ERROR_STORAGE_VERSION_ID_MISSING = status.HTTP_500_INTERNAL_SERVER_ERROR, 1902, "Storage version ID missing"
 
     @property
     def status_code(self) -> int:

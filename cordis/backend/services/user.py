@@ -22,11 +22,14 @@ class UserService:
         user: User,
         *,
         email: str | None = None,
+        name: str | None = None,
         is_active: bool | None = None,
         is_admin: bool | None = None,
     ) -> User:
         if email is not None and email != user.email:
             user.email = email
+        if name is not None and name != user.name:
+            user.name = name
         if is_active is not None:
             user.is_active = is_active
         if is_admin is not None:
@@ -38,12 +41,14 @@ class UserService:
         self,
         *,
         email: str,
+        name: str | None,
         password: str,
         is_active: bool,
         is_admin: bool,
     ) -> User:
         user = await self.uow.users.create(
             email=email,
+            name=name,
             password_hash=get_password_hash(password),
             is_active=is_active,
             is_admin=is_admin,

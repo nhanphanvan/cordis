@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -90,6 +91,7 @@ def _create_artifact(client: TestClient, headers: dict[str, str], repository_id:
             "path": path,
             "checksum": "sha256:artifact",
             "size": 128,
+            "storage_version_id": "object-v1",
         },
         headers=headers,
     )
@@ -154,6 +156,7 @@ def test_viewer_can_lookup_version_artifact_by_path_and_request_download(monkeyp
         "name": "weights.bin",
         "checksum": "sha256:artifact",
         "size": 128,
+        "storage_version_id": "object-v1",
     }
     assert download_response.status_code == 200
     assert download_response.json() == {
@@ -161,7 +164,7 @@ def test_viewer_can_lookup_version_artifact_by_path_and_request_download(monkeyp
         "download_url": f"https://download.invalid/{repository_id}/{artifact_id}?expires=3600",
         "expires_in": 3600,
     }
-    assert fake_storage.calls == [(artifact_id, "models/weights.bin", repository_id, 3600)]
+    assert fake_storage.calls == [(UUID(artifact_id), "models/weights.bin", repository_id, 3600)]
 
 
 def test_anonymous_user_can_download_from_public_repository(monkeypatch, tmp_path: Path) -> None:

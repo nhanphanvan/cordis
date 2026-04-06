@@ -1,4 +1,4 @@
-from typing import cast
+from uuid import UUID
 
 from cordis.backend.models import Artifact, Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -14,7 +14,7 @@ class VersionArtifactService:
             path=artifact.path,
         )
         if existing_for_path is not None and existing_for_path.artifact_id == artifact.id:
-            return cast(Artifact, existing_for_path.artifact)
+            return existing_for_path.artifact
         await self.uow.version_artifacts.create(version_id=version.id, artifact_id=artifact.id)
         await self.uow.commit()
         return artifact
@@ -26,11 +26,11 @@ class VersionArtifactService:
     async def check_resource(
         self,
         *,
-        version_id: str,
+        version_id: UUID,
         path: str,
         checksum: str,
         size: int,
-    ) -> tuple[str, str | None]:
+    ) -> tuple[str, UUID | None]:
         association = await self.uow.version_artifacts.get_for_version_and_path(
             version_id=version_id,
             path=path.strip("/"),

@@ -1,11 +1,13 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 
 class TagResponse(BaseModel):
-    id: str
+    id: UUID
     repository_id: int
     name: str
-    version_id: str
+    version_id: UUID
     version_name: str
 
 

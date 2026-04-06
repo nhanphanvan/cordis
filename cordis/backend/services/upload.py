@@ -1,6 +1,6 @@
 import logging
 
-from cordis.backend.exceptions import AppStatus, ConflictError
+from cordis.backend.exceptions import AppStatus, ConflictError, InternalServerError
 from cordis.backend.models import Repository, UploadSession, UploadSessionPart
 from cordis.backend.models.version import Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -129,6 +129,15 @@ class UploadService:
                 "Completed upload checksum does not match expected checksum",
                 app_status=AppStatus.ERROR_UPLOAD_CHECKSUM_MISMATCH,
             )
+        if completed.version_id is None:
+            session.status = "failed"
+            session.error_message = "Storage version ID missing"
+            await self.uow.commit()
+            logger.error("Upload session failed session_id=%s reason=storage_version_id_missing", session.id)
+            raise InternalServerError(
+                "Storage version ID missing",
+                app_status=AppStatus.ERROR_STORAGE_VERSION_ID_MISSING,
+            )
 
         artifact = await ArtifactResolutionValidator.validate(
             uow=self.uow,
@@ -145,6 +154,7 @@ class UploadService:
                 name=session.path.rsplit("/", maxsplit=1)[-1],
                 checksum=session.checksum,
                 size=session.size,
+                storage_version_id=completed.version_id,
                 artifact_id=session.artifact_id,
             )
         await VersionArtifactService(self.uow).attach_artifact(version=version, artifact=artifact)

@@ -27,7 +27,7 @@ admin_router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
 def _user_response(user: User) -> UserResponse:
-    return UserResponse(id=user.id, email=user.email, is_active=user.is_active, is_admin=user.is_admin)
+    return UserResponse(id=user.id, email=user.email, name=user.name, is_active=user.is_active, is_admin=user.is_admin)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -42,7 +42,7 @@ async def update_me(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UserResponse:
     user = await UserUpdateValidator.validate(uow=uow, user=current_user, request=request)
-    updated = await UserService(uow).update_user(user, email=request.email)
+    updated = await UserService(uow).update_user(user, email=request.email, name=request.name)
     return _user_response(updated)
 
 
@@ -114,6 +114,7 @@ async def create_user(
     await UserCreateValidator.validate(uow=uow, request=request)
     user = await UserService(uow).create_user(
         email=request.email,
+        name=request.name,
         password=request.password,
         is_active=request.is_active,
         is_admin=request.is_admin,
@@ -139,6 +140,7 @@ async def update_user(
     user = await UserService(uow).update_user(
         user,
         email=request.email,
+        name=request.name,
         is_active=request.is_active,
         is_admin=request.is_admin,
     )

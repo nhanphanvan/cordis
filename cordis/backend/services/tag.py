@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from cordis.backend.models import VersionTag
 from cordis.backend.models.version import Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -13,7 +15,7 @@ class TagService:
         refreshed = await self.uow.version_tags.get_with_version(tag.id)
         return refreshed or tag
 
-    async def get_tag(self, tag_id: str) -> VersionTag | None:
+    async def get_tag(self, tag_id: UUID) -> VersionTag | None:
         return await self.uow.version_tags.get_with_version(tag_id)
 
     async def get_by_repository_and_name(self, *, repository_id: int, name: str) -> VersionTag | None:

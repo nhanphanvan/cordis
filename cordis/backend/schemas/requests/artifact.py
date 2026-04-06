@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 
@@ -6,14 +8,15 @@ class ArtifactCreateRequest(BaseModel):
     path: str
     checksum: str
     size: int
+    storage_version_id: str
 
 
 class VersionArtifactCreateRequest(BaseModel):
-    artifact_id: str
+    artifact_id: UUID
 
 
 class ResourceCheckRequest(BaseModel):
-    version_id: str
+    version_id: UUID
     path: str
     checksum: str
     size: int

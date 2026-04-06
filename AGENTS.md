@@ -29,12 +29,14 @@ When working on a backend project in this repository, follow these structural pr
 - initialize logging and security from `cordis/backend/settings.py`
 - keep engine and session wiring in `cordis/backend/database.py`, not in a nested `db/` package
 - use `cordis/backend/models/base.py` with `DatabaseModel` as the canonical model base
+- keep backend models explicit and reference-style: `__tablename__` first, `__table_args__` when needed, typed `Mapped[...]` relationships, explicit `back_populates`, `passive_deletes=True` where FKs already use `ondelete`, and `cascade="all, delete-orphan"` on parent-owned child collections
 - keep backend exceptions under `cordis/backend/exceptions/` with `app_status.py`, `exceptions.py`, and `exception_handlers.py`
 - use `cordis/backend/policies/` for authorization decisions and make route modules call policies explicitly
 - move request and domain checks into `cordis/backend/validators/`, not services
 - use `cordis/backend/schemas/requests/` for request models and `cordis/backend/schemas/responses/` for response models
 - prefer the flow `api -> policy -> validator -> service -> repository -> model -> database`
 - keep FastAPI routes thin, keep services focused on orchestration and transactions, and keep persistence access in repositories
+- treat `artifact.storage_version_id` as required durable storage lineage; do not model persisted artifacts without an exact storage object version reference
 - backend utilities should stay backend-runtime-specific; CLI-specific helpers belong under `cordis/cli/`
 - prefer hard-cut refactors over temporary compatibility wrappers unless compatibility is explicitly required
 

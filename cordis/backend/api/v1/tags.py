@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
@@ -16,7 +17,7 @@ from cordis.backend.validators.tag import TagCreateValidator, TagLookupValidator
 router = APIRouter(prefix="/tags", tags=["tags"])
 
 
-def _tag_response(tag_id: str, repository_id: int, name: str, version_id: str, version_name: str) -> TagResponse:
+def _tag_response(tag_id: UUID, repository_id: int, name: str, version_id: UUID, version_name: str) -> TagResponse:
     return TagResponse(
         id=tag_id,
         repository_id=repository_id,
@@ -45,7 +46,7 @@ async def create_tag(
 
 @router.get("/{tag_id}", response_model=TagResponse)
 async def get_tag(
-    tag_id: str,
+    tag_id: UUID,
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> TagResponse:
@@ -86,7 +87,7 @@ async def lookup_tag(
 
 @router.delete("/{tag_id}", response_model=TagResponse)
 async def delete_tag(
-    tag_id: str,
+    tag_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> TagResponse:

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from cordis.backend.exceptions import AppStatus, NotFoundError, NotUniqueError
 from cordis.backend.models import Repository, Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -23,7 +25,7 @@ class VersionCreateValidator(BaseValidator):
 
 class VersionReadValidator(BaseValidator):
     @classmethod
-    async def validate(cls, *, uow: UnitOfWork, version_id: str) -> Version:
+    async def validate(cls, *, uow: UnitOfWork, version_id: UUID) -> Version:
         version = await uow.versions.get(version_id)
         if version is None:
             raise NotFoundError("Version not found", app_status=AppStatus.ERROR_VERSION_NOT_FOUND)

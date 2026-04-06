@@ -32,11 +32,12 @@ async def _seed_roles() -> None:
         await session.commit()
 
 
-async def _create_user(*, email: str, password: str, is_admin: bool = False) -> int:
+async def _create_user(*, email: str, password: str, name: str | None = None, is_admin: bool = False) -> int:
     session_factory = get_session_factory()
     async with session_factory() as session:
         user = User(
             email=email,
+            name=name,
             password_hash=get_password_hash(password),
             is_active=True,
             is_admin=is_admin,
@@ -81,7 +82,7 @@ def test_user_self_service_and_repository_listing(monkeypatch, tmp_path: Path) -
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    user_id = asyncio.run(_create_user(email="user@example.com", password="password123"))
+    user_id = asyncio.run(_create_user(email="user@example.com", password="password123", name="User One"))
     repository_id = asyncio.run(_create_repository(name="repo-user"))
     asyncio.run(_add_membership(repository_id=repository_id, user_id=user_id, role_name="developer"))
 
@@ -91,7 +92,7 @@ def test_user_self_service_and_repository_listing(monkeypatch, tmp_path: Path) -
     me_response = client.get("/api/v1/users/me", headers=headers)
     update_response = client.patch(
         "/api/v1/users/me",
-        json={"email": "user+updated@example.com"},
+        json={"email": "user+updated@example.com", "name": "Updated User"},
         headers=headers,
     )
     repositories_response = client.get("/api/v1/users/me/repositories", headers=headers)
@@ -100,11 +101,13 @@ def test_user_self_service_and_repository_listing(monkeypatch, tmp_path: Path) -
     assert me_response.json() == {
         "id": user_id,
         "email": "user@example.com",
+        "name": "User One",
         "is_active": True,
         "is_admin": False,
     }
     assert update_response.status_code == 200
     assert update_response.json()["email"] == "user+updated@example.com"
+    assert update_response.json()["name"] == "Updated User"
     assert repositories_response.status_code == 200
     assert repositories_response.json() == {
         "items": [
@@ -125,8 +128,8 @@ def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    admin_id = asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
-    user_id = asyncio.run(_create_user(email="existing@example.com", password="password123"))
+    admin_id = asyncio.run(_create_user(email="admin@example.com", password="password123", name="Admin", is_admin=True))
+    user_id = asyncio.run(_create_user(email="existing@example.com", password="password123", name="Existing User"))
 
     client = TestClient(create_app())
     admin_headers = _auth_header(client, "admin@example.com", "password123")
@@ -138,6 +141,7 @@ def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
         "/api/v1/admin/users",
         json={
             "email": "new@example.com",
+            "name": "New User",
             "password": "password456",
             "is_active": True,
             "is_admin": False,
@@ -147,7 +151,7 @@ def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
     created_id = create_response.json()["id"]
     update_response = client.patch(
         f"/api/v1/admin/users/{created_id}",
-        json={"is_admin": True},
+        json={"is_admin": True, "name": "Promoted User"},
         headers=admin_headers,
     )
     delete_response = client.delete(f"/api/v1/admin/users/{created_id}", headers=admin_headers)
@@ -158,10 +162,13 @@ def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
     assert get_response.json()["id"] == user_id
     assert get_by_email_response.status_code == 200
     assert get_by_email_response.json()["email"] == "existing@example.com"
+    assert get_by_email_response.json()["name"] == "Existing User"
     assert create_response.status_code == 201
     assert create_response.json()["email"] == "new@example.com"
+    assert create_response.json()["name"] == "New User"
     assert update_response.status_code == 200
     assert update_response.json()["is_admin"] is True
+    assert update_response.json()["name"] == "Promoted User"
     assert delete_response.status_code == 200
     assert delete_response.json()["id"] == created_id
 
@@ -182,7 +189,7 @@ def test_admin_can_manage_roles(monkeypatch, tmp_path: Path) -> None:
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    asyncio.run(_create_user(email="admin@example.com", password="password123", name="Admin", is_admin=True))
 
     client = TestClient(create_app())
     admin_headers = _auth_header(client, "admin@example.com", "password123")
@@ -222,7 +229,7 @@ def test_admin_user_creation_hashes_password(monkeypatch, tmp_path: Path) -> Non
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    asyncio.run(_create_user(email="admin@example.com", password="password123", name="Admin", is_admin=True))
 
     client = TestClient(create_app())
     admin_headers = _auth_header(client, "admin@example.com", "password123")
@@ -230,6 +237,7 @@ def test_admin_user_creation_hashes_password(monkeypatch, tmp_path: Path) -> Non
         "/api/v1/admin/users",
         json={
             "email": "hashed@example.com",
+            "name": "Hashed User",
             "password": "secret789",
             "is_active": True,
             "is_admin": False,

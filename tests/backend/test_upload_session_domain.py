@@ -87,6 +87,7 @@ class FakeStorageAdapter:
         self._next_upload = 1
         self.parts: dict[str, dict[int, str]] = {}
         self.completed_etag = "sha256:complete"
+        self.completed_version_id = "object-v1"
         self.aborted: list[str] = []
 
     def create_multipart_upload(self, ref) -> str:
@@ -106,7 +107,11 @@ class FakeStorageAdapter:
         _ = ref
         _ = upload_id
         _ = parts
-        return type("CompletedMultipartUpload", (), {"etag": self.completed_etag, "version_id": "object-v1"})()
+        return type(
+            "CompletedMultipartUpload",
+            (),
+            {"etag": self.completed_etag, "version_id": self.completed_version_id},
+        )()
 
     def abort_multipart_upload(self, ref, *, upload_id: str) -> None:
         _ = ref
@@ -188,6 +193,7 @@ def test_developer_can_create_resume_and_complete_upload_session(monkeypatch, tm
                 "name": "upload.bin",
                 "checksum": "sha256:upload-ok",
                 "size": 11,
+                "storage_version_id": "object-v1",
             }
         ]
     }
@@ -285,3 +291,56 @@ def test_developer_can_abort_upload_session(monkeypatch, tmp_path: Path) -> None
     assert get_response.status_code == 200
     assert get_response.json()["status"] == "aborted"
     assert fake_storage.aborted == [create_response.json()["upload_id"]]
+
+
+def test_missing_storage_version_id_marks_session_failed_without_artifact(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-upload-session-missing-storage-version.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
+    repository_id = asyncio.run(_create_repository(name="repo-upload-missing-storage-version"))
+    asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
+
+    fake_storage = FakeStorageAdapter()
+    fake_storage.completed_etag = "sha256:upload-ok"
+    fake_storage.completed_version_id = None
+    monkeypatch.setattr(
+        "cordis.backend.services.upload.storage_factory.get_storage_adapter",
+        lambda: fake_storage,
+    )
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "developer@example.com", "password123")
+    version_id = _create_version(client, headers, repository_id, "v1")
+    create_response = client.post(
+        "/api/v1/uploads/sessions",
+        json={
+            "version_id": version_id,
+            "path": "models/no-version.bin",
+            "checksum": "sha256:upload-ok",
+            "size": 11,
+        },
+        headers=headers,
+    )
+    session_id = create_response.json()["id"]
+    client.post(
+        f"/api/v1/uploads/sessions/{session_id}/parts",
+        json={"part_number": 1, "content": "hello world"},
+        headers=headers,
+    )
+
+    complete_response = client.post(f"/api/v1/uploads/sessions/{session_id}/complete", headers=headers)
+    get_response = client.get(f"/api/v1/uploads/sessions/{session_id}", headers=headers)
+    version_artifacts_response = client.get(f"/api/v1/versions/{version_id}/artifacts", headers=headers)
+
+    assert complete_response.status_code == 500
+    assert complete_response.json()["app_status_code"] == 1902
+    assert get_response.status_code == 200
+    assert get_response.json()["status"] == "failed"
+    assert get_response.json()["error_message"] == "Storage version ID missing"
+    assert version_artifacts_response.status_code == 200
+    assert version_artifacts_response.json() == {"items": []}

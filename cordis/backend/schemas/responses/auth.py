@@ -8,5 +8,6 @@ class TokenResponse(BaseModel):
 
 class CurrentUserResponse(BaseModel):
     email: str
+    name: str | None
     is_active: bool
     is_admin: bool

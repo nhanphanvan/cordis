@@ -10,6 +10,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 - A Typer CLI for login, repository, version, tag, user, and resource workflows
 - Artifact metadata, upload-session, and download flows for large object handling
 - Backend-owned configuration, JWT security, app-status exceptions, and storage integration
+- Required storage object-version lineage for persisted artifacts
 
 ## Requirements
 
@@ -80,7 +81,7 @@ Common CLI areas include:
 - `cordis tag ...`
 - `cordis resource ...`
 
-The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management.
+The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. Persisted artifacts always carry a required `storage_version_id`, so retrieval can resolve the exact underlying object version in storage.
 
 ## Quality Checks
 

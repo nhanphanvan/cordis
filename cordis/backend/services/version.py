@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from cordis.backend.models import Version
 from cordis.backend.models.repository import Repository
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -7,12 +9,12 @@ class VersionService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
 
-    async def create_version(self, *, repository: Repository, name: str) -> Version:
-        version = await self.uow.versions.create(repository_id=repository.id, name=name)
+    async def create_version(self, *, repository: Repository, name: str, description: str | None = None) -> Version:
+        version = await self.uow.versions.create(repository_id=repository.id, name=name, description=description)
         await self.uow.commit()
         return version
 
-    async def get_version(self, version_id: str) -> Version | None:
+    async def get_version(self, version_id: UUID) -> Version | None:
         return await self.uow.versions.get(version_id)
 
     async def get_by_repository_and_name(self, *, repository_id: int, name: str) -> Version | None:

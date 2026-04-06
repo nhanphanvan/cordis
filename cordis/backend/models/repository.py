@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cordis.backend.models.base import DatabaseModel
+
+if TYPE_CHECKING:
+    from cordis.backend.models.repository_member import RepositoryMember
 
 
 class Repository(DatabaseModel):
@@ -12,4 +19,8 @@ class Repository(DatabaseModel):
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    members = relationship("RepositoryMember", back_populates="repository")
+    members: Mapped[list[RepositoryMember]] = relationship(
+        back_populates="repository",
+        passive_deletes=True,
+        cascade="all, delete-orphan",
+    )

@@ -102,6 +102,8 @@ Resource existence checks are exposed through:
 
 This allows the backend to answer whether a proposed file already matches content registered in a version.
 
+Artifact creation requires `storage_version_id`. Cordis treats that as the durable reference to the exact stored object version behind the artifact metadata.
+
 ## Upload Sessions
 
 Cordis uses session-based upload flows for resource ingestion.
@@ -114,7 +116,7 @@ Core routes:
 - `POST /uploads/sessions/{session_id}/complete`
 - `POST /uploads/sessions/{session_id}/abort`
 
-Upload sessions track the target version, path, checksum, size, upload state, and uploaded parts. Finalization creates or resolves artifact metadata and associates it to the target version.
+Upload sessions track the target version, path, checksum, size, upload state, and uploaded parts. Finalization creates or resolves artifact metadata and associates it to the target version. Completion also requires the storage backend to return a real object version ID; if that metadata is missing, finalization fails and the session is marked failed.
 
 ## Download and Retrieval
 

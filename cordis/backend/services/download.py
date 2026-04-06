@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 from cordis.backend.config import build_config
 from cordis.backend.models import Artifact
@@ -13,7 +14,7 @@ class DownloadService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
 
-    async def get_download_url(self, *, version_id: str, artifact: Artifact) -> tuple[str, int]:
+    async def get_download_url(self, *, version_id: UUID, artifact: Artifact) -> tuple[str, int]:
         expires_in = build_config().storage.presign_expiry_seconds
         url = storage_factory.get_storage_adapter().get_download_url(
             StorageObjectRef(

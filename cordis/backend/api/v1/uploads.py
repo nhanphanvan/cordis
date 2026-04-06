@@ -1,5 +1,6 @@
 import base64
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status
 
@@ -74,7 +75,7 @@ async def create_upload_session(
 
 @router.get("/{session_id}", response_model=UploadSessionResponse)
 async def get_upload_session(
-    session_id: str,
+    session_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UploadSessionResponse:
@@ -90,7 +91,7 @@ async def get_upload_session(
 
 @router.post("/{session_id}/parts", response_model=UploadSessionResponse)
 async def upload_session_part(
-    session_id: str,
+    session_id: UUID,
     request: UploadSessionPartCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
@@ -119,7 +120,7 @@ async def upload_session_part(
 
 @router.post("/{session_id}/complete", response_model=UploadSessionResponse)
 async def complete_upload_session(
-    session_id: str,
+    session_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UploadSessionResponse:
@@ -143,7 +144,7 @@ async def complete_upload_session(
 
 @router.post("/{session_id}/abort", response_model=UploadSessionResponse)
 async def abort_upload_session(
-    session_id: str,
+    session_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UploadSessionResponse:

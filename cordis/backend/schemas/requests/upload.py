@@ -1,8 +1,10 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 
 class UploadSessionCreateRequest(BaseModel):
-    version_id: str
+    version_id: UUID
     path: str
     checksum: str
     size: int

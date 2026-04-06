@@ -18,7 +18,7 @@ A repository is the main ownership and authorization boundary. It has a name, op
 
 ### Repository Membership
 
-A repository membership links a user to a repository with a role. Membership controls read and write access within that repository.
+A repository membership links a user to a repository with a role. Membership controls read and write access within that repository, and one membership row exists per repository-user pair.
 
 ### Version
 
@@ -30,7 +30,7 @@ A version tag binds a stable name to a repository-scoped version.
 
 ### Artifact
 
-An artifact represents file content metadata such as path, checksum, size, and repository ownership.
+An artifact represents file content metadata such as path, checksum, size, repository ownership, and the required `storage_version_id` that identifies the exact underlying object version in storage.
 
 ### Version Artifact
 
@@ -53,10 +53,11 @@ An upload session part records uploaded multipart progress for resumable uploads
 - a tag belongs to one repository and points to one version
 - a version can have many artifacts through version-artifact associations
 - an upload session belongs to one repository/version target and can have many uploaded parts
+- a repository membership is identified by the `(repository_id, user_id)` pair
 
 ## Why the Boundaries Matter
 
 - repository boundaries drive authorization
 - version boundaries drive content lifecycle and retrieval
-- artifact metadata lets content be reasoned about independently from storage transport
+- artifact metadata lets content be reasoned about independently from transfer transport while still preserving exact storage object lineage through `storage_version_id`
 - upload sessions make large-file workflows explicit and resumable

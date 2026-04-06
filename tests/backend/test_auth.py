@@ -18,12 +18,20 @@ async def _reset_database() -> None:
         await connection.run_sync(DatabaseModel.metadata.create_all)
 
 
-async def _create_user(*, email: str, password: str, is_active: bool = True, is_admin: bool = False) -> None:
+async def _create_user(
+    *,
+    email: str,
+    password: str,
+    name: str | None = None,
+    is_active: bool = True,
+    is_admin: bool = False,
+) -> None:
     session_factory = get_session_factory()
     async with session_factory() as session:
         session.add(
             User(
                 email=email,
+                name=name,
                 password_hash=get_password_hash(password),
                 is_active=is_active,
                 is_admin=is_admin,
@@ -39,7 +47,7 @@ def test_login_returns_bearer_token_for_valid_credentials(monkeypatch, tmp_path:
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
-    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    asyncio.run(_create_user(email="admin@example.com", password="password123", name="Admin", is_admin=True))
 
     client = TestClient(create_app())
 
@@ -58,7 +66,7 @@ def test_login_rejects_invalid_credentials(monkeypatch, tmp_path: Path) -> None:
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
-    asyncio.run(_create_user(email="user@example.com", password="password123"))
+    asyncio.run(_create_user(email="user@example.com", password="password123", name="User"))
 
     client = TestClient(create_app())
 
@@ -80,7 +88,7 @@ def test_current_user_endpoint_requires_valid_bearer_token(monkeypatch, tmp_path
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
-    asyncio.run(_create_user(email="user@example.com", password="password123"))
+    asyncio.run(_create_user(email="user@example.com", password="password123", name="User"))
 
     client = TestClient(create_app())
     login_response = client.post("/api/v1/auth/login", json={"email": "user@example.com", "password": "password123"})
@@ -91,6 +99,7 @@ def test_current_user_endpoint_requires_valid_bearer_token(monkeypatch, tmp_path
     assert response.status_code == 200
     assert response.json() == {
         "email": "user@example.com",
+        "name": "User",
         "is_active": True,
         "is_admin": False,
     }
@@ -113,7 +122,7 @@ def test_admin_endpoint_rejects_non_admin_users(monkeypatch, tmp_path: Path) -> 
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
-    asyncio.run(_create_user(email="user@example.com", password="password123", is_admin=False))
+    asyncio.run(_create_user(email="user@example.com", password="password123", name="User", is_admin=False))
 
     client = TestClient(create_app())
     login_response = client.post("/api/v1/auth/login", json={"email": "user@example.com", "password": "password123"})
@@ -127,4 +136,28 @@ def test_admin_endpoint_rejects_non_admin_users(monkeypatch, tmp_path: Path) -> 
         "app_status_code": 1005,
         "message": "Admin privileges required",
         "detail": "Admin privileges required",
+    }
+
+
+def test_admin_endpoint_returns_current_user_payload_for_admin(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-auth-admin-ok.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_create_user(email="admin@example.com", password="password123", name="Admin", is_admin=True))
+
+    client = TestClient(create_app())
+    login_response = client.post("/api/v1/auth/login", json={"email": "admin@example.com", "password": "password123"})
+    token = login_response.json()["access_token"]
+
+    response = client.get("/api/v1/auth/admin-check", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "email": "admin@example.com",
+        "name": "Admin",
+        "is_active": True,
+        "is_admin": True,
     }

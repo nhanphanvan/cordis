@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
@@ -17,12 +18,13 @@ router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
 
 def _artifact_response(
-    artifact_id: str,
+    artifact_id: UUID,
     repository_id: int,
     path: str,
     name: str,
     checksum: str,
     size: int,
+    storage_version_id: str,
 ) -> ArtifactResponse:
     return ArtifactResponse(
         id=artifact_id,
@@ -31,6 +33,7 @@ def _artifact_response(
         name=name,
         checksum=checksum,
         size=size,
+        storage_version_id=storage_version_id,
     )
 
 
@@ -53,6 +56,7 @@ async def create_artifact(
         name=artifact_input.name,
         checksum=artifact_input.checksum,
         size=artifact_input.size,
+        storage_version_id=artifact_input.storage_version_id,
     )
     return _artifact_response(
         artifact.id,
@@ -61,12 +65,13 @@ async def create_artifact(
         artifact.name,
         artifact.checksum,
         artifact.size,
+        artifact.storage_version_id,
     )
 
 
 @router.get("/{artifact_id}", response_model=ArtifactResponse)
 async def get_artifact(
-    artifact_id: str,
+    artifact_id: UUID,
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ArtifactResponse:
@@ -90,4 +95,5 @@ async def get_artifact(
         artifact.name,
         artifact.checksum,
         artifact.size,
+        artifact.storage_version_id,
     )

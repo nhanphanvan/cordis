@@ -90,7 +90,7 @@ def test_developer_can_create_get_list_lookup_and_delete_versions(monkeypatch, t
 
     create_response = client.post(
         "/api/v1/versions",
-        json={"repository_id": repository_id, "name": "v1"},
+        json={"repository_id": repository_id, "name": "v1", "description": "first release"},
         headers=headers,
     )
     version_id = create_response.json()["id"]
@@ -105,14 +105,38 @@ def test_developer_can_create_get_list_lookup_and_delete_versions(monkeypatch, t
     delete_response = client.delete(f"/api/v1/versions/{version_id}", headers=headers)
 
     assert create_response.status_code == 201
-    assert create_response.json() == {"id": version_id, "repository_id": repository_id, "name": "v1"}
+    assert create_response.json() == {
+        "id": version_id,
+        "repository_id": repository_id,
+        "name": "v1",
+        "description": "first release",
+    }
     assert get_response.status_code == 200
     assert lookup_response.status_code == 200
-    assert lookup_response.json() == {"id": version_id, "repository_id": repository_id, "name": "v1"}
+    assert lookup_response.json() == {
+        "id": version_id,
+        "repository_id": repository_id,
+        "name": "v1",
+        "description": "first release",
+    }
     assert list_response.status_code == 200
-    assert list_response.json() == {"items": [{"id": version_id, "repository_id": repository_id, "name": "v1"}]}
+    assert list_response.json() == {
+        "items": [
+            {
+                "id": version_id,
+                "repository_id": repository_id,
+                "name": "v1",
+                "description": "first release",
+            }
+        ]
+    }
     assert delete_response.status_code == 200
-    assert delete_response.json() == {"id": version_id, "repository_id": repository_id, "name": "v1"}
+    assert delete_response.json() == {
+        "id": version_id,
+        "repository_id": repository_id,
+        "name": "v1",
+        "description": "first release",
+    }
 
 
 def test_version_name_must_be_unique_within_repository(monkeypatch, tmp_path: Path) -> None:

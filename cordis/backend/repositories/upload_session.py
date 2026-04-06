@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +14,7 @@ class UploadSessionRepository(BaseRepository[UploadSession]):
     async def get_resumable(
         self,
         *,
-        version_id: str,
+        version_id: UUID,
         path: str,
         checksum: str,
         size: int,

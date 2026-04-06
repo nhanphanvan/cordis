@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class UserResponse(BaseModel):
     id: int
     email: str
+    name: str | None
     is_active: bool
     is_admin: bool
 

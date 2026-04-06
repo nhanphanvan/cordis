@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+from uuid import UUID
 
 from cordis.backend.exceptions import AppStatus, ConflictError, NotFoundError, NotUniqueError, UnprocessableEntityError
 from cordis.backend.models import Artifact, Repository, Version
@@ -20,6 +21,7 @@ class ValidatedArtifactInput:
     name: str
     checksum: str
     size: int
+    storage_version_id: str
 
 
 class ArtifactCreateValidator(BaseValidator):
@@ -51,18 +53,25 @@ class ArtifactCreateValidator(BaseValidator):
                 "Artifact path must include a file name",
                 app_status=AppStatus.ERROR_ARTIFACT_PATH_INVALID,
             )
+        storage_version_id = request.storage_version_id.strip()
+        if not storage_version_id:
+            raise UnprocessableEntityError(
+                "Artifact storage version ID must not be empty",
+                app_status=AppStatus.ERROR_VALIDATION,
+            )
         return ValidatedArtifactInput(
             repository=repository,
             normalized_path=normalized_path,
             name=name,
             checksum=request.checksum,
             size=request.size,
+            storage_version_id=storage_version_id,
         )
 
 
 class ArtifactReadValidator(BaseValidator):
     @classmethod
-    async def validate(cls, *, uow: UnitOfWork, artifact_id: str) -> Artifact:
+    async def validate(cls, *, uow: UnitOfWork, artifact_id: UUID) -> Artifact:
         artifact = await uow.artifacts.get(artifact_id)
         if artifact is None:
             raise NotFoundError("Artifact not found", app_status=AppStatus.ERROR_ARTIFACT_NOT_FOUND)

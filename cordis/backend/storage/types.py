@@ -1,10 +1,11 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 
 @dataclass(frozen=True, slots=True)
 class StorageObjectRef:
     repository_id: int
-    artifact_id: str
+    artifact_id: UUID
     path: str
 
 

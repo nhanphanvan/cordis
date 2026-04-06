@@ -4,7 +4,6 @@ Cordis is split into a backend service and a CLI surface.
 
 ## High-Level Shape
 
-- `cordis.backend`: FastAPI application, domain services, persistence, exception handling, storage integration, and API schemas
 - `cordis.backend`: FastAPI application, domain services, persistence, security, exception handling, storage integration, and API schemas
 - `cordis.cli`: Typer command surface, SDK client, config helpers, and transfer utilities
 The backend owns repository, version, tag, artifact, upload-session, runtime settings, and app-status exception contracts. The CLI turns those capabilities into local operator workflows such as login, workspace registration, uploads, downloads, and cache-aware retrieval.
@@ -58,6 +57,7 @@ The backend registers centralized exception handling from `cordis.backend.except
 - `cordis.backend.schemas.responses`: response contracts
 
 This keeps storage concerns separate from HTTP payload concerns.
+Model relationships follow an explicit reference-style convention: typed `Mapped[...]` relationships, explicit `back_populates`, database-aligned `passive_deletes`, and ownership cascades only on parent-owned child collections.
 
 ### Storage boundary
 
@@ -113,7 +113,7 @@ Typical upload flow:
 2. The SDK resolves repository and version context.
 3. The backend creates or resumes an upload session.
 4. Upload parts are recorded and finalized through the storage adapter.
-5. Artifact metadata is attached to the target version.
+5. Artifact metadata with a required storage object version ID is attached to the target version.
 6. The CLI stores reusable file content in the local cache.
 
 Typical download flow:

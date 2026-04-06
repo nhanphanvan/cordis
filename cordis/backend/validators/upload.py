@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+from uuid import UUID
 
 from cordis.backend.exceptions import AppStatus, ConflictError, NotFoundError, UnprocessableEntityError
 from cordis.backend.models import Artifact, UploadSession, UploadSessionPart, Version
@@ -69,7 +70,7 @@ class UploadSessionCreateValidator(BaseValidator):
 
 class UploadSessionReadValidator(BaseValidator):
     @classmethod
-    async def validate(cls, *, uow: UnitOfWork, session_id: str) -> tuple[UploadSession, list[UploadSessionPart]]:
+    async def validate(cls, *, uow: UnitOfWork, session_id: UUID) -> tuple[UploadSession, list[UploadSessionPart]]:
         session = await uow.upload_sessions.get(session_id)
         if session is None:
             raise NotFoundError("Upload session not found", app_status=AppStatus.ERROR_UPLOAD_SESSION_NOT_FOUND)
@@ -112,7 +113,7 @@ class ArtifactResolutionValidator(BaseValidator):
         *,
         uow: UnitOfWork,
         repository_id: int,
-        artifact_id: str | None,
+        artifact_id: UUID | None,
         path: str,
         checksum: str,
         size: int,

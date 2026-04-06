@@ -1,5 +1,6 @@
 import importlib
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -111,6 +112,14 @@ def test_model_metadata_registers_phase_3_baseline_tables() -> None:
     assert {"users", "roles", "repositories", "repository_members"} <= table_names
 
 
+def test_repository_member_uses_composite_primary_key_without_surrogate_id() -> None:
+    repository_member = importlib.import_module("cordis.backend.models.repository_member").RepositoryMember
+    primary_key_columns = [column.name for column in repository_member.__table__.primary_key.columns]
+
+    assert primary_key_columns == ["repository_id", "user_id"]
+    assert "id" not in repository_member.__table__.c
+
+
 def test_models_base_exposes_database_model_not_legacy_split() -> None:
     models_base = importlib.import_module("cordis.backend.models.base")
 
@@ -151,3 +160,71 @@ def test_schema_packages_expose_request_and_response_modules() -> None:
     assert hasattr(auth_requests, "LoginRequest")
     assert hasattr(auth_responses, "TokenResponse")
     assert hasattr(auth_responses, "CurrentUserResponse")
+
+
+def test_api_router_module_is_top_level_and_v1_router_module_is_not_importable() -> None:
+    api_router = importlib.import_module("cordis.backend.api.router")
+
+    assert hasattr(api_router, "router")
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.backend.api.v1.router")
+
+
+def test_uuid_backed_model_columns_use_uuid_python_types() -> None:
+    version = importlib.import_module("cordis.backend.models.version").Version
+    version_tag = importlib.import_module("cordis.backend.models.version_tag").VersionTag
+    artifact = importlib.import_module("cordis.backend.models.artifact").Artifact
+    upload_session = importlib.import_module("cordis.backend.models.upload_session").UploadSession
+
+    assert version.__table__.c.id.type.python_type is UUID
+    assert version_tag.__table__.c.id.type.python_type is UUID
+    assert version_tag.__table__.c.version_id.type.python_type is UUID
+    assert artifact.__table__.c.id.type.python_type is UUID
+    assert upload_session.__table__.c.id.type.python_type is UUID
+    assert upload_session.__table__.c.version_id.type.python_type is UUID
+    assert upload_session.__table__.c.artifact_id.type.python_type is UUID
+
+
+def test_artifact_storage_version_id_is_non_nullable() -> None:
+    artifact = importlib.import_module("cordis.backend.models.artifact").Artifact
+
+    assert artifact.__table__.c.storage_version_id.nullable is False
+
+
+def test_repository_member_relationships_use_explicit_bidirectional_ownership_style() -> None:
+    repository = importlib.import_module("cordis.backend.models.repository").Repository
+    repository_member = importlib.import_module("cordis.backend.models.repository_member").RepositoryMember
+    user = importlib.import_module("cordis.backend.models.user").User
+    role = importlib.import_module("cordis.backend.models.role").Role
+
+    members = repository.__mapper__.relationships["members"]
+    repository_ref = repository_member.__mapper__.relationships["repository"]
+    user_memberships = user.__mapper__.relationships["repository_memberships"]
+    role_memberships = role.__mapper__.relationships["repository_memberships"]
+
+    assert members.back_populates == "repository"
+    assert members.passive_deletes is True
+    assert "delete-orphan" in str(members.cascade)
+    assert repository_ref.back_populates == "members"
+    assert repository_ref.passive_deletes is True
+    assert user_memberships.back_populates == "user"
+    assert user_memberships.passive_deletes is True
+    assert role_memberships.back_populates == "role"
+    assert role_memberships.passive_deletes is True
+
+
+def test_upload_session_relationships_use_explicit_bidirectional_ownership_style() -> None:
+    upload_session = importlib.import_module("cordis.backend.models.upload_session").UploadSession
+    upload_session_part = importlib.import_module("cordis.backend.models.upload_session_part").UploadSessionPart
+
+    assert "parts" in upload_session.__mapper__.relationships
+
+    parts = upload_session.__mapper__.relationships["parts"]
+    session = upload_session_part.__mapper__.relationships["session"]
+
+    assert parts.back_populates == "session"
+    assert parts.passive_deletes is True
+    assert "delete-orphan" in str(parts.cascade)
+    assert session.back_populates == "parts"
+    assert session.passive_deletes is True
