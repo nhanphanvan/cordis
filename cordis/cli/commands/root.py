@@ -1,6 +1,6 @@
 import typer
 
-from cordis.cli.commands.common import print_success, run_async
+from cordis.cli.commands.common import handle_cli_errors, print_success, run_async
 from cordis.cli.commands.repository import app as repository_app
 from cordis.cli.commands.resource import app as resource_app
 from cordis.cli.commands.tag import app as tag_app
@@ -19,6 +19,7 @@ def main() -> None:
 
 
 @app.command()
+@handle_cli_errors
 def login(
     email: str = typer.Option(..., "--email", "-e"),
     password: str = typer.Option(..., "--password", "-p", hide_input=True),
@@ -34,12 +35,14 @@ def login(
 
 
 @app.command()
+@handle_cli_errors
 def logout() -> None:
     remove_config_value(get_global_config_path(), "token")
     print_success("Logout successfully")
 
 
 @app.command("clean-cache")
+@handle_cli_errors
 def clean_cache_command() -> None:
     clean_transfer_cache()
     print_success("Cache cleaned")

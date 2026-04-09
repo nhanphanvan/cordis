@@ -16,6 +16,8 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/backend/storage`: storage abstraction and provider adapter
 - `cordis/backend/utils`: backend logging and utility helpers
 - `cordis/cli/commands`: Typer command definitions
+- `cordis/cli/errors.py`: typed CLI exception surface for config, API, and transport failures
+- `cordis/cli/presentation.py`: Rich-based output helpers for tables, detail views, and status panels
 - `cordis/cli/sdk`: backend-facing client wrapper
 - `cordis/cli/config`: config and workspace-registration helpers
 - `cordis/cli/transfer`: local file and cache helpers
@@ -59,12 +61,15 @@ Use module-level loggers for key mutation and auth workflows rather than scatter
 When adding CLI functionality:
 
 1. add or update the SDK client behavior in `cordis.cli.sdk`
-2. wire the user-facing command in `cordis.cli.commands`
-3. use config helpers for persisted endpoint, token, or workspace state
-4. use transfer helpers for local file and cache behavior when relevant
-5. add tests in `tests/cli`
+2. add or update typed CLI errors if the feature introduces a new expected failure mode
+3. wire the user-facing command in `cordis.cli.commands`
+4. render human-facing output through the shared presentation helpers
+5. use config helpers for persisted endpoint, token, or workspace state
+6. use transfer helpers for local file and cache behavior when relevant
+7. add tests in `tests/cli`
 
 Keep HTTP details inside the SDK layer, not directly inside command handlers.
+Keep expected failure rendering centralized through the shared CLI error path rather than duplicating command-local `try/except` formatting.
 
 ## Configuration and State
 

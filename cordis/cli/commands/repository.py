@@ -3,6 +3,7 @@ import typer
 from cordis.cli.commands.common import (
     get_client,
     get_registered_repo_id,
+    handle_cli_errors,
     print_detail,
     print_success,
     print_table,
@@ -19,6 +20,7 @@ def repository() -> None:
 
 
 @app.command("register")
+@handle_cli_errors
 def register_repository(
     repo_id: int = typer.Option(..., "--repo-id"),
     version_name: str | None = typer.Option(None, "--version"),
@@ -31,17 +33,20 @@ def register_repository(
 
 
 @app.command("unregister")
+@handle_cli_errors
 def unregister_repository() -> None:
     clear_project_registration()
     print_success("Repository unregistered")
 
 
 @app.command("current")
+@handle_cli_errors
 def current_registration() -> None:
     print_detail("Current Registration", read_config(get_project_config_path()))
 
 
 @app.command("ls")
+@handle_cli_errors
 def list_repositories() -> None:
     items = run_async(get_client().list_my_repositories())
     print_table(
@@ -52,6 +57,7 @@ def list_repositories() -> None:
 
 
 @app.command("create")
+@handle_cli_errors
 def create_repository(
     name: str = typer.Option(..., "--name"),
     public: bool = typer.Option(False, "--public"),
@@ -61,6 +67,7 @@ def create_repository(
 
 
 @app.command("update")
+@handle_cli_errors
 def update_repository_command(
     public: bool = typer.Option(False, "--public"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
@@ -75,12 +82,14 @@ def update_repository_command(
 
 
 @app.command("delete")
+@handle_cli_errors
 def delete_repository_command(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
     item = run_async(get_client().delete_repository(repository_id=get_registered_repo_id(repo_id)))
     print_success(f"Repository {item['name']} deleted")
 
 
 @app.command("versions")
+@handle_cli_errors
 def repository_versions(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
     items = run_async(get_client().list_repository_versions(repository_id=get_registered_repo_id(repo_id)))
     print_table(
@@ -91,6 +100,7 @@ def repository_versions(repo_id: int | None = typer.Option(None, "--repo-id")) -
 
 
 @app.command("create-version")
+@handle_cli_errors
 def repository_create_version(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
@@ -100,6 +110,7 @@ def repository_create_version(
 
 
 @app.command("delete-version")
+@handle_cli_errors
 def repository_delete_version(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
@@ -109,6 +120,7 @@ def repository_delete_version(
 
 
 @app.command("users")
+@handle_cli_errors
 def repository_users(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
     items = run_async(get_client().list_repository_members(repository_id=get_registered_repo_id(repo_id)))
     print_table(
@@ -119,6 +131,7 @@ def repository_users(repo_id: int | None = typer.Option(None, "--repo-id")) -> N
 
 
 @app.command("add-user")
+@handle_cli_errors
 def repository_add_user(
     email: str = typer.Option(..., "--email"),
     role: str = typer.Option(..., "--role"),
@@ -135,6 +148,7 @@ def repository_add_user(
 
 
 @app.command("update-user")
+@handle_cli_errors
 def repository_update_user(
     email: str = typer.Option(..., "--email"),
     role: str = typer.Option(..., "--role"),
@@ -151,6 +165,7 @@ def repository_update_user(
 
 
 @app.command("delete-user")
+@handle_cli_errors
 def repository_delete_user(
     email: str = typer.Option(..., "--email"),
     repo_id: int | None = typer.Option(None, "--repo-id"),

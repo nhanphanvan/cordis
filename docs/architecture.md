@@ -75,11 +75,15 @@ Model relationships follow an explicit reference-style convention: typed `Mapped
 
 ### Commands
 
-`cordis.cli.commands` defines the Typer entrypoint and command groups.
+`cordis.cli.commands` defines the Typer entrypoint and command groups. Commands collect user input, call the SDK, and route expected failures through the shared CLI error handler.
+
+### Presentation and errors
+
+`cordis.cli.presentation` owns Rich-rendered tables, detail views, success panels, and error panels. `cordis.cli.errors` defines the typed CLI exception surface used to normalize config, transport, and backend API failures before they reach the terminal.
 
 ### SDK
 
-`cordis.cli.sdk` contains the backend-facing client wrapper used by the CLI. It centralizes HTTP request construction and higher-level transfer workflows.
+`cordis.cli.sdk` contains the backend-facing client wrapper used by the CLI. It centralizes HTTP request construction, backend error normalization, and higher-level transfer workflows.
 
 ### CLI utilities
 

@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+import httpx
+
 from cordis.cli.config.files import ensure_global_config, get_global_config_path, read_config
+from cordis.cli.errors import ApiError, TransportError
 from cordis.cli.sdk.apis import AuthAPI, RepositoriesAPI, TagsAPI, UsersAPI, VersionsAPI
 from cordis.cli.sdk.transfers import TransferHelper
 from cordis.cli.utils.httpx_service import HttpxService
@@ -136,11 +139,42 @@ class CordisClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
-        response = await self.transport.request(method=method, path=path, json=payload, headers=headers)
+        try:
+            response = await self.transport.request(method=method, path=path, json=payload, headers=headers)
+        except httpx.HTTPError as error:
+            raise TransportError("Could not connect to the Cordis backend", detail=str(error)) from error
+
         if response.status_code >= 400:
-            detail = response.text
-            raise RuntimeError(detail or f"Request failed with status {response.status_code}")
+            raise self._build_api_error(response)
         return response.json() if response.content else {}
+
+    def _build_api_error(self, response: httpx.Response) -> ApiError:
+        payload: dict[str, Any] = {}
+        if response.content:
+            try:
+                decoded = response.json()
+            except ValueError:
+                decoded = None
+            if isinstance(decoded, dict):
+                payload = decoded
+
+        status_message = str(payload.get("message") or f"Request failed with status {response.status_code}")
+        detail = payload.get("detail")
+        user_message = str(
+            detail or status_message or response.text or f"Request failed with status {response.status_code}"
+        )
+
+        app_status_code = payload.get("app_status_code")
+        if app_status_code is not None:
+            app_status_code = int(app_status_code)
+
+        return ApiError(
+            http_status=response.status_code,
+            app_status_code=app_status_code,
+            status_message=status_message,
+            user_message=user_message,
+            detail=None if detail is None else str(detail),
+        )
 
 
 def get_client() -> CordisClient:

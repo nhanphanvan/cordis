@@ -2,6 +2,13 @@
 
 Cordis ships with a Typer-based CLI named `cordis`.
 
+The CLI uses a shared presentation layer for human-friendly terminal output:
+
+- tables for list-style results
+- labeled detail views for single records
+- success panels for mutations and cache/auth actions
+- error panels for expected API, config, and transport failures
+
 ## Global Commands
 
 - `cordis login --email <email> --password <password> [--endpoint <url>]`
@@ -9,6 +16,8 @@ Cordis ships with a Typer-based CLI named `cordis`.
 - `cordis clean-cache`
 
 `login` stores the backend endpoint, access token, and email in the global CLI config.
+
+If login fails because of backend auth or connectivity problems, the CLI renders an error panel with a short status line rather than a raw traceback.
 
 ## User Commands
 
@@ -36,6 +45,7 @@ These commands cover current-user inspection and admin-facing user lookup/listin
 - `cordis repository delete-user --email <email> [--repo-id <id>]`
 
 Many repository commands can use the workspace registration stored in `.cordis/config.json`.
+If a repository-scoped command runs without a registered repository and no `--repo-id`, the CLI renders a configuration error panel.
 
 ## Version Commands
 
@@ -101,5 +111,14 @@ cordis resource download-item --path models/file.bin --save-path ./downloads/fil
 - workspace registration is stored in `<cwd>/.cordis/config.json`
 - cache cleanup is available through `cordis clean-cache`
 - transfer helpers reuse cached file content when checksums match
+
+## Error Behavior
+
+The CLI normalizes expected failures into a shared error surface.
+
+- backend app-status responses are parsed into typed CLI API errors
+- missing local registration state is rendered as a CLI configuration error
+- connection and timeout issues are rendered as transport errors
+- expected failures exit with status code `1` and do not dump raw Python exceptions by default
 
 Read [Configuration](./configuration.md) for the full path and environment details.

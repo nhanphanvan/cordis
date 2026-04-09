@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from cordis.cli.errors import ApiError
 from cordis.cli.transfer import (
     copy_from_cache,
     download_to_path,
@@ -30,7 +31,9 @@ class TransferHelper:
     ) -> dict[str, Any]:
         try:
             version = await self.client.get_version(repository_id=repository_id, name=version_name)
-        except RuntimeError:
+        except ApiError as error:
+            if error.http_status != 404 and error.app_status_code != 1400:
+                raise
             if not create_version_if_missing:
                 raise
             version = await self.client.create_version(repository_id=repository_id, name=version_name)

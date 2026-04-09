@@ -4,6 +4,7 @@ from cordis.cli.commands.common import (
     get_client,
     get_registered_repo_id,
     get_registered_version,
+    handle_cli_errors,
     print_detail,
     print_path_summary,
     print_table,
@@ -19,6 +20,7 @@ def resource() -> None:
 
 
 @app.command("ls")
+@handle_cli_errors
 def list_resources(
     repo_id: int | None = typer.Option(None, "--repo-id"),
     version_name: str | None = typer.Option(None, "--version"),
@@ -37,6 +39,7 @@ def list_resources(
 
 
 @app.command("download")
+@handle_cli_errors
 def download_resources(
     path: str = typer.Option(..., "--path"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
@@ -53,6 +56,7 @@ def download_resources(
 
 
 @app.command("upload")
+@handle_cli_errors
 def upload_resources(
     path: str = typer.Option(..., "--path"),
     create_version: bool = typer.Option(False, "--create-version"),
@@ -71,6 +75,7 @@ def upload_resources(
 
 
 @app.command("download-item")
+@handle_cli_errors
 def download_item(
     path: str = typer.Option(..., "--path"),
     save_path: str = typer.Option(..., "--save-path"),

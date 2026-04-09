@@ -40,6 +40,18 @@ When working on a backend project in this repository, follow these structural pr
 - backend utilities should stay backend-runtime-specific; CLI-specific helpers belong under `cordis/cli/`
 - prefer hard-cut refactors over temporary compatibility wrappers unless compatibility is explicitly required
 
+## Preferred CLI Style
+
+When working on the CLI in this repository, follow these structural preferences:
+
+- keep `cordis/cli/commands/` focused on command wiring and input collection, not HTTP or transport details
+- keep backend communication inside `cordis/cli/sdk/`
+- keep CLI error types in `cordis/cli/errors.py` and prefer typed CLI exceptions over raw `RuntimeError`
+- keep command error handling centralized; expected failures should render through the shared CLI error path rather than ad-hoc `try/except` blocks in each command
+- keep CLI presentation in a shared rendering layer and prefer Rich tables, detail views, and status panels over manual string concatenation
+- keep transfer- and cache-specific local behavior under `cordis/cli/transfer/`
+- prefer human-friendly default output; if adding machine-readable output later, make it explicit rather than degrading the default presentation
+
 ## Testing Guidelines
 
 Pytest is the test framework. Add tests next to the relevant area using `test_*.py` filenames and behavior-focused names such as `test_version_command_prints_project_version`. Run `make test` for the full suite, or scope locally with `python3 -m poetry run pytest tests/backend/test_app.py -q`.

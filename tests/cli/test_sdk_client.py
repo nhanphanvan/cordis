@@ -3,6 +3,7 @@ from pathlib import Path
 
 import httpx
 
+from cordis.cli.errors import ApiError, TransportError
 from cordis.cli.sdk.client import CordisClient
 
 
@@ -44,10 +45,15 @@ def test_login_uses_httpx_transport_and_authorization_headers() -> None:
     ]
 
 
-def test_request_raises_runtime_error_for_http_failures() -> None:
+def test_request_raises_api_error_for_http_failures() -> None:
     response = httpx.Response(
         status_code=404,
-        text='{"detail":"missing"}',
+        json={
+            "status_code": 404,
+            "app_status_code": 1400,
+            "message": "Version not found",
+            "detail": "Version v1 not found",
+        },
         request=httpx.Request("GET", "http://127.0.0.1:8000/api/v1/users/me"),
     )
     transport = FakeHttpxService(response)
@@ -56,10 +62,32 @@ def test_request_raises_runtime_error_for_http_failures() -> None:
 
     try:
         asyncio.run(client.get_me())
-    except RuntimeError as exc:
-        assert "missing" in str(exc)
+    except ApiError as exc:
+        assert exc.http_status == 404
+        assert exc.app_status_code == 1400
+        assert exc.status_message == "Version not found"
+        assert exc.user_message == "Version v1 not found"
     else:
-        raise AssertionError("expected RuntimeError")
+        raise AssertionError("expected ApiError")
+
+
+def test_request_raises_transport_error_for_connect_failures() -> None:
+    class FailingHttpxService:
+        async def request(self, method: str, path: str, **kwargs: object) -> httpx.Response:
+            raise httpx.ConnectError(
+                "connection refused", request=httpx.Request(method, f"http://127.0.0.1:8000{path}")
+            )
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    client.transport = FailingHttpxService()  # type: ignore[assignment]
+
+    try:
+        asyncio.run(client.get_me())
+    except TransportError as exc:
+        assert "Could not connect" in exc.user_message
+        assert "TRANSPORT" in exc.status_line
+    else:
+        raise AssertionError("expected TransportError")
 
 
 def test_client_exposes_domain_apis_and_facade_methods_delegate() -> None:

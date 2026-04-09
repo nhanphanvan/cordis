@@ -1,6 +1,6 @@
 # Cordis
 
-Cordis is a file and artifact management service built for large-scale objects. It provides a FastAPI backend for repository, version, tag, and artifact workflows, plus a Typer-based CLI for authentication, repository management, and resource transfer operations.
+Cordis is a file and artifact management service built for large-scale objects. It provides a FastAPI backend for repository, version, tag, and artifact workflows, plus a Typer-based CLI for authentication, repository management, and resource transfer operations with structured Rich-rendered output.
 
 Full project documentation lives under [`docs/`](./docs/index.md).
 
@@ -8,6 +8,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 
 - A FastAPI backend with versioned API routes under `/api/v1`
 - A Typer CLI for login, repository, version, tag, user, and resource workflows
+- Rich-rendered CLI tables, detail views, success panels, and typed error output
 - Artifact metadata, upload-session, and download flows for large object handling
 - Backend-owned configuration, JWT security, app-status exceptions, and storage integration
 - Required storage object-version lineage for persisted artifacts
@@ -61,7 +62,7 @@ make run-cli-help
 ## Project Layout
 
 - `cordis/backend/`: FastAPI application, API routers, policies, validators, services, repositories, security, exception handling, and storage integration
-- `cordis/cli/`: Typer CLI, SDK client, config handling, and transfer helpers
+- `cordis/cli/`: Typer CLI, SDK client, presentation/error handling, config handling, and transfer helpers
 - `tests/backend/`: backend-focused tests
 - `tests/cli/`: CLI-focused tests
 
@@ -81,7 +82,7 @@ Common CLI areas include:
 - `cordis tag ...`
 - `cordis resource ...`
 
-The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. Persisted artifacts always carry a required `storage_version_id`, so retrieval can resolve the exact underlying object version in storage.
+The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, while persisted artifacts always carry a required `storage_version_id`, so retrieval can resolve the exact underlying object version in storage.
 
 ## Quality Checks
 

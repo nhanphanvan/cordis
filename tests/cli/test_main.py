@@ -3,6 +3,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from cordis.cli.errors import ApiError
 from cordis.cli.main import app
 
 
@@ -139,6 +140,43 @@ def test_repository_ls_uses_sdk_client(monkeypatch, tmp_path: Path) -> None:
     assert "Repositories" in result.stdout
     assert "repo-one" in result.stdout
     assert "developer" in result.stdout
+
+
+def test_repository_users_renders_registered_repository_error(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(app, ["repository", "users"])
+
+    assert result.exit_code == 1
+    assert "Error" in result.stdout
+    assert "Repository is not registered in this directory" in result.stdout
+    assert "CONFIG" in result.stdout
+
+
+def test_user_me_renders_backend_api_error(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+
+    class FakeClient:
+        async def get_me(self) -> dict[str, object]:
+            raise ApiError(
+                http_status=401,
+                app_status_code=1002,
+                status_message="Invalid bearer token",
+                user_message="Please login again",
+            )
+
+    monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["user", "me"])
+
+    assert result.exit_code == 1
+    assert "Error" in result.stdout
+    assert "Please login again" in result.stdout
+    assert "HTTP 401" in result.stdout
+    assert "APP 1002" in result.stdout
 
 
 def test_repository_create_prints_created_repository(monkeypatch, tmp_path: Path) -> None:

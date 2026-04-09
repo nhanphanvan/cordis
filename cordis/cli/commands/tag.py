@@ -3,6 +3,7 @@ import typer
 from cordis.cli.commands.common import (
     get_client,
     get_registered_repo_id,
+    handle_cli_errors,
     print_detail,
     print_success,
     print_table,
@@ -18,6 +19,7 @@ def tag() -> None:
 
 
 @app.command("ls")
+@handle_cli_errors
 def list_tags(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
     items = run_async(get_client().list_tags(repository_id=get_registered_repo_id(repo_id)))
     print_table(
@@ -28,6 +30,7 @@ def list_tags(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
 
 
 @app.command("get")
+@handle_cli_errors
 def get_tag(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
@@ -37,6 +40,7 @@ def get_tag(
 
 
 @app.command("create")
+@handle_cli_errors
 def create_tag(
     name: str = typer.Option(..., "--name"),
     version_name: str = typer.Option(..., "--version"),
@@ -53,6 +57,7 @@ def create_tag(
 
 
 @app.command("delete")
+@handle_cli_errors
 def delete_tag(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),

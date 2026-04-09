@@ -6,6 +6,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from cordis.cli.errors import CordisCliError
+
 
 def _get_console() -> Console:
     return Console(color_system=None, force_terminal=False, highlight=False, soft_wrap=True)
@@ -21,6 +23,13 @@ def _format_value(value: Any) -> str:
 
 def print_success(message: str) -> None:
     _get_console().print(Panel.fit(message, title="Success", box=box.ASCII))
+
+
+def print_error(error: CordisCliError) -> None:
+    message = error.user_message
+    if error.status_line:
+        message = f"{message}\n\n{error.status_line}"
+    _get_console().print(Panel.fit(message, title="Error", box=box.ASCII))
 
 
 def print_detail(title: str, values: dict[str, Any]) -> None:

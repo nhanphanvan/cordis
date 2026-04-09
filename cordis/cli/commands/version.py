@@ -2,7 +2,14 @@ import typer
 from typer import Context
 
 from cordis import __version__
-from cordis.cli.commands.common import get_client, get_registered_repo_id, print_detail, print_success, run_async
+from cordis.cli.commands.common import (
+    get_client,
+    get_registered_repo_id,
+    handle_cli_errors,
+    print_detail,
+    print_success,
+    run_async,
+)
 
 app = typer.Typer(help="Version commands.", invoke_without_command=True)
 
@@ -14,6 +21,7 @@ def version_group(ctx: Context) -> None:
 
 
 @app.command("get")
+@handle_cli_errors
 def get_version_command(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
@@ -23,6 +31,7 @@ def get_version_command(
 
 
 @app.command("create")
+@handle_cli_errors
 def create_version_command(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
@@ -32,6 +41,7 @@ def create_version_command(
 
 
 @app.command("delete")
+@handle_cli_errors
 def delete_version_command(
     name: str = typer.Option(..., "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id"),
