@@ -21,6 +21,7 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/cli/sdk`: backend-facing client wrapper
 - `cordis/cli/config`: config and workspace-registration helpers
 - `cordis/cli/transfer`: local file and cache helpers
+- `cordis/cli/transfer/files.py`: upload file discovery, `.cordisignore` matching, checksums, and cache file paths
 - `cordis/backend/settings.py`: backend startup wiring for logging and security
 - `cordis/backend/exceptions/`: app status catalog, backend exception types, and centralized exception handlers
 
@@ -70,6 +71,7 @@ When adding CLI functionality:
 
 Keep HTTP details inside the SDK layer, not directly inside command handlers.
 Keep expected failure rendering centralized through the shared CLI error path rather than duplicating command-local `try/except` formatting.
+Keep upload ignore semantics in the transfer layer and treat `.cordisignore` as the only upload ignore file in the current design.
 
 ## Configuration and State
 

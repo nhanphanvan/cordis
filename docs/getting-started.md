@@ -55,6 +55,8 @@ The CLI entrypoint is `cordis`, with command groups for users, repositories, ver
 6. List version contents with `cordis resource ls`.
 7. Download them again with `cordis resource download --path <target-folder>`.
 
+If the upload folder contains files you do not want to send, add a `.cordisignore` file there. Cordis uses Gitignore-style matching rules for upload exclusion.
+
 ## Important Local Paths
 
 - Global CLI home: `~/.cordis` by default, or `CORDIS_HOME` when overridden

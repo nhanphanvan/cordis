@@ -10,6 +10,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 - A Typer CLI for login, repository, version, tag, user, and resource workflows
 - Rich-rendered CLI tables, detail views, success panels, and typed error output
 - Artifact metadata, upload-session, and download flows for large object handling
+- `.cordisignore` support for Gitignore-style upload exclusions
 - Backend-owned configuration, JWT security, app-status exceptions, and storage integration
 - Required storage object-version lineage for persisted artifacts
 

@@ -142,3 +142,55 @@ def test_download_version_uses_cached_file_before_remote_download(
     )
 
     assert result == {"downloaded": ["models/file.bin"]}
+
+
+def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    (root / ".cordisignore").write_text("*.tmp\n", encoding="utf-8")
+    (root / "keep.txt").write_text("keep", encoding="utf-8")
+    (root / "ignore.tmp").write_text("ignore", encoding="utf-8")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        assert repository_id == 7
+        assert name == "v1"
+        return {"id": "version-1", "name": "v1"}
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1"}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.cli.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(
+        client.upload_directory(
+            repository_id=7,
+            version_name="v1",
+            folder_path=str(root),
+        )
+    )
+
+    assert result == {"uploaded": ["keep.txt"]}
+    assert requests[0] == (
+        "POST",
+        "/api/v1/uploads/sessions",
+        {
+            "version_id": "version-1",
+            "path": "keep.txt",
+            "checksum": "sha256:6ca7ea2feefc88ecb5ed6356ed963f47dc9137f82526fdd25d618ea626d0803f",
+            "size": 4,
+        },
+    )

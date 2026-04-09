@@ -71,6 +71,7 @@ Running `cordis version` without a subcommand prints the CLI package version.
 - `cordis resource download-item --path <artifact-path> --save-path <local-path> [--repo-id <id>] [--version <name>]`
 
 Resource commands use the registered repository and version when explicit values are not provided.
+`cordis resource upload` reads `.cordisignore` from the upload root and skips matching files using Gitignore-style rules.
 
 ## Common Workflows
 
@@ -105,12 +106,25 @@ cordis resource download --path ./downloads
 cordis resource download-item --path models/file.bin --save-path ./downloads/file.bin
 ```
 
+### Exclude local files from upload
+
+Create a `.cordisignore` file in the folder you upload:
+
+```gitignore
+*.tmp
+build/
+!build/keep.bin
+```
+
+Cordis always skips `.cordis/` metadata and `.cordisignore` itself during upload traversal.
+
 ## Config and Cache Behavior
 
 - global CLI state is stored under `~/.cordis` by default
 - workspace registration is stored in `<cwd>/.cordis/config.json`
 - cache cleanup is available through `cordis clean-cache`
 - transfer helpers reuse cached file content when checksums match
+- upload traversal honors `.cordisignore` using Gitignore-style matching rules
 
 ## Error Behavior
 
