@@ -12,7 +12,8 @@ def test_version_command_prints_project_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert result.stdout.strip() == "cordis 0.1.0"
+    assert "Version" in result.stdout
+    assert "0.1.0" in result.stdout
 
 
 def test_help_lists_available_commands() -> None:
@@ -44,6 +45,8 @@ def test_login_persists_token_and_email(monkeypatch, tmp_path: Path) -> None:
     result = runner.invoke(app, ["login", "--email", "user@example.com", "--password", "password123"])
 
     assert result.exit_code == 0
+    assert "Success" in result.stdout
+    assert "Login successfully" in result.stdout
     config_path = tmp_path / ".cordis-home" / "config.json"
     assert json.loads(config_path.read_text(encoding="utf-8")) == {
         "email": "user@example.com",
@@ -64,6 +67,8 @@ def test_logout_clears_token(monkeypatch, tmp_path: Path) -> None:
     result = runner.invoke(app, ["logout"])
 
     assert result.exit_code == 0
+    assert "Success" in result.stdout
+    assert "Logout successfully" in result.stdout
     assert json.loads((home / "config.json").read_text(encoding="utf-8")) == {"email": "user@example.com"}
 
 
@@ -75,10 +80,12 @@ def test_repository_register_and_unregister_manage_project_config(monkeypatch, t
         register_result = runner.invoke(app, ["repository", "register", "--repo-id", "7", "--version", "v1"])
         project_config_path = Path.cwd() / ".cordis" / "config.json"
         assert register_result.exit_code == 0
+        assert "Repository registered" in register_result.stdout
         assert json.loads(project_config_path.read_text(encoding="utf-8")) == {"repo_id": 7, "version": "v1"}
 
         unregister_result = runner.invoke(app, ["repository", "unregister"])
         assert unregister_result.exit_code == 0
+        assert "Repository unregistered" in unregister_result.stdout
         assert not project_config_path.exists()
 
 
@@ -93,6 +100,7 @@ def test_clean_cache_recreates_empty_cache_dir(monkeypatch, tmp_path: Path) -> N
     result = runner.invoke(app, ["clean-cache"])
 
     assert result.exit_code == 0
+    assert "Cache cleaned" in result.stdout
     assert cache_dir.exists()
     assert list(cache_dir.iterdir()) == []
 
@@ -110,7 +118,9 @@ def test_user_me_uses_sdk_client(monkeypatch, tmp_path: Path) -> None:
     result = runner.invoke(app, ["user", "me"])
 
     assert result.exit_code == 0
-    assert result.stdout.strip() == "3 user@example.com"
+    assert "User" in result.stdout
+    assert "user@example.com" in result.stdout
+    assert "ID" in result.stdout
 
 
 def test_repository_ls_uses_sdk_client(monkeypatch, tmp_path: Path) -> None:
@@ -126,6 +136,7 @@ def test_repository_ls_uses_sdk_client(monkeypatch, tmp_path: Path) -> None:
     result = runner.invoke(app, ["repository", "ls"])
 
     assert result.exit_code == 0
+    assert "Repositories" in result.stdout
     assert "repo-one" in result.stdout
     assert "developer" in result.stdout
 
@@ -145,6 +156,7 @@ def test_repository_create_prints_created_repository(monkeypatch, tmp_path: Path
     result = runner.invoke(app, ["repository", "create", "--name", "repo-two", "--public"])
 
     assert result.exit_code == 0
+    assert "Repository" in result.stdout
     assert "repo-two" in result.stdout
     assert "8" in result.stdout
 
@@ -186,10 +198,13 @@ def test_tag_commands_use_registered_repository(monkeypatch, tmp_path: Path) -> 
         delete_result = runner.invoke(app, ["tag", "delete", "--name", "stable"])
 
         assert ls_result.exit_code == 0
+        assert "Tags" in ls_result.stdout
         assert "stable" in ls_result.stdout
         assert get_result.exit_code == 0
+        assert "Tag" in get_result.stdout
         assert "v1" in get_result.stdout
         assert create_result.exit_code == 0
+        assert "Tag" in create_result.stdout
         assert "stable" in create_result.stdout
         assert delete_result.exit_code == 0
         assert "deleted" in delete_result.stdout
@@ -234,6 +249,7 @@ def test_resource_download_item_uses_registered_repository_and_version(monkeypat
         )
 
         assert result.exit_code == 0
+        assert "Download" in result.stdout
         assert "download.invalid/file" in result.stdout
 
 
@@ -261,8 +277,10 @@ def test_repository_versions_and_users_use_registered_repository(monkeypatch, tm
         users_result = runner.invoke(app, ["repository", "users"])
 
         assert versions_result.exit_code == 0
+        assert "Versions" in versions_result.stdout
         assert "v1" in versions_result.stdout
         assert users_result.exit_code == 0
+        assert "Members" in users_result.stdout
         assert "user@example.com" in users_result.stdout
         assert "developer" in users_result.stdout
 
@@ -298,8 +316,10 @@ def test_version_commands_use_registered_repository(monkeypatch, tmp_path: Path)
         delete_result = runner.invoke(app, ["version", "delete", "--name", "v2"])
 
         assert get_result.exit_code == 0
+        assert "Version" in get_result.stdout
         assert "version-1" in get_result.stdout
         assert create_result.exit_code == 0
+        assert "Version" in create_result.stdout
         assert "version-2" in create_result.stdout
         assert delete_result.exit_code == 0
         assert "deleted" in delete_result.stdout
@@ -328,6 +348,7 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
         result = runner.invoke(app, ["resource", "ls"])
 
         assert result.exit_code == 0
+        assert "Resources" in result.stdout
         assert "models/file.bin" in result.stdout
         assert "README.md" in result.stdout
 
@@ -375,9 +396,11 @@ def test_repository_member_mutation_commands_use_registered_repository(monkeypat
         )
 
         assert add_result.exit_code == 0
+        assert "Member" in add_result.stdout
         assert "user@example.com" in add_result.stdout
         assert "developer" in add_result.stdout
         assert update_result.exit_code == 0
+        assert "Member" in update_result.stdout
         assert "viewer" in update_result.stdout
         assert delete_result.exit_code == 0
         assert "removed" in delete_result.stdout
@@ -404,10 +427,13 @@ def test_user_listing_and_info_commands_use_sdk_client(monkeypatch, tmp_path: Pa
     info_result = runner.invoke(app, ["user", "info", "--email", "user@example.com"])
 
     assert ls_result.exit_code == 0
+    assert "Users" in ls_result.stdout
     assert "admin@example.com" in ls_result.stdout
     assert "user@example.com" in ls_result.stdout
     assert info_result.exit_code == 0
-    assert info_result.stdout.strip() == "2 user@example.com admin=False"
+    assert "User" in info_result.stdout
+    assert "user@example.com" in info_result.stdout
+    assert "False" in info_result.stdout
 
 
 def test_repository_create_and_delete_version_commands_use_registered_repository(
@@ -438,6 +464,7 @@ def test_repository_create_and_delete_version_commands_use_registered_repository
         delete_result = runner.invoke(app, ["repository", "delete-version", "--name", "v3"])
 
         assert create_result.exit_code == 0
+        assert "Version" in create_result.stdout
         assert "version-3" in create_result.stdout
         assert delete_result.exit_code == 0
         assert "deleted" in delete_result.stdout
@@ -468,8 +495,9 @@ def test_repository_update_and_delete_use_registered_repository(monkeypatch, tmp
         delete_result = runner.invoke(app, ["repository", "delete"])
 
         assert update_result.exit_code == 0
+        assert "Repository" in update_result.stdout
         assert "repo-31" in update_result.stdout
-        assert "public=True" in update_result.stdout
+        assert "True" in update_result.stdout
         assert delete_result.exit_code == 0
         assert "repo-31" in delete_result.stdout
         assert "deleted" in delete_result.stdout
@@ -507,6 +535,7 @@ def test_resource_upload_uses_registered_repository_and_version(monkeypatch, tmp
         result = runner.invoke(app, ["resource", "upload", "--path", "payloads"])
 
         assert result.exit_code == 0
+        assert "Uploaded" in result.stdout
         assert "file.txt" in result.stdout
 
 
@@ -542,6 +571,7 @@ def test_resource_upload_can_create_missing_version(monkeypatch, tmp_path: Path)
         result = runner.invoke(app, ["resource", "upload", "--path", "payloads", "--create-version"])
 
         assert result.exit_code == 0
+        assert "Uploaded" in result.stdout
         assert "file.txt" in result.stdout
 
 
@@ -572,6 +602,7 @@ def test_resource_download_uses_registered_repository_and_version(monkeypatch, t
         result = runner.invoke(app, ["resource", "download", "--path", "downloads"])
 
         assert result.exit_code == 0
+        assert "Downloaded" in result.stdout
         assert "models/a.bin" in result.stdout
         assert "README.md" in result.stdout
 
@@ -591,4 +622,5 @@ def test_login_command_awaits_async_client_call(monkeypatch, tmp_path: Path) -> 
     result = runner.invoke(app, ["login", "--email", "async@example.com", "--password", "secret"])
 
     assert result.exit_code == 0
+    assert "Login successfully" in result.stdout
     assert calls == [("async@example.com", "secret")]

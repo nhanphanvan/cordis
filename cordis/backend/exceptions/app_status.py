@@ -3,6 +3,8 @@ from typing import Any
 
 from starlette import status
 
+HTTP_422_UNPROCESSABLE = getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", 422)
+
 
 class AppStatus(Enum):
     """Application status catalog for API error responses.
@@ -27,10 +29,10 @@ class AppStatus(Enum):
     ERROR_UNAUTHORIZED = status.HTTP_401_UNAUTHORIZED, 401, "Unauthorized"
     ERROR_FORBIDDEN = status.HTTP_403_FORBIDDEN, 403, "Forbidden"
     ERROR_CONFLICT = status.HTTP_409_CONFLICT, 409, "Conflict"
-    ERROR_UNPROCESSABLE_ENTITY = status.HTTP_422_UNPROCESSABLE_ENTITY, 422, "Unprocessable entity"
+    ERROR_UNPROCESSABLE_ENTITY = HTTP_422_UNPROCESSABLE, 422, "Unprocessable entity"
     ERROR_SERVICE_UNAVAILABLE = status.HTTP_503_SERVICE_UNAVAILABLE, 503, "Service unavailable"
 
-    ERROR_VALIDATION = status.HTTP_422_UNPROCESSABLE_ENTITY, 1000, "Validation error"
+    ERROR_VALIDATION = HTTP_422_UNPROCESSABLE, 1000, "Validation error"
     ERROR_INVALID_CREDENTIALS = status.HTTP_401_UNAUTHORIZED, 1001, "Invalid credentials"
     ERROR_INVALID_BEARER_TOKEN = status.HTTP_401_UNAUTHORIZED, 1002, "Invalid bearer token"
     ERROR_EXPIRED_BEARER_TOKEN = status.HTTP_401_UNAUTHORIZED, 1003, "Expired bearer token"
@@ -42,7 +44,7 @@ class AppStatus(Enum):
     ERROR_REPOSITORY_NAME_ALREADY_EXISTS = status.HTTP_409_CONFLICT, 1101, "Repository name already exists"
     ERROR_REPOSITORY_MEMBER_ALREADY_EXISTS = status.HTTP_409_CONFLICT, 1102, "Repository member already exists"
     ERROR_REPOSITORY_MEMBER_NOT_FOUND = status.HTTP_404_NOT_FOUND, 1103, "Repository member not found"
-    ERROR_REPOSITORY_ROLE_INVALID = status.HTTP_422_UNPROCESSABLE_ENTITY, 1104, "Invalid repository role"
+    ERROR_REPOSITORY_ROLE_INVALID = HTTP_422_UNPROCESSABLE, 1104, "Invalid repository role"
 
     ERROR_ROLE_NOT_FOUND = status.HTTP_404_NOT_FOUND, 1200, "Role not found"
     ERROR_ROLE_NAME_ALREADY_EXISTS = status.HTTP_409_CONFLICT, 1201, "Role name already exists"
@@ -56,21 +58,21 @@ class AppStatus(Enum):
     ERROR_TAG_NOT_FOUND = status.HTTP_404_NOT_FOUND, 1500, "Tag not found"
     ERROR_TAG_NAME_ALREADY_EXISTS = status.HTTP_409_CONFLICT, 1501, "Tag name already exists in repository"
     ERROR_TAG_VERSION_REPOSITORY_MISMATCH = (
-        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        HTTP_422_UNPROCESSABLE,
         1502,
         "Version does not belong to repository",
     )
 
     ERROR_ARTIFACT_NOT_FOUND = status.HTTP_404_NOT_FOUND, 1600, "Artifact not found"
     ERROR_ARTIFACT_PATH_ALREADY_EXISTS = status.HTTP_409_CONFLICT, 1601, "Artifact path already exists in repository"
-    ERROR_ARTIFACT_PATH_INVALID = status.HTTP_422_UNPROCESSABLE_ENTITY, 1602, "Artifact path is invalid"
+    ERROR_ARTIFACT_PATH_INVALID = HTTP_422_UNPROCESSABLE, 1602, "Artifact path is invalid"
     ERROR_ARTIFACT_CHECKSUM_CONFLICT = (
         status.HTTP_409_CONFLICT,
         1603,
         "Artifact path already exists in repository with different metadata",
     )
     ERROR_ARTIFACT_REPOSITORY_MISMATCH = (
-        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        HTTP_422_UNPROCESSABLE,
         1604,
         "Artifact does not belong to version repository",
     )
@@ -84,14 +86,14 @@ class AppStatus(Enum):
 
     ERROR_UPLOAD_SESSION_NOT_FOUND = status.HTTP_404_NOT_FOUND, 1700, "Upload session not found"
     ERROR_UPLOAD_SESSION_TERMINAL = status.HTTP_409_CONFLICT, 1701, "Upload session is already terminal"
-    ERROR_UPLOAD_SESSION_NO_PARTS = status.HTTP_422_UNPROCESSABLE_ENTITY, 1702, "Upload session has no uploaded parts"
+    ERROR_UPLOAD_SESSION_NO_PARTS = HTTP_422_UNPROCESSABLE, 1702, "Upload session has no uploaded parts"
     ERROR_UPLOAD_CHECKSUM_MISMATCH = (
         status.HTTP_409_CONFLICT,
         1703,
         "Completed upload checksum does not match expected checksum",
     )
-    ERROR_UPLOAD_SIZE_INVALID = status.HTTP_422_UNPROCESSABLE_ENTITY, 1704, "Upload size must be non-negative"
-    ERROR_UPLOAD_PATH_INVALID = status.HTTP_422_UNPROCESSABLE_ENTITY, 1705, "Upload path must not be empty"
+    ERROR_UPLOAD_SIZE_INVALID = HTTP_422_UNPROCESSABLE, 1704, "Upload size must be non-negative"
+    ERROR_UPLOAD_PATH_INVALID = HTTP_422_UNPROCESSABLE, 1705, "Upload path must not be empty"
 
     ERROR_STORAGE_OBJECT_NOT_FOUND = status.HTTP_404_NOT_FOUND, 1800, "Storage object not found"
     ERROR_STORAGE_CONFLICT = status.HTTP_409_CONFLICT, 1801, "Storage object conflict"

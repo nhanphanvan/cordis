@@ -62,6 +62,28 @@ def test_request_raises_runtime_error_for_http_failures() -> None:
         raise AssertionError("expected RuntimeError")
 
 
+def test_client_exposes_domain_apis_and_facade_methods_delegate() -> None:
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+
+    assert hasattr(client, "auth")
+    assert hasattr(client, "users")
+    assert hasattr(client, "repositories")
+    assert hasattr(client, "versions")
+    assert hasattr(client, "tags")
+    assert hasattr(client, "transfers")
+
+    async def fake_login(*, email: str, password: str) -> str:
+        assert email == "user@example.com"
+        assert password == "password123"
+        return "token-from-auth-api"
+
+    client.auth.login = fake_login  # type: ignore[method-assign]
+
+    token = asyncio.run(client.login(email="user@example.com", password="password123"))
+
+    assert token == "token-from-auth-api"
+
+
 def test_download_version_uses_cached_file_before_remote_download(
     monkeypatch,
     tmp_path: Path,
@@ -85,7 +107,7 @@ def test_download_version_uses_cached_file_before_remote_download(
 
     monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
     monkeypatch.setattr(CordisClient, "download_item", fake_download_item)
-    monkeypatch.setattr("cordis.cli.sdk.client.copy_from_cache", lambda repo_id, checksum, destination: True)
+    monkeypatch.setattr("cordis.cli.sdk.transfers.copy_from_cache", lambda repo_id, checksum, destination: True)
 
     result = asyncio.run(
         client.download_version(repository_id=7, version_name="v1", save_dir=str(tmp_path / "downloads"))
