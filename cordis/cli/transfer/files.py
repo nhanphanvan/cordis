@@ -3,7 +3,6 @@ import hashlib
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
-from urllib import request
 
 from pathspec import PathSpec
 
@@ -63,9 +62,3 @@ def copy_from_cache(repository_key: str, checksum: str, destination_path: Path) 
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(cached, destination_path)
     return True
-
-
-def download_to_path(url: str, destination_path: Path) -> None:
-    destination_path.parent.mkdir(parents=True, exist_ok=True)
-    with request.urlopen(url) as response, destination_path.open("wb") as handle:
-        shutil.copyfileobj(response, handle)

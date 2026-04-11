@@ -3,10 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from cordis.cli.errors import ApiError
+import httpx
+
+from cordis.cli.errors import ApiError, TransportError
 from cordis.cli.transfer import (
     copy_from_cache,
-    download_to_path,
     iter_files,
     read_file_base64,
     save_to_cache,
@@ -80,7 +81,14 @@ class TransferHelper:
                 path=artifact_path,
                 save_path=str(destination),
             )
-            download_to_path(str(download["download_url"]), destination)
+            try:
+                self.client.transport.stream_download(
+                    path=str(download["download_url"]),
+                    save_path=destination,
+                    show_progress=True,
+                )
+            except httpx.HTTPError as error:
+                raise TransportError("Could not download the artifact", detail=str(error)) from error
             save_to_cache(str(repository_id), checksum, destination)
             downloaded.append(artifact_path)
         return {"downloaded": downloaded}

@@ -87,7 +87,7 @@ Model relationships follow an explicit reference-style convention: typed `Mapped
 
 ### CLI utilities
 
-`cordis.cli.utils` contains CLI-owned support code such as the shared HTTP transport used by the SDK.
+`cordis.cli.utils` contains CLI-owned support code such as the shared HTTP transport used by the SDK. Remote artifact downloads also stream through this layer so retry, resume, and progress behavior stay transport-owned.
 
 ### Config
 
@@ -95,7 +95,7 @@ Model relationships follow an explicit reference-style convention: typed `Mapped
 
 ### Transfer helpers
 
-`cordis.cli.transfer` handles local file iteration, checksums, cache reuse, and download-to-disk helpers.
+`cordis.cli.transfer` handles local file iteration, checksums, cache reuse, and other local transfer helpers. Remote HTTP download streaming lives in the CLI transport layer rather than here.
 
 ## Request Flow
 
@@ -126,4 +126,5 @@ Typical download flow:
 2. Cached content is reused when possible.
 3. Missing content is resolved through a backend download endpoint.
 4. The backend returns a mediated download URL.
-5. The CLI writes the file locally and stores it in cache.
+5. The CLI streams the file locally through the shared HTTP transport with retry, resume, and progress support.
+6. The CLI stores the completed file in cache.

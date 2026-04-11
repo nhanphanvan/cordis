@@ -4,6 +4,15 @@ from typing import Any
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 from rich.table import Table
 
 from cordis.cli.errors import CordisCliError
@@ -52,3 +61,16 @@ def print_table(title: str, columns: Sequence[str], rows: Iterable[Sequence[Any]
 
 def print_path_summary(title: str, items: Sequence[str]) -> None:
     print_table(title=title, columns=["Path"], rows=[[item] for item in items])
+
+
+def create_download_progress() -> Progress:
+    return Progress(
+        TextColumn("{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TimeRemainingColumn(),
+        console=_get_console(),
+        transient=True,
+    )

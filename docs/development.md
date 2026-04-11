@@ -19,6 +19,7 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/cli/errors.py`: typed CLI exception surface for config, API, and transport failures
 - `cordis/cli/presentation.py`: Rich-based output helpers for tables, detail views, and status panels
 - `cordis/cli/sdk`: backend-facing client wrapper
+- `cordis/cli/utils/httpx_service.py`: shared CLI HTTP transport, including streamed artifact downloads with retry and resume
 - `cordis/cli/config`: config and workspace-registration helpers
 - `cordis/cli/transfer`: local file and cache helpers
 - `cordis/cli/transfer/files.py`: upload file discovery, `.cordisignore` matching, checksums, and cache file paths
@@ -72,6 +73,7 @@ When adding CLI functionality:
 Keep HTTP details inside the SDK layer, not directly inside command handlers.
 Keep expected failure rendering centralized through the shared CLI error path rather than duplicating command-local `try/except` formatting.
 Keep upload ignore semantics in the transfer layer and treat `.cordisignore` as the only upload ignore file in the current design.
+Keep remote artifact download streaming in `cordis.cli.utils.httpx_service` rather than reintroducing raw network helpers under `cordis.cli.transfer`.
 
 ## Configuration and State
 

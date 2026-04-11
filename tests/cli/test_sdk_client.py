@@ -144,6 +144,60 @@ def test_download_version_uses_cached_file_before_remote_download(
     assert result == {"downloaded": ["models/file.bin"]}
 
 
+def test_download_version_uses_transport_stream_download_for_remote_file(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    streamed: list[tuple[str, Path]] = []
+    cached: list[tuple[str, str, Path]] = []
+
+    class FakeTransport:
+        def stream_download(self, *, path: str, save_path: Path, show_progress: bool = True) -> None:
+            assert show_progress is True
+            streamed.append((path, save_path))
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_bytes(b"payload")
+
+    async def fake_list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        return [{"path": "models/file.bin", "checksum": "sha256:file", "size": 7}]
+
+    async def fake_download_item(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        path: str,
+        save_path: str,
+    ) -> dict[str, object]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        assert path == "models/file.bin"
+        assert save_path.endswith("models/file.bin")
+        return {"download_url": "https://example.com/download/file.bin"}
+
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "download_item", fake_download_item)
+    monkeypatch.setattr("cordis.cli.sdk.transfers.copy_from_cache", lambda repo_id, checksum, destination: False)
+    monkeypatch.setattr(
+        "cordis.cli.sdk.transfers.save_to_cache",
+        lambda repository_key, checksum, source_path: cached.append((repository_key, checksum, source_path)),
+    )
+    client.transport = FakeTransport()  # type: ignore[assignment]
+
+    result = asyncio.run(
+        client.download_version(repository_id=7, version_name="v1", save_dir=str(tmp_path / "downloads"))
+    )
+
+    destination = tmp_path / "downloads" / "models" / "file.bin"
+    assert result == {"downloaded": ["models/file.bin"]}
+    assert streamed == [("https://example.com/download/file.bin", destination)]
+    assert cached == [("7", "sha256:file", destination)]
+    assert destination.read_bytes() == b"payload"
+
+
 def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_path: Path) -> None:
     root = tmp_path / "payloads"
     root.mkdir()

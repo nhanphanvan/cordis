@@ -8,6 +8,7 @@ The CLI uses a shared presentation layer for human-friendly terminal output:
 - labeled detail views for single records
 - success panels for mutations and cache/auth actions
 - error panels for expected API, config, and transport failures
+- Rich progress for streamed remote downloads
 
 Common short aliases are available for the highest-frequency shared options:
 
@@ -78,6 +79,7 @@ Running `cordis version` without a subcommand prints the CLI package version.
 
 Resource commands use the registered repository and version when explicit values are not provided.
 `cordis resource upload` reads `.cordisignore` from the upload root and skips matching files using Gitignore-style rules.
+Remote downloads stream through the shared HTTP transport with retry and resume behavior, while cached file copies stay local and quiet.
 
 ## Common Workflows
 
@@ -131,6 +133,7 @@ Cordis always skips `.cordis/` metadata and `.cordisignore` itself during upload
 - cache cleanup is available through `cordis clean-cache`
 - transfer helpers reuse cached file content when checksums match
 - upload traversal honors `.cordisignore` using Gitignore-style matching rules
+- remote artifact downloads stream through the shared HTTP transport with retry, resume, and Rich progress
 
 ## Error Behavior
 
