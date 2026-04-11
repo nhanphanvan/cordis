@@ -12,7 +12,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 - Artifact metadata, upload-session, and download flows for large object handling
 - `.cordisignore` support for Gitignore-style upload exclusions
 - Sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size
-- Backend-owned configuration, JWT security, app-status exceptions, and storage integration
+- Backend-owned configuration, JWT security, app-status exceptions, and MinIO-backed storage integration
 - Required storage object-version lineage for persisted artifacts
 
 ## Requirements
@@ -87,7 +87,7 @@ Common CLI areas include:
 
 Common shared short flags include `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`.
 
-The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, uses sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size, and streams remote artifact downloads through the shared HTTP transport with retry, resume, and Rich progress. Persisted artifacts always carry a required `storage_version_id`, so retrieval can resolve the exact underlying object version in storage.
+The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, uses sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size, and streams remote artifact downloads through the shared HTTP transport with retry, resume, and Rich progress. The backend storage layer is currently implemented against MinIO, including bucket bootstrapping and object versioning. Persisted artifacts always carry a required `storage_version_id`, so retrieval can resolve the exact underlying object version in storage.
 
 ## Quality Checks
 

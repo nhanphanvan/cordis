@@ -8,6 +8,7 @@ from cordis.backend.storage.errors import (
     StorageProviderError,
     StorageTransientError,
 )
+from cordis.backend.storage.minio import MinioStorageClient
 from cordis.backend.storage.protocol import StorageAdapter
 from cordis.backend.storage.s3 import S3ClientProtocol, S3StorageAdapter
 from cordis.backend.storage.types import (
@@ -19,6 +20,7 @@ from cordis.backend.storage.types import (
 
 __all__ = [
     "CompletedMultipartUpload",
+    "MinioStorageClient",
     "ObjectMetadata",
     "S3ClientProtocol",
     "S3StorageAdapter",

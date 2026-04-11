@@ -73,7 +73,7 @@ class StorageConfig(BaseSettings):
         populate_by_name=True,
     )
 
-    provider: Literal["s3"] = Field("s3", validation_alias="CORDIS_STORAGE_PROVIDER")
+    provider: Literal["s3", "minio"] = Field("minio", validation_alias="CORDIS_STORAGE_PROVIDER")
     bucket: str = Field("cordis-artifacts", validation_alias="CORDIS_STORAGE_BUCKET")
     prefix: str = Field("", validation_alias="CORDIS_STORAGE_PREFIX")
     endpoint: str | None = Field(None, validation_alias="CORDIS_STORAGE_ENDPOINT")

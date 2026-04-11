@@ -45,7 +45,7 @@ Important defaults:
 - default database URL: `sqlite+aiosqlite:///./.cordis/cordis.db`
 - default JWT algorithm: `HS256`
 - default access token expiry: `60` minutes
-- default storage provider: `s3`
+- default storage provider: `minio`
 - default storage bucket: `cordis-artifacts`
 
 The settings object also exposes a derived synchronous database URL for tooling that requires a sync-style database connection string.
@@ -62,6 +62,25 @@ Security settings are loaded from the same backend config layer. `cordis.backend
 - `CORDIS_SECRET_KEY`
 - `CORDIS_JWT_ALGORITHM`
 - `CORDIS_ACCESS_TOKEN_EXPIRE_MINUTES`
+
+## MinIO Storage Behavior
+
+The current backend storage implementation is MinIO-backed.
+
+For `CORDIS_STORAGE_PROVIDER=minio`, the backend expects:
+
+- `CORDIS_STORAGE_ENDPOINT`
+- `CORDIS_STORAGE_ACCESS_KEY`
+- `CORDIS_STORAGE_SECRET_KEY`
+- `CORDIS_STORAGE_BUCKET`
+
+At adapter initialization time, the backend:
+
+- connects to MinIO using the configured endpoint, credentials, region, and secure flag
+- creates the configured bucket if it does not already exist
+- enables bucket versioning if it is not already enabled
+
+This versioning behavior is required because completed artifacts must persist a real `storage_version_id`. If MinIO cannot provide an object version ID for a completed upload, upload finalization fails.
 
 ## CLI Configuration
 
