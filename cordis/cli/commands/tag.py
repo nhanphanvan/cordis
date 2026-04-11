@@ -20,7 +20,7 @@ def tag() -> None:
 
 @app.command("ls")
 @handle_cli_errors
-def list_tags(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
+def list_tags(repo_id: int | None = typer.Option(None, "--repo-id", "-id")) -> None:
     items = run_async(get_client().list_tags(repository_id=get_registered_repo_id(repo_id)))
     print_table(
         "Tags",
@@ -33,7 +33,7 @@ def list_tags(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
 @handle_cli_errors
 def get_tag(
     name: str = typer.Option(..., "--name"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     tag_item = run_async(get_client().get_tag(repository_id=get_registered_repo_id(repo_id), name=name))
     print_detail("Tag", {"ID": tag_item["id"], "Name": tag_item["name"], "Version": tag_item["version_name"]})
@@ -43,8 +43,8 @@ def get_tag(
 @handle_cli_errors
 def create_tag(
     name: str = typer.Option(..., "--name"),
-    version_name: str = typer.Option(..., "--version"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    version_name: str = typer.Option(..., "--version", "-v"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     tag_item = run_async(
         get_client().create_tag(
@@ -60,7 +60,7 @@ def create_tag(
 @handle_cli_errors
 def delete_tag(
     name: str = typer.Option(..., "--name"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     run_async(get_client().delete_tag(repository_id=get_registered_repo_id(repo_id), name=name))
     print_success(f"Tag {name} deleted")

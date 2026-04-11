@@ -52,6 +52,7 @@ When working on the CLI in this repository, follow these structural preferences:
 - keep transfer- and cache-specific local behavior under `cordis/cli/transfer/`
 - keep upload file discovery and `.cordisignore` handling in `cordis/cli/transfer/`, not in command handlers or SDK API modules
 - prefer human-friendly default output; if adding machine-readable output later, make it explicit rather than degrading the default presentation
+- keep common CLI short flags consistent: prefer `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`
 
 ## Testing Guidelines
 

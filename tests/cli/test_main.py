@@ -78,7 +78,7 @@ def test_repository_register_and_unregister_manage_project_config(monkeypatch, t
     runner = CliRunner()
 
     with runner.isolated_filesystem(temp_dir=tmp_path):
-        register_result = runner.invoke(app, ["repository", "register", "--repo-id", "7", "--version", "v1"])
+        register_result = runner.invoke(app, ["repository", "register", "-id", "7", "-v", "v1"])
         project_config_path = Path.cwd() / ".cordis" / "config.json"
         assert register_result.exit_code == 0
         assert "Repository registered" in register_result.stdout
@@ -232,7 +232,7 @@ def test_tag_commands_use_registered_repository(monkeypatch, tmp_path: Path) -> 
 
         ls_result = runner.invoke(app, ["tag", "ls"])
         get_result = runner.invoke(app, ["tag", "get", "--name", "stable"])
-        create_result = runner.invoke(app, ["tag", "create", "--name", "stable", "--version", "v1"])
+        create_result = runner.invoke(app, ["tag", "create", "--name", "stable", "-v", "v1", "-id", "7"])
         delete_result = runner.invoke(app, ["tag", "delete", "--name", "stable"])
 
         assert ls_result.exit_code == 0
@@ -279,7 +279,7 @@ def test_resource_download_item_uses_registered_repository_and_version(monkeypat
             [
                 "resource",
                 "download-item",
-                "--path",
+                "-p",
                 "models/file.bin",
                 "--save-path",
                 "downloads/file.bin",
@@ -349,7 +349,7 @@ def test_version_commands_use_registered_repository(monkeypatch, tmp_path: Path)
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
 
-        get_result = runner.invoke(app, ["version", "get", "--name", "v1", "--repo-id", "14"])
+        get_result = runner.invoke(app, ["version", "get", "--name", "v1", "-id", "14"])
         create_result = runner.invoke(app, ["version", "create", "--name", "v2"])
         delete_result = runner.invoke(app, ["version", "delete", "--name", "v2"])
 
@@ -383,7 +383,7 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
 
-        result = runner.invoke(app, ["resource", "ls"])
+        result = runner.invoke(app, ["resource", "ls", "-id", "9", "-v", "v2"])
 
         assert result.exit_code == 0
         assert "Resources" in result.stdout
@@ -570,7 +570,7 @@ def test_resource_upload_uses_registered_repository_and_version(monkeypatch, tmp
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
 
-        result = runner.invoke(app, ["resource", "upload", "--path", "payloads"])
+        result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "41", "-v", "v5"])
 
         assert result.exit_code == 0
         assert "Uploaded" in result.stdout
@@ -606,7 +606,10 @@ def test_resource_upload_can_create_missing_version(monkeypatch, tmp_path: Path)
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
 
-        result = runner.invoke(app, ["resource", "upload", "--path", "payloads", "--create-version"])
+        result = runner.invoke(
+            app,
+            ["resource", "upload", "-p", "payloads", "-id", "43", "-v", "v7", "--create-version"],
+        )
 
         assert result.exit_code == 0
         assert "Uploaded" in result.stdout
@@ -637,7 +640,7 @@ def test_resource_download_uses_registered_repository_and_version(monkeypatch, t
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
 
-        result = runner.invoke(app, ["resource", "download", "--path", "downloads"])
+        result = runner.invoke(app, ["resource", "download", "-p", "downloads", "-id", "42", "-v", "v6"])
 
         assert result.exit_code == 0
         assert "Downloaded" in result.stdout

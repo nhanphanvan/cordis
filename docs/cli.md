@@ -9,6 +9,12 @@ The CLI uses a shared presentation layer for human-friendly terminal output:
 - success panels for mutations and cache/auth actions
 - error panels for expected API, config, and transport failures
 
+Common short aliases are available for the highest-frequency shared options:
+
+- `-p` for `--path`
+- `-id` for `--repo-id`
+- `-v` for `--version`
+
 ## Global Commands
 
 - `cordis login --email <email> --password <password> [--endpoint <url>]`
@@ -86,24 +92,24 @@ cordis repository ls
 ### Bind a workspace
 
 ```bash
-cordis repository register --repo-id 7 --version v1
+cordis repository register -id 7 -v v1
 cordis repository current
 ```
 
 ### Create a version and tag it
 
 ```bash
-cordis version create --name v2 --repo-id 7
-cordis tag create --name stable --version v2 --repo-id 7
+cordis version create --name v2 -id 7
+cordis tag create --name stable -v v2 -id 7
 ```
 
 ### Upload and download version contents
 
 ```bash
-cordis resource upload --path ./payloads --create-version
-cordis resource ls
-cordis resource download --path ./downloads
-cordis resource download-item --path models/file.bin --save-path ./downloads/file.bin
+cordis resource upload -p ./payloads --create-version
+cordis resource ls -id 7 -v v2
+cordis resource download -p ./downloads -id 7 -v v2
+cordis resource download-item -p models/file.bin --save-path ./downloads/file.bin -id 7 -v v2
 ```
 
 ### Exclude local files from upload

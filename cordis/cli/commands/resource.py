@@ -22,8 +22,8 @@ def resource() -> None:
 @app.command("ls")
 @handle_cli_errors
 def list_resources(
-    repo_id: int | None = typer.Option(None, "--repo-id"),
-    version_name: str | None = typer.Option(None, "--version"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
+    version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
     items = run_async(
         get_client().list_version_artifacts(
@@ -41,9 +41,9 @@ def list_resources(
 @app.command("download")
 @handle_cli_errors
 def download_resources(
-    path: str = typer.Option(..., "--path"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
-    version_name: str | None = typer.Option(None, "--version"),
+    path: str = typer.Option(..., "--path", "-p"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
+    version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
     result = run_async(
         get_client().download_version(
@@ -58,10 +58,10 @@ def download_resources(
 @app.command("upload")
 @handle_cli_errors
 def upload_resources(
-    path: str = typer.Option(..., "--path"),
+    path: str = typer.Option(..., "--path", "-p"),
     create_version: bool = typer.Option(False, "--create-version"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
-    version_name: str | None = typer.Option(None, "--version"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
+    version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
     result = run_async(
         get_client().upload_directory(
@@ -77,10 +77,10 @@ def upload_resources(
 @app.command("download-item")
 @handle_cli_errors
 def download_item(
-    path: str = typer.Option(..., "--path"),
+    path: str = typer.Option(..., "--path", "-p"),
     save_path: str = typer.Option(..., "--save-path"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
-    version_name: str | None = typer.Option(None, "--version"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
+    version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
     result = run_async(
         get_client().download_item(

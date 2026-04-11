@@ -22,8 +22,8 @@ def repository() -> None:
 @app.command("register")
 @handle_cli_errors
 def register_repository(
-    repo_id: int = typer.Option(..., "--repo-id"),
-    version_name: str | None = typer.Option(None, "--version"),
+    repo_id: int = typer.Option(..., "--repo-id", "-id"),
+    version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
     config_path = get_project_config_path()
     update_config_value(config_path, "repo_id", repo_id)
@@ -70,7 +70,7 @@ def create_repository(
 @handle_cli_errors
 def update_repository_command(
     public: bool = typer.Option(False, "--public"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     item = run_async(
         get_client().update_repository(
@@ -83,14 +83,14 @@ def update_repository_command(
 
 @app.command("delete")
 @handle_cli_errors
-def delete_repository_command(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
+def delete_repository_command(repo_id: int | None = typer.Option(None, "--repo-id", "-id")) -> None:
     item = run_async(get_client().delete_repository(repository_id=get_registered_repo_id(repo_id)))
     print_success(f"Repository {item['name']} deleted")
 
 
 @app.command("versions")
 @handle_cli_errors
-def repository_versions(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
+def repository_versions(repo_id: int | None = typer.Option(None, "--repo-id", "-id")) -> None:
     items = run_async(get_client().list_repository_versions(repository_id=get_registered_repo_id(repo_id)))
     print_table(
         "Versions",
@@ -103,7 +103,7 @@ def repository_versions(repo_id: int | None = typer.Option(None, "--repo-id")) -
 @handle_cli_errors
 def repository_create_version(
     name: str = typer.Option(..., "--name"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     version_item = run_async(get_client().create_version(repository_id=get_registered_repo_id(repo_id), name=name))
     print_detail("Version", {"ID": version_item["id"], "Name": version_item["name"]})
@@ -113,7 +113,7 @@ def repository_create_version(
 @handle_cli_errors
 def repository_delete_version(
     name: str = typer.Option(..., "--name"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     run_async(get_client().delete_version(repository_id=get_registered_repo_id(repo_id), name=name))
     print_success(f"Version {name} deleted")
@@ -121,7 +121,7 @@ def repository_delete_version(
 
 @app.command("users")
 @handle_cli_errors
-def repository_users(repo_id: int | None = typer.Option(None, "--repo-id")) -> None:
+def repository_users(repo_id: int | None = typer.Option(None, "--repo-id", "-id")) -> None:
     items = run_async(get_client().list_repository_members(repository_id=get_registered_repo_id(repo_id)))
     print_table(
         "Members",
@@ -135,7 +135,7 @@ def repository_users(repo_id: int | None = typer.Option(None, "--repo-id")) -> N
 def repository_add_user(
     email: str = typer.Option(..., "--email"),
     role: str = typer.Option(..., "--role"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     item = run_async(
         get_client().add_repository_member(
@@ -152,7 +152,7 @@ def repository_add_user(
 def repository_update_user(
     email: str = typer.Option(..., "--email"),
     role: str = typer.Option(..., "--role"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     item = run_async(
         get_client().update_repository_member(
@@ -168,7 +168,7 @@ def repository_update_user(
 @handle_cli_errors
 def repository_delete_user(
     email: str = typer.Option(..., "--email"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     item = run_async(
         get_client().delete_repository_member(

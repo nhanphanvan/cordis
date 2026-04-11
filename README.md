@@ -83,6 +83,8 @@ Common CLI areas include:
 - `cordis tag ...`
 - `cordis resource ...`
 
+Common shared short flags include `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`.
+
 The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, while persisted artifacts always carry a required `storage_version_id`, so retrieval can resolve the exact underlying object version in storage.
 
 ## Quality Checks

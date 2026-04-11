@@ -24,7 +24,7 @@ def version_group(ctx: Context) -> None:
 @handle_cli_errors
 def get_version_command(
     name: str = typer.Option(..., "--name"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     version_item = run_async(get_client().get_version(repository_id=get_registered_repo_id(repo_id), name=name))
     print_detail("Version", {"ID": version_item["id"], "Name": version_item["name"]})
@@ -34,7 +34,7 @@ def get_version_command(
 @handle_cli_errors
 def create_version_command(
     name: str = typer.Option(..., "--name"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     version_item = run_async(get_client().create_version(repository_id=get_registered_repo_id(repo_id), name=name))
     print_detail("Version", {"ID": version_item["id"], "Name": version_item["name"]})
@@ -44,7 +44,7 @@ def create_version_command(
 @handle_cli_errors
 def delete_version_command(
     name: str = typer.Option(..., "--name"),
-    repo_id: int | None = typer.Option(None, "--repo-id"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     run_async(get_client().delete_version(repository_id=get_registered_repo_id(repo_id), name=name))
     print_success(f"Version {name} deleted")
