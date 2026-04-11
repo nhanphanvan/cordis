@@ -65,7 +65,10 @@ Security settings are loaded from the same backend config layer. `cordis.backend
 
 ## MinIO Storage Behavior
 
-The current backend storage implementation is MinIO-backed.
+The backend storage layer supports two providers:
+
+- `minio`
+- `s3`
 
 For `CORDIS_STORAGE_PROVIDER=minio`, the backend expects:
 
@@ -81,6 +84,17 @@ At adapter initialization time, the backend:
 - enables bucket versioning if it is not already enabled
 
 This versioning behavior is required because completed artifacts must persist a real `storage_version_id`. If MinIO cannot provide an object version ID for a completed upload, upload finalization fails.
+
+For `CORDIS_STORAGE_PROVIDER=s3`, the backend uses `boto3` and expects a pre-provisioned AWS S3 bucket.
+
+Operational expectations for `s3`:
+
+- the configured bucket must already exist
+- bucket versioning must already be enabled
+- the backend validates those conditions during storage adapter initialization
+- the backend does not create AWS buckets or enable AWS bucket versioning automatically
+
+If the S3 bucket is missing, inaccessible, or not versioned, adapter initialization fails.
 
 ## CLI Configuration
 

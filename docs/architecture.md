@@ -61,7 +61,7 @@ Model relationships follow an explicit reference-style convention: typed `Mapped
 
 ### Storage boundary
 
-`cordis.backend.storage` defines the storage protocol, transfer-related types, provider bootstrapping, and provider error mapping. The current concrete implementation is MinIO-backed, with the rest of the backend still working against the adapter boundary rather than provider-specific calls.
+`cordis.backend.storage` defines the storage protocol, transfer-related types, provider bootstrapping, and provider error mapping. The current concrete implementations are MinIO and real AWS S3, with the rest of the backend still working against the shared adapter boundary rather than provider-specific calls.
 
 ### Exceptions
 

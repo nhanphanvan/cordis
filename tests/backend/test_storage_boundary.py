@@ -5,6 +5,7 @@ import pytest
 from cordis.backend.config import build_config
 from cordis.backend.exceptions import AppStatus, InternalServerError
 from cordis.backend.storage import (
+    AwsS3StorageClient,
     CompletedMultipartUpload,
     MinioStorageClient,
     ObjectMetadata,
@@ -27,6 +28,12 @@ class FakeProviderError(Exception):
     def __init__(self, code: str):
         super().__init__(code)
         self.code = code
+
+
+class FakeBotoClientError(Exception):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.response = {"Error": {"Code": code}}
 
 
 class FakeS3Client:
@@ -206,6 +213,87 @@ class FakeMinioSdk:
             raise FakeProviderError(self.mode)
 
 
+class FakeAwsSdk:
+    def __init__(self) -> None:
+        self.calls: list[tuple[Any, ...]] = []
+        self.mode = "ok"
+        self.versioning_status = "Enabled"
+
+    def head_bucket(self, *, Bucket: str) -> None:
+        self.calls.append(("head_bucket", Bucket))
+        if self.mode == "NoSuchBucket":
+            raise FakeBotoClientError("NoSuchBucket")
+        if self.mode == "AccessDenied":
+            raise FakeBotoClientError("AccessDenied")
+
+    def get_bucket_versioning(self, *, Bucket: str) -> dict[str, Any]:
+        self.calls.append(("get_bucket_versioning", Bucket))
+        if self.mode == "AccessDenied":
+            raise FakeBotoClientError("AccessDenied")
+        return {"Status": self.versioning_status} if self.versioning_status is not None else {}
+
+    def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        self.calls.append(("head_object", Bucket, Key))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        return {"ETag": '"sha256:abc123"', "ContentLength": 1024}
+
+    def put_object(self, *, Bucket: str, Key: str, Body: bytes, ChecksumSHA256: str | None = None) -> dict[str, Any]:
+        self.calls.append(("put_object", Bucket, Key, Body, ChecksumSHA256))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        return {"ETag": '"sha256:abc123"', "VersionId": "version-put-1"}
+
+    def delete_object(self, *, Bucket: str, Key: str) -> None:
+        self.calls.append(("delete_object", Bucket, Key))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+
+    def generate_presigned_url(self, ClientMethod: str, Params: dict[str, Any], ExpiresIn: int) -> str:
+        self.calls.append(("generate_presigned_url", ClientMethod, Params, ExpiresIn))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        return f"https://example.invalid/{Params['Bucket']}/{Params['Key']}?expires={ExpiresIn}"
+
+    def create_multipart_upload(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        self.calls.append(("create_multipart_upload", Bucket, Key))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        return {"UploadId": "upload-123"}
+
+    def upload_part(
+        self,
+        *,
+        Bucket: str,
+        Key: str,
+        UploadId: str,
+        PartNumber: int,
+        Body: bytes,
+    ) -> dict[str, Any]:
+        self.calls.append(("upload_part", Bucket, Key, UploadId, PartNumber, Body))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        return {"ETag": f'"etag-{PartNumber}"'}
+
+    def complete_multipart_upload(
+        self,
+        *,
+        Bucket: str,
+        Key: str,
+        UploadId: str,
+        MultipartUpload: dict[str, Any],
+    ) -> dict[str, Any]:
+        self.calls.append(("complete_multipart_upload", Bucket, Key, UploadId, MultipartUpload))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        return {"ETag": '"complete-etag"', "VersionId": "version-1"}
+
+    def abort_multipart_upload(self, *, Bucket: str, Key: str, UploadId: str) -> None:
+        self.calls.append(("abort_multipart_upload", Bucket, Key, UploadId))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+
+
 def _artifact_ref() -> StorageObjectRef:
     return StorageObjectRef(repository_id=42, artifact_id="artifact-123", path="models/weights.bin")
 
@@ -307,6 +395,47 @@ def test_minio_storage_client_maps_bucket_and_object_operations() -> None:
     client.delete_object(bucket="cordis-artifacts", key="path/file.bin")
 
 
+def test_aws_s3_storage_client_maps_bucket_and_object_operations() -> None:
+    sdk = FakeAwsSdk()
+    client = AwsS3StorageClient(sdk)
+
+    assert client.bucket_exists(bucket="cordis-artifacts") is True
+    assert client.bucket_versioning_enabled(bucket="cordis-artifacts") is True
+    assert client.head_object(bucket="cordis-artifacts", key="path/file.bin") == {
+        "etag": "sha256:abc123",
+        "content_length": 1024,
+    }
+    assert client.put_object(
+        bucket="cordis-artifacts",
+        key="path/file.bin",
+        body=b"payload",
+        checksum="sha256:abc123",
+    ) == {
+        "etag": "sha256:abc123",
+        "version_id": "version-put-1",
+    }
+    assert (
+        client.create_presigned_get_url(bucket="cordis-artifacts", key="path/file.bin", expires_in=900)
+        == "https://example.invalid/cordis-artifacts/path/file.bin?expires=900"
+    )
+    assert client.create_multipart_upload(bucket="cordis-artifacts", key="path/file.bin") == {"upload_id": "upload-123"}
+    assert client.upload_part(
+        bucket="cordis-artifacts",
+        key="path/file.bin",
+        upload_id="upload-123",
+        part_number=1,
+        body=b"chunk",
+    ) == {"etag": "etag-1"}
+    assert client.complete_multipart_upload(
+        bucket="cordis-artifacts",
+        key="path/file.bin",
+        upload_id="upload-123",
+        parts=[{"part_number": 1, "etag": "etag-1"}],
+    ) == {"etag": "complete-etag", "version_id": "version-1"}
+    client.abort_multipart_upload(bucket="cordis-artifacts", key="path/file.bin", upload_id="upload-123")
+    client.delete_object(bucket="cordis-artifacts", key="path/file.bin")
+
+
 def test_storage_factory_builds_minio_backed_adapter_and_bootstraps_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_sdk = FakeMinioSdk()
     fake_sdk.bucket_exists_result = False
@@ -333,6 +462,24 @@ def test_storage_factory_builds_minio_backed_adapter_and_bootstraps_bucket(monke
     assert fake_sdk.calls[3] == ("set_bucket_versioning", "cordis-artifacts", "Enabled")
 
 
+def test_storage_factory_builds_aws_s3_adapter_for_real_s3(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_sdk = FakeAwsSdk()
+    monkeypatch.setenv("CORDIS_STORAGE_PROVIDER", "s3")
+    monkeypatch.setenv("CORDIS_STORAGE_BUCKET", "cordis-artifacts")
+    monkeypatch.setenv("CORDIS_STORAGE_REGION", "us-east-1")
+    monkeypatch.setattr("cordis.backend.storage.factory.boto3.client", lambda *args, **kwargs: fake_sdk)
+    build_config.cache_clear()
+    storage_factory.get_storage_adapter.cache_clear()
+
+    adapter = storage_factory.get_storage_adapter()
+    assert isinstance(adapter, S3StorageAdapter)
+    assert isinstance(adapter.client, AwsS3StorageClient)
+    assert fake_sdk.calls[:2] == [
+        ("head_bucket", "cordis-artifacts"),
+        ("get_bucket_versioning", "cordis-artifacts"),
+    ]
+
+
 def test_storage_factory_requires_minio_connection_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORDIS_STORAGE_PROVIDER", "minio")
     monkeypatch.delenv("CORDIS_STORAGE_ENDPOINT", raising=False)
@@ -345,6 +492,32 @@ def test_storage_factory_requires_minio_connection_settings(monkeypatch: pytest.
         storage_factory.get_storage_adapter()
 
     assert error_info.value.app_status == AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED
+
+
+def test_storage_factory_requires_existing_s3_bucket_and_enabled_versioning(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_sdk = FakeAwsSdk()
+    fake_sdk.mode = "NoSuchBucket"
+    monkeypatch.setenv("CORDIS_STORAGE_PROVIDER", "s3")
+    monkeypatch.setenv("CORDIS_STORAGE_BUCKET", "cordis-artifacts")
+    monkeypatch.setattr("cordis.backend.storage.factory.boto3.client", lambda *args, **kwargs: fake_sdk)
+    build_config.cache_clear()
+    storage_factory.get_storage_adapter.cache_clear()
+
+    with pytest.raises(InternalServerError) as bucket_error:
+        storage_factory.get_storage_adapter()
+
+    assert bucket_error.value.app_status == AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED
+
+    fake_sdk = FakeAwsSdk()
+    fake_sdk.versioning_status = None
+    monkeypatch.setattr("cordis.backend.storage.factory.boto3.client", lambda *args, **kwargs: fake_sdk)
+    build_config.cache_clear()
+    storage_factory.get_storage_adapter.cache_clear()
+
+    with pytest.raises(InternalServerError) as versioning_error:
+        storage_factory.get_storage_adapter()
+
+    assert versioning_error.value.app_status == AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED
 
 
 @pytest.mark.parametrize(

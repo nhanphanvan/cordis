@@ -10,7 +10,7 @@ Cordis splits transfer behavior across clear boundaries:
 
 - the CLI owns local file discovery, workspace context, cache reuse, terminal presentation, and streamed remote download behavior
 - the backend owns authorization, validation, upload-session state, artifact metadata, version attachment, mediated download URLs, and storage integration
-- the storage adapter owns multipart upload and presigned-download primitives against MinIO
+- the storage adapter owns multipart upload and presigned-download primitives against MinIO or AWS S3
 
 That split is why the transfer flow is more than a single HTTP request.
 
@@ -460,7 +460,7 @@ The following rules are important to preserve when changing transfer code:
 - version download is cache-aware and checksum-based
 - remote artifact downloads stream through `HttpxService`, not ad-hoc network helpers in the transfer layer
 - the CLI should keep human-friendly output and typed error behavior around transfer failures
-- the backend storage adapter must preserve MinIO object version IDs so completed artifacts keep durable storage lineage
+- the backend storage adapter must preserve provider object version IDs so completed artifacts keep durable storage lineage
 
 ## Related Guides
 

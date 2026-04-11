@@ -153,15 +153,38 @@ class S3StorageAdapter(StorageAdapter):
             raise self._translate_provider_error(error) from error
 
     def _translate_provider_error(self, error: Exception) -> Exception:
-        code = getattr(error, "code", error.__class__.__name__)
+        if isinstance(
+            error,
+            (
+                StorageObjectNotFoundError,
+                StorageAuthorizationError,
+                StorageConflictError,
+                StorageMultipartStateError,
+                StorageTransientError,
+                StorageProviderError,
+            ),
+        ):
+            return error
+
+        response = getattr(error, "response", None)
+        if isinstance(response, dict):
+            error_data = response.get("Error", {})
+            if isinstance(error_data, dict) and "Code" in error_data:
+                code = str(error_data["Code"])
+            else:
+                code = error.__class__.__name__
+        else:
+            code = getattr(error, "code", error.__class__.__name__)
         if code in {"NoSuchKey", "NotFound", "NoSuchObject"}:
             return StorageObjectNotFoundError()
-        if code in {"AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch"}:
+        if code in {"AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch", "403"}:
             return StorageAuthorizationError()
-        if code in {"Conflict", "PreconditionFailed", "EntityAlreadyExists"}:
+        if code in {"Conflict", "PreconditionFailed", "EntityAlreadyExists", "BucketAlreadyOwnedByYou"}:
             return StorageConflictError()
         if code in {"InvalidPart", "InvalidPartOrder", "NoSuchUpload"}:
             return StorageMultipartStateError()
-        if code in {"SlowDown", "ServiceUnavailable", "RequestTimeout", "InternalError"}:
+        if code in {"SlowDown", "ServiceUnavailable", "RequestTimeout", "InternalError", "500", "503"}:
             return StorageTransientError()
+        if code in {"NoSuchBucket", "404"}:
+            return StorageObjectNotFoundError()
         return StorageProviderError()

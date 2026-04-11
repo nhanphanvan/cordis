@@ -1,5 +1,6 @@
 """Backend storage package for object-store adapters and transfer helpers."""
 
+from cordis.backend.storage.aws import AwsS3StorageClient
 from cordis.backend.storage.errors import (
     StorageAuthorizationError,
     StorageConflictError,
@@ -19,6 +20,7 @@ from cordis.backend.storage.types import (
 )
 
 __all__ = [
+    "AwsS3StorageClient",
     "CompletedMultipartUpload",
     "MinioStorageClient",
     "ObjectMetadata",
