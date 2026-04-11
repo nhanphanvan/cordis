@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from cordis.backend.enums import RepositoryAccessRole
+
 
 class RepositoryResponse(BaseModel):
     id: int
@@ -14,7 +16,7 @@ class RepositoryListResponse(BaseModel):
 
 class RepositoryAccessResponse(BaseModel):
     repository_id: int
-    access: str
+    access: RepositoryAccessRole
 
 
 class RepositoryMemberItem(BaseModel):

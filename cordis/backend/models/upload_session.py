@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from cordis.backend.enums import UploadSessionStatus
 from cordis.backend.models.base import DatabaseModel
 
 if TYPE_CHECKING:
@@ -29,7 +31,10 @@ class UploadSession(DatabaseModel):
     checksum: Mapped[str] = mapped_column(String(255), nullable=False)
     size: Mapped[int] = mapped_column(Integer(), nullable=False)
     upload_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[UploadSessionStatus] = mapped_column(
+        SqlEnum(UploadSessionStatus, native_enum=False, length=32),
+        nullable=False,
+    )
     error_message: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     repository: Mapped[Repository] = relationship(passive_deletes=True)

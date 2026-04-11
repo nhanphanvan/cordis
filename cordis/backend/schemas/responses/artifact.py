@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from cordis.backend.enums import ResourceCheckStatus
+
 
 class ArtifactResponse(BaseModel):
     id: UUID
@@ -18,7 +20,7 @@ class ArtifactListResponse(BaseModel):
 
 
 class ResourceCheckResponse(BaseModel):
-    status: str
+    status: ResourceCheckStatus
     artifact_id: UUID | None
 
 

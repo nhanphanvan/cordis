@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from cordis.backend.enums import ResourceCheckStatus
 from cordis.backend.models import Artifact, Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 
@@ -30,15 +31,15 @@ class VersionArtifactService:
         path: str,
         checksum: str,
         size: int,
-    ) -> tuple[str, UUID | None]:
+    ) -> tuple[ResourceCheckStatus, UUID | None]:
         association = await self.uow.version_artifacts.get_for_version_and_path(
             version_id=version_id,
             path=path.strip("/"),
         )
         if association is None:
-            return "missing", None
+            return ResourceCheckStatus.MISSING, None
 
         artifact = association.artifact
         if artifact.checksum == checksum and artifact.size == size:
-            return "exists", artifact.id
-        return "conflict", artifact.id
+            return ResourceCheckStatus.EXISTS, artifact.id
+        return ResourceCheckStatus.CONFLICT, artifact.id

@@ -8,6 +8,8 @@ from cordis.backend.api.dependencies import (
     get_optional_current_user,
     get_uow,
 )
+from cordis.backend.constants import ROLE_RANK_BY_NAME
+from cordis.backend.enums import RepositoryAccessRole
 from cordis.backend.exceptions import AppStatus
 from cordis.backend.models import User
 from cordis.backend.policies import RepositoryPolicy, authorize
@@ -31,7 +33,6 @@ from cordis.backend.services.repository import RepositoryService
 from cordis.backend.services.tag import TagService
 from cordis.backend.services.version import VersionService
 from cordis.backend.validators.repository import (
-    ROLE_RANK,
     BearerUserRequiredValidator,
     RepositoryAccessValidator,
     RepositoryCreateValidator,
@@ -168,7 +169,7 @@ async def check_viewer_access(
         unauthorized_message="Missing bearer token",
         unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
-    return RepositoryAccessResponse(repository_id=access.repository.id, access="viewer")
+    return RepositoryAccessResponse(repository_id=access.repository.id, access=RepositoryAccessRole.VIEWER)
 
 
 @router.get("/{repository_id}/auth-check/developer", response_model=RepositoryAccessResponse)
@@ -180,7 +181,7 @@ async def check_developer_access(
     current_user = await BearerUserRequiredValidator.validate(current_user=current_user)
     access = await RepositoryAccessValidator.validate(uow=uow, repository_id=repository_id, current_user=current_user)
     await authorize(current_user, RepositoryPolicy.developer, access)
-    return RepositoryAccessResponse(repository_id=access.repository.id, access="developer")
+    return RepositoryAccessResponse(repository_id=access.repository.id, access=RepositoryAccessRole.DEVELOPER)
 
 
 @router.get("/{repository_id}/members", response_model=RepositoryMembersResponse)
@@ -193,7 +194,7 @@ async def list_members(
     access = await RepositoryAccessValidator.validate(uow=uow, repository_id=repository_id, current_user=current_user)
     await authorize(current_user, RepositoryPolicy.owner, access)
     memberships = await uow.repository_members.list_for_repository(access.repository.id)
-    memberships.sort(key=lambda item: (-ROLE_RANK[item.role.name], item.user.email))
+    memberships.sort(key=lambda item: (-ROLE_RANK_BY_NAME.get(item.role.name, 0), item.user.email))
     return RepositoryMembersResponse(
         items=[RepositoryMemberItem(email=item.user.email, role=item.role.name) for item in memberships]
     )

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
+from cordis.backend.enums import RepositoryAccessRole
 from cordis.backend.models import Role, User
 from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security import get_password_hash
@@ -246,3 +247,11 @@ def test_create_repository_route_calls_policy_then_validator_then_service(monkey
 
     assert response.status_code == 201
     assert calls == ["policy", "validator", "service"]
+
+
+def test_repository_access_response_schema_accepts_canonical_access_role() -> None:
+    from cordis.backend.schemas.responses.repository import RepositoryAccessResponse
+
+    payload = RepositoryAccessResponse(repository_id=7, access=RepositoryAccessRole.DEVELOPER)
+
+    assert payload.model_dump(mode="json") == {"repository_id": 7, "access": "developer"}

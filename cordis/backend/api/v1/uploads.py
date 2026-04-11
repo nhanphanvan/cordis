@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Response, status
 
 from cordis.backend.api.dependencies import get_current_user, get_uow
+from cordis.backend.enums import UploadSessionStatus
 from cordis.backend.models import UploadSession, UploadSessionPart, User
 from cordis.backend.policies import UploadPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/uploads/sessions", tags=["uploads"])
 
 
 def _session_response(session: UploadSession, parts: list[UploadSessionPart]) -> UploadSessionResponse:
-    artifact_id = session.artifact_id if session.status == "completed" else None
+    artifact_id = session.artifact_id if session.status == UploadSessionStatus.COMPLETED else None
     return UploadSessionResponse(
         id=session.id,
         repository_id=session.repository_id,

@@ -344,3 +344,26 @@ def test_missing_storage_version_id_marks_session_failed_without_artifact(monkey
     assert get_response.json()["error_message"] == "Storage version ID missing"
     assert version_artifacts_response.status_code == 200
     assert version_artifacts_response.json() == {"items": []}
+
+
+def test_upload_session_response_schema_accepts_enum_status() -> None:
+    from uuid import uuid4
+
+    from cordis.backend.enums import UploadSessionStatus
+    from cordis.backend.schemas.responses.upload import UploadSessionResponse
+
+    payload = UploadSessionResponse(
+        id=uuid4(),
+        repository_id=1,
+        version_id=uuid4(),
+        artifact_id=None,
+        path="models/upload.bin",
+        checksum="sha256:test",
+        size=1,
+        upload_id="upload-1",
+        status=UploadSessionStatus.CREATED,
+        error_message=None,
+        parts=[],
+    )
+
+    assert payload.model_dump(mode="json")["status"] == "created"

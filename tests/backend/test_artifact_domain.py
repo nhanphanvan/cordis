@@ -213,6 +213,18 @@ def test_resource_check_distinguishes_match_conflict_and_missing(monkeypatch, tm
     assert missing_response.json() == {"status": "missing", "artifact_id": None}
 
 
+def test_resource_check_response_schema_accepts_enum_values() -> None:
+    from uuid import uuid4
+
+    from cordis.backend.enums import ResourceCheckStatus
+    from cordis.backend.schemas.responses.artifact import ResourceCheckResponse
+
+    artifact_id = uuid4()
+    payload = ResourceCheckResponse(status=ResourceCheckStatus.EXISTS, artifact_id=artifact_id)
+
+    assert payload.model_dump(mode="json") == {"status": "exists", "artifact_id": str(artifact_id)}
+
+
 def test_viewer_can_read_artifacts_but_cannot_register_or_attach(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-artifact-rbac.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")

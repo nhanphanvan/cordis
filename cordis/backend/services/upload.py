@@ -1,5 +1,6 @@
 import logging
 
+from cordis.backend.enums import UploadSessionStatus
 from cordis.backend.exceptions import AppStatus, ConflictError, InternalServerError
 from cordis.backend.models import Repository, UploadSession, UploadSessionPart
 from cordis.backend.models.version import Version
@@ -49,7 +50,7 @@ class UploadService:
             checksum=checksum,
             size=size,
             upload_id="pending",
-            status="created",
+            status=UploadSessionStatus.CREATED,
             error_message=None,
         )
         session_ref = self._storage_ref(session)
@@ -89,7 +90,7 @@ class UploadService:
         else:
             existing.etag = uploaded_part.etag
             await self.uow.flush()
-        session.status = "in_progress"
+        session.status = UploadSessionStatus.IN_PROGRESS
         session.error_message = None
         await self.uow.commit()
         parts = await self.uow.upload_session_parts.list_for_session(session.id)
@@ -104,7 +105,7 @@ class UploadService:
         version: Version,
         repository: Repository,
     ) -> tuple[UploadSession, list[UploadSessionPart]]:
-        session.status = "finalizing"
+        session.status = UploadSessionStatus.FINALIZING
         await self.uow.flush()
         storage = storage_factory.get_storage_adapter()
         try:
@@ -114,14 +115,14 @@ class UploadService:
                 parts=[UploadedPart(part_number=part.part_number, etag=part.etag) for part in parts],
             )
         except StorageMultipartStateError:
-            session.status = "failed"
+            session.status = UploadSessionStatus.FAILED
             session.error_message = "Multipart state invalid"
             await self.uow.commit()
             logger.error("Upload session failed session_id=%s reason=multipart_state_invalid", session.id)
             raise
 
         if completed.etag != session.checksum:
-            session.status = "failed"
+            session.status = UploadSessionStatus.FAILED
             session.error_message = "Checksum mismatch"
             await self.uow.commit()
             logger.error("Upload session failed session_id=%s reason=checksum_mismatch", session.id)
@@ -130,7 +131,7 @@ class UploadService:
                 app_status=AppStatus.ERROR_UPLOAD_CHECKSUM_MISMATCH,
             )
         if completed.version_id is None:
-            session.status = "failed"
+            session.status = UploadSessionStatus.FAILED
             session.error_message = "Storage version ID missing"
             await self.uow.commit()
             logger.error("Upload session failed session_id=%s reason=storage_version_id_missing", session.id)
@@ -159,7 +160,7 @@ class UploadService:
             )
         await VersionArtifactService(self.uow).attach_artifact(version=version, artifact=artifact)
         session.artifact_id = artifact.id
-        session.status = "completed"
+        session.status = UploadSessionStatus.COMPLETED
         session.error_message = None
         await self.uow.commit()
         refreshed_parts = await self.uow.upload_session_parts.list_for_session(session.id)
@@ -167,10 +168,10 @@ class UploadService:
         return session, refreshed_parts
 
     async def abort_session(self, session: UploadSession) -> tuple[UploadSession, list[UploadSessionPart]]:
-        if session.status == "aborted":
+        if session.status == UploadSessionStatus.ABORTED:
             parts = await self.uow.upload_session_parts.list_for_session(session.id)
             return session, parts
-        if session.status == "completed":
+        if session.status == UploadSessionStatus.COMPLETED:
             raise ConflictError(
                 "Upload session is already terminal",
                 app_status=AppStatus.ERROR_UPLOAD_SESSION_TERMINAL,
@@ -179,7 +180,7 @@ class UploadService:
             self._storage_ref(session),
             upload_id=session.upload_id,
         )
-        session.status = "aborted"
+        session.status = UploadSessionStatus.ABORTED
         session.error_message = None
         await self.uow.commit()
         parts = await self.uow.upload_session_parts.list_for_session(session.id)

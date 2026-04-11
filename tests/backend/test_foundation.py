@@ -228,3 +228,23 @@ def test_upload_session_relationships_use_explicit_bidirectional_ownership_style
     assert "delete-orphan" in str(parts.cascade)
     assert session.back_populates == "parts"
     assert session.passive_deletes is True
+
+
+def test_backend_enums_and_constants_expose_canonical_domain_values() -> None:
+    enums = importlib.import_module("cordis.backend.enums")
+    constants = importlib.import_module("cordis.backend.constants")
+
+    assert enums.UploadSessionStatus.CREATED.value == "created"
+    assert enums.ResourceCheckStatus.EXISTS.value == "exists"
+    assert enums.RepositoryAccessRole.OWNER.value == "owner"
+    assert constants.BUILTIN_OWNER_ROLE == enums.RepositoryAccessRole.OWNER
+    assert enums.UploadSessionStatus.COMPLETED in constants.UPLOAD_TERMINAL_STATUSES
+    assert enums.UploadSessionStatus.CREATED in constants.UPLOAD_RESUMABLE_STATUSES
+    assert "interrupted" not in {status.value for status in constants.UPLOAD_RESUMABLE_STATUSES}
+
+
+def test_upload_session_status_column_uses_enum_python_type() -> None:
+    upload_session = importlib.import_module("cordis.backend.models.upload_session").UploadSession
+    enums = importlib.import_module("cordis.backend.enums")
+
+    assert upload_session.__table__.c.status.type.python_type is enums.UploadSessionStatus

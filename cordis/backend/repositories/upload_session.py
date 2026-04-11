@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from cordis.backend.constants import UPLOAD_RESUMABLE_STATUSES
 from cordis.backend.models import UploadSession
 from cordis.backend.repositories.base import BaseRepository
 
@@ -25,7 +26,7 @@ class UploadSessionRepository(BaseRepository[UploadSession]):
                 UploadSession.path == path,
                 UploadSession.checksum == checksum,
                 UploadSession.size == size,
-                UploadSession.status.in_(("created", "in_progress", "interrupted", "finalizing")),
+                UploadSession.status.in_(UPLOAD_RESUMABLE_STATUSES),
             )
         )
         return result.scalar_one_or_none()

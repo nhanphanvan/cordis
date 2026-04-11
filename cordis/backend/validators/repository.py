@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from cordis.backend.constants import BUILTIN_OWNER_ROLE, ROLE_RANK
+from cordis.backend.enums import RepositoryAccessRole
 from cordis.backend.exceptions import (
     AppStatus,
     InternalServerError,
@@ -18,14 +20,12 @@ from cordis.backend.schemas.requests.repository import (
 
 from .base import BaseValidator
 
-ROLE_RANK = {"viewer": 1, "developer": 2, "owner": 3}
-
 
 @dataclass(slots=True)
 class RepositoryAccessContext:
     repository: Repository
     membership: RepositoryMember | None
-    role_name: str | None
+    role_name: RepositoryAccessRole | None
     viewer_allowed: bool
     developer_allowed: bool
     owner_allowed: bool
@@ -45,12 +45,12 @@ class RepositoryAccessValidator(BaseValidator):
             raise NotFoundError("Repository not found", app_status=AppStatus.ERROR_REPOSITORY_NOT_FOUND)
 
         membership: RepositoryMember | None = None
-        role_name: str | None = None
+        role_name: RepositoryAccessRole | None = None
         if current_user is not None and current_user.is_admin:
             return RepositoryAccessContext(
                 repository=repository,
                 membership=None,
-                role_name="owner",
+                role_name=RepositoryAccessRole.OWNER,
                 viewer_allowed=True,
                 developer_allowed=True,
                 owner_allowed=True,
@@ -62,11 +62,16 @@ class RepositoryAccessValidator(BaseValidator):
                 repository_id=repository_id,
             )
             if membership is not None and membership.role is not None:
-                role_name = membership.role.name
+                try:
+                    role_name = RepositoryAccessRole(membership.role.name)
+                except ValueError:
+                    role_name = None
 
-        viewer_allowed = repository.is_public or (role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK["viewer"])
-        developer_allowed = role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK["developer"]
-        owner_allowed = role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK["owner"]
+        viewer_allowed = repository.is_public or (
+            role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK[RepositoryAccessRole.VIEWER]
+        )
+        developer_allowed = role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK[RepositoryAccessRole.DEVELOPER]
+        owner_allowed = role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK[RepositoryAccessRole.OWNER]
 
         return RepositoryAccessContext(
             repository=repository,
@@ -87,7 +92,7 @@ class RepositoryCreateValidator(BaseValidator):
                 "Repository name already exists",
                 app_status=AppStatus.ERROR_REPOSITORY_NAME_ALREADY_EXISTS,
             )
-        owner_role = await uow.roles.get_by_name("owner")
+        owner_role = await uow.roles.get_by_name(BUILTIN_OWNER_ROLE.value)
         if owner_role is None:
             raise InternalServerError("Owner role is missing", app_status=AppStatus.ERROR_OWNER_ROLE_MISSING)
         return owner_role

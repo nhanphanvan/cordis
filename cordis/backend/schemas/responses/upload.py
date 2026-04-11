@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from cordis.backend.enums import UploadSessionStatus
+
 
 class UploadSessionPartResponse(BaseModel):
     part_number: int
@@ -17,6 +19,6 @@ class UploadSessionResponse(BaseModel):
     checksum: str
     size: int
     upload_id: str
-    status: str
+    status: UploadSessionStatus
     error_message: str | None
     parts: list[UploadSessionPartResponse]

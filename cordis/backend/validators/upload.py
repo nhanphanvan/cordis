@@ -2,14 +2,13 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from uuid import UUID
 
+from cordis.backend.constants import UPLOAD_TERMINAL_STATUSES
 from cordis.backend.exceptions import AppStatus, ConflictError, NotFoundError, UnprocessableEntityError
 from cordis.backend.models import Artifact, UploadSession, UploadSessionPart, Version
 from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.upload import UploadSessionCreateRequest
 
 from .base import BaseValidator
-
-TERMINAL_UPLOAD_STATUSES = {"completed", "failed", "aborted"}
 
 
 @dataclass(slots=True)
@@ -81,7 +80,7 @@ class UploadSessionReadValidator(BaseValidator):
 class UploadSessionMutableValidator(BaseValidator):
     @classmethod
     async def validate(cls, *, session: UploadSession) -> UploadSession:
-        if session.status in TERMINAL_UPLOAD_STATUSES:
+        if session.status in UPLOAD_TERMINAL_STATUSES:
             raise ConflictError(
                 "Upload session is already terminal",
                 app_status=AppStatus.ERROR_UPLOAD_SESSION_TERMINAL,

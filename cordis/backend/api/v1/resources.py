@@ -28,10 +28,10 @@ async def check_resource(
         current_user=current_user,
     )
     await authorize(current_user, VersionPolicy.create, access)
-    status, artifact_id = await VersionArtifactService(uow).check_resource(
+    resource_status, artifact_id = await VersionArtifactService(uow).check_resource(
         version_id=request.version_id,
         path=request.path,
         checksum=request.checksum,
         size=request.size,
     )
-    return ResourceCheckResponse(status=status, artifact_id=artifact_id)
+    return ResourceCheckResponse(status=resource_status, artifact_id=artifact_id)
