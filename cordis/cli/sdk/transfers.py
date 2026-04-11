@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -8,8 +9,8 @@ import httpx
 from cordis.cli.errors import ApiError, TransportError
 from cordis.cli.transfer import (
     copy_from_cache,
+    iter_file_chunks,
     iter_files,
-    read_file_base64,
     save_to_cache,
     sha256_file,
 )
@@ -54,11 +55,19 @@ class TransferHelper:
                     "size": size,
                 },
             )
-            await self.client.request(
-                method="POST",
-                path=f"/api/v1/uploads/sessions/{session['id']}/parts",
-                payload={"part_number": 1, "content_base64": read_file_base64(file_path)},
-            )
+            uploaded_parts = {
+                int(part["part_number"])
+                for part in session.get("parts", [])
+                if isinstance(part, dict) and "part_number" in part
+            }
+            for part_number, chunk in iter_file_chunks(file_path):
+                if part_number in uploaded_parts:
+                    continue
+                await self.client.request(
+                    method="POST",
+                    path=f"/api/v1/uploads/sessions/{session['id']}/parts",
+                    payload={"part_number": part_number, "content_base64": base64.b64encode(chunk).decode("ascii")},
+                )
             await self.client.request(method="POST", path=f"/api/v1/uploads/sessions/{session['id']}/complete")
             save_to_cache(str(repository_id), checksum, file_path)
             uploaded.append(relative_path)

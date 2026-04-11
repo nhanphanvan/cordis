@@ -8,6 +8,7 @@ Cordis is a file and artifact management platform with a FastAPI backend and a T
 - [Configuration](./configuration.md): backend environment settings, CLI config files, workspace registration, and cache behavior
 - [CLI Guide](./cli.md): command groups and common operator workflows
 - [Backend API](./backend-api.md): guide-first walkthrough of the current HTTP API surface
+- [Transfer Workflows](./transfer-workflows.md): detailed upload and download behavior across the CLI, backend, storage, and cache
 
 ## Engineering Guides
 

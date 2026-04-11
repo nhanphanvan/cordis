@@ -2,7 +2,8 @@ from pathlib import Path
 
 import httpx
 
-from cordis.cli.transfer.files import iter_files
+from cordis.cli.transfer.constants import DEFAULT_TRANSFER_CHUNK_SIZE
+from cordis.cli.transfer.files import iter_file_chunks, iter_files
 from cordis.cli.utils.httpx_service import HttpxService
 
 
@@ -45,6 +46,19 @@ def test_iter_files_skips_cordis_metadata_by_default(tmp_path: Path) -> None:
     items = list(iter_files(root))
 
     assert items == [(root / "keep.txt", "keep.txt")]
+
+
+def test_iter_file_chunks_splits_file_using_default_transfer_chunk_size(tmp_path: Path) -> None:
+    payload = b"a" * DEFAULT_TRANSFER_CHUNK_SIZE + b"b" * 3
+    path = tmp_path / "artifact.bin"
+    path.write_bytes(payload)
+
+    chunks = list(iter_file_chunks(path))
+
+    assert chunks == [
+        (1, b"a" * DEFAULT_TRANSFER_CHUNK_SIZE),
+        (2, b"bbb"),
+    ]
 
 
 class _FakeStreamResponse:

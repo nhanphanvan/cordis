@@ -79,7 +79,9 @@ Running `cordis version` without a subcommand prints the CLI package version.
 
 Resource commands use the registered repository and version when explicit values are not provided.
 `cordis resource upload` reads `.cordisignore` from the upload root and skips matching files using Gitignore-style rules.
+Uploads are session-based and use sequential resumable multipart transfer with a shared `8 MiB` chunk size.
 Remote downloads stream through the shared HTTP transport with retry and resume behavior, while cached file copies stay local and quiet.
+Read [Transfer Workflows](./transfer-workflows.md) for the full end-to-end upload and download sequence, including cache behavior, upload sessions, and mediated download URLs.
 
 ## Common Workflows
 
@@ -126,6 +128,18 @@ build/
 
 Cordis always skips `.cordis/` metadata and `.cordisignore` itself during upload traversal.
 
+### Understand the full transfer pipeline
+
+For a deeper explanation of:
+
+- how `resource upload` creates or resumes upload sessions
+- how multipart upload chunks are skipped on resume
+- how completion creates artifacts and attaches them to versions
+- how `resource download` reuses cache and then streams through the shared HTTP transport
+- how `resource download-item` differs from full file download
+
+read [Transfer Workflows](./transfer-workflows.md).
+
 ## Config and Cache Behavior
 
 - global CLI state is stored under `~/.cordis` by default
@@ -133,6 +147,7 @@ Cordis always skips `.cordis/` metadata and `.cordisignore` itself during upload
 - cache cleanup is available through `cordis clean-cache`
 - transfer helpers reuse cached file content when checksums match
 - upload traversal honors `.cordisignore` using Gitignore-style matching rules
+- uploads use sequential resumable multipart transfer with a shared `8 MiB` chunk size
 - remote artifact downloads stream through the shared HTTP transport with retry, resume, and Rich progress
 
 ## Error Behavior

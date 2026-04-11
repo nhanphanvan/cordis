@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import shutil
 from collections.abc import Iterator
@@ -7,6 +6,7 @@ from pathlib import Path
 from pathspec import PathSpec
 
 from cordis.cli.config.files import get_cache_dir
+from cordis.cli.transfer.constants import DEFAULT_TRANSFER_CHUNK_SIZE
 
 IGNORE_FILE_NAME = ".cordisignore"
 DEFAULT_IGNORE_PATTERNS = [IGNORE_FILE_NAME, ".cordis/"]
@@ -39,8 +39,15 @@ def sha256_file(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def read_file_base64(path: Path) -> str:
-    return base64.b64encode(path.read_bytes()).decode("ascii")
+def iter_file_chunks(path: Path, chunk_size: int = DEFAULT_TRANSFER_CHUNK_SIZE) -> Iterator[tuple[int, bytes]]:
+    with path.open("rb") as handle:
+        part_number = 1
+        while True:
+            chunk = handle.read(chunk_size)
+            if not chunk:
+                break
+            yield part_number, chunk
+            part_number += 1
 
 
 def cache_file_path(repository_key: str, checksum: str) -> Path:

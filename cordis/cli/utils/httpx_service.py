@@ -5,6 +5,7 @@ import httpx
 from tenacity import RetryError, retry, retry_if_exception_type, retry_if_result, stop_after_attempt, wait_exponential
 
 from cordis.cli.presentation import create_download_progress
+from cordis.cli.transfer.constants import DEFAULT_TRANSFER_CHUNK_SIZE
 
 RETRYABLE_STATUS_CODES = {429, 502, 503, 504}
 
@@ -129,7 +130,7 @@ class HttpxService:
         *,
         path: str,
         save_path: Path,
-        chunk_size: int = 10 * 1024 * 1024,
+        chunk_size: int = DEFAULT_TRANSFER_CHUNK_SIZE,
         show_progress: bool = True,
     ) -> httpx.Response:
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -204,7 +205,7 @@ class HttpxService:
         *,
         path: str,
         save_path: Path,
-        chunk_size: int = 10 * 1024 * 1024,
+        chunk_size: int = DEFAULT_TRANSFER_CHUNK_SIZE,
         show_progress: bool = True,
     ) -> httpx.Response:
         try:

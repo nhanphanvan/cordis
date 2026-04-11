@@ -95,7 +95,7 @@ Model relationships follow an explicit reference-style convention: typed `Mapped
 
 ### Transfer helpers
 
-`cordis.cli.transfer` handles local file iteration, checksums, cache reuse, and other local transfer helpers. Remote HTTP download streaming lives in the CLI transport layer rather than here.
+`cordis.cli.transfer` handles local file iteration, multipart upload chunking, checksums, cache reuse, and other local transfer helpers. Remote HTTP download streaming lives in the CLI transport layer rather than here.
 
 ## Request Flow
 
@@ -116,9 +116,12 @@ Typical upload flow:
 1. A CLI resource command calls the SDK client.
 2. The SDK resolves repository and version context.
 3. The backend creates or resumes an upload session.
-4. Upload parts are recorded and finalized through the storage adapter.
-5. Artifact metadata with a required storage object version ID is attached to the target version.
-6. The CLI stores reusable file content in the local cache.
+4. The CLI uploads missing file parts sequentially and can resume by skipping already-recorded parts.
+5. Upload parts are recorded and finalized through the storage adapter.
+6. Artifact metadata with a required storage object version ID is attached to the target version.
+7. The CLI stores reusable file content in the local cache.
+
+Read [Transfer Workflows](./transfer-workflows.md) for the full upload sequence, including validation and upload-session lifecycle details.
 
 Typical download flow:
 
@@ -128,3 +131,5 @@ Typical download flow:
 4. The backend returns a mediated download URL.
 5. The CLI streams the file locally through the shared HTTP transport with retry, resume, and progress support.
 6. The CLI stores the completed file in cache.
+
+Read [Transfer Workflows](./transfer-workflows.md) for the full download sequence and the distinction between cache hits, mediated download URLs, and streamed remote transfers.

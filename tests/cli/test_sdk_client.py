@@ -1,10 +1,12 @@
 import asyncio
+import base64
 from pathlib import Path
 
 import httpx
 
 from cordis.cli.errors import ApiError, TransportError
 from cordis.cli.sdk.client import CordisClient
+from cordis.cli.transfer.constants import DEFAULT_TRANSFER_CHUNK_SIZE
 
 
 class FakeHttpxService:
@@ -248,3 +250,113 @@ def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_p
             "size": 4,
         },
     )
+
+
+def test_upload_directory_splits_large_file_into_multiple_parts(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    payload = b"a" * DEFAULT_TRANSFER_CHUNK_SIZE + b"b" * 5
+    (root / "large.bin").write_bytes(payload)
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        assert repository_id == 7
+        assert name == "v1"
+        return {"id": "version-1", "name": "v1"}
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1", "parts": []}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.cli.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(
+        client.upload_directory(
+            repository_id=7,
+            version_name="v1",
+            folder_path=str(root),
+        )
+    )
+
+    assert result == {"uploaded": ["large.bin"]}
+    assert requests[1:3] == [
+        (
+            "POST",
+            "/api/v1/uploads/sessions/session-1/parts",
+            {
+                "part_number": 1,
+                "content_base64": base64.b64encode(b"a" * DEFAULT_TRANSFER_CHUNK_SIZE).decode("ascii"),
+            },
+        ),
+        (
+            "POST",
+            "/api/v1/uploads/sessions/session-1/parts",
+            {
+                "part_number": 2,
+                "content_base64": base64.b64encode(b"b" * 5).decode("ascii"),
+            },
+        ),
+    ]
+    assert requests[3] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)
+
+
+def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    payload = b"a" * DEFAULT_TRANSFER_CHUNK_SIZE + b"b" * 7
+    (root / "resume.bin").write_bytes(payload)
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        return {"id": "version-1", "name": name}
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1", "parts": [{"part_number": 1, "etag": "etag-1"}]}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.cli.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(
+        client.upload_directory(
+            repository_id=7,
+            version_name="v1",
+            folder_path=str(root),
+        )
+    )
+
+    assert result == {"uploaded": ["resume.bin"]}
+    assert requests[1:2] == [
+        (
+            "POST",
+            "/api/v1/uploads/sessions/session-1/parts",
+            {
+                "part_number": 2,
+                "content_base64": base64.b64encode(b"b" * 7).decode("ascii"),
+            },
+        )
+    ]
+    assert requests[2] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)

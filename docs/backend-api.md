@@ -118,6 +118,8 @@ Core routes:
 
 Upload sessions track the target version, path, checksum, size, upload state, and uploaded parts. Finalization creates or resolves artifact metadata and associates it to the target version. Completion also requires the storage backend to return a real object version ID; if that metadata is missing, finalization fails and the session is marked failed.
 
+Read [Transfer Workflows](./transfer-workflows.md) for the detailed upload sequence from CLI file discovery through backend session completion.
+
 ## Download and Retrieval
 
 Download workflows are version-oriented.
@@ -129,6 +131,8 @@ Core routes:
 - `POST /versions/{version_id}/artifacts/{artifact_id}/download`
 
 The backend returns a mediated download URL plus expiry metadata, so the client does not need direct knowledge of storage-provider internals.
+
+Read [Transfer Workflows](./transfer-workflows.md) for the detailed download sequence, including cache reuse, mediated download URL creation, and CLI-side streamed download behavior.
 
 ## Users and Roles
 
