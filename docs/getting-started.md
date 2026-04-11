@@ -56,6 +56,7 @@ The CLI entrypoint is `cordis`, with command groups for users, repositories, ver
 7. Download them again with `cordis resource download --path <target-folder>`.
 
 If the upload folder contains files you do not want to send, add a `.cordisignore` file there. Cordis uses Gitignore-style matching rules for upload exclusion.
+If you upload a later version where a file is unchanged at the same repository path, Cordis can now reuse the existing artifact and skip the storage upload for that file.
 
 ## Important Local Paths
 

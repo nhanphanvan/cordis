@@ -94,21 +94,25 @@ For each yielded file, the CLI computes:
 - `path`
   The relative artifact path inside the version
 
+Before creating an upload session, the CLI now performs a reuse check against the backend for the target version and file metadata. If the backend finds an existing repository artifact at the same path with the same checksum and size, the CLI attaches that artifact to the target version directly and skips multipart upload entirely.
+
 ### Upload request sequence
 
 For each file, the CLI executes this sequence:
 
-1. `POST /api/v1/uploads/sessions`
+1. `POST /api/v1/resources/check`
    The payload includes:
    - `version_id`
    - `path`
    - `checksum`
    - `size`
-2. inspect the returned session's `parts` list and build the set of already-uploaded `part_number` values
-3. read the local file in `8 MiB` chunks
-4. `POST /api/v1/uploads/sessions/{session_id}/parts` once per missing chunk
-5. `POST /api/v1/uploads/sessions/{session_id}/complete`
-6. on success, store the local file in the cache under the repository/checksum key
+2. if the backend returns an existing matching artifact ID, `POST /api/v1/versions/{version_id}/artifacts` and skip upload
+3. otherwise `POST /api/v1/uploads/sessions`
+4. inspect the returned session's `parts` list and build the set of already-uploaded `part_number` values
+5. read the local file in `8 MiB` chunks
+6. `POST /api/v1/uploads/sessions/{session_id}/parts` once per missing chunk
+7. `POST /api/v1/uploads/sessions/{session_id}/complete`
+8. on successful multipart upload, store the local file in the cache under the repository/checksum key
 
 Each part request still uses `content_base64`, but only for the current chunk rather than the entire file.
 
@@ -222,6 +226,16 @@ When a new artifact is created, it persists:
 - `storage_version_id`
 
 That `storage_version_id` is mandatory. Cordis treats it as durable lineage to the exact stored object version behind the artifact.
+
+### Pre-upload repository reuse
+
+The backend now supports a cheaper path for unchanged files across versions.
+
+If the target version does not already contain the path, the reuse check looks for an existing repository artifact at the same normalized path:
+
+- if checksum and size also match, the CLI can attach that artifact to the target version and skip storage upload
+- if no repository artifact exists, the file proceeds through normal upload-session handling
+- if a repository artifact exists at the same path with different metadata, the file still proceeds to normal upload handling, which preserves the current repository-path conflict behavior
 
 ### Upload failure paths
 

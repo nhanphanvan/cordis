@@ -115,11 +115,13 @@ Typical upload flow:
 
 1. A CLI resource command calls the SDK client.
 2. The SDK resolves repository and version context.
-3. The backend creates or resumes an upload session.
-4. The CLI uploads missing file parts sequentially and can resume by skipping already-recorded parts.
-5. Upload parts are recorded and finalized through the storage adapter.
-6. Artifact metadata with a required storage object version ID is attached to the target version.
-7. The CLI stores reusable file content in the local cache.
+3. The CLI checks whether the repository already has a reusable artifact at the same path with the same checksum and size.
+4. If a reusable artifact exists, the backend attaches it directly to the target version and no storage upload occurs.
+5. Otherwise the backend creates or resumes an upload session.
+6. The CLI uploads missing file parts sequentially and can resume by skipping already-recorded parts.
+7. Upload parts are recorded and finalized through the storage adapter.
+8. Artifact metadata with a required storage object version ID is attached to the target version.
+9. The CLI stores reusable file content in the local cache.
 
 Read [Transfer Workflows](./transfer-workflows.md) for the full upload sequence, including validation and upload-session lifecycle details.
 

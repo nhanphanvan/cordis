@@ -80,6 +80,7 @@ Running `cordis version` without a subcommand prints the CLI package version.
 Resource commands use the registered repository and version when explicit values are not provided.
 `cordis resource upload` reads `.cordisignore` from the upload root and skips matching files using Gitignore-style rules.
 Uploads are session-based and use sequential resumable multipart transfer with a shared `8 MiB` chunk size.
+Before uploading, the CLI checks whether the same repository already has an artifact at the same path with the same checksum and size; if so, it reuses that artifact for the target version instead of uploading the file again.
 Remote downloads stream through the shared HTTP transport with retry and resume behavior, while cached file copies stay local and quiet.
 Read [Transfer Workflows](./transfer-workflows.md) for the full end-to-end upload and download sequence, including cache behavior, upload sessions, and mediated download URLs.
 

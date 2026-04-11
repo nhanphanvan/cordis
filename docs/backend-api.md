@@ -100,7 +100,7 @@ Resource existence checks are exposed through:
 
 - `POST /resources/check`
 
-This allows the backend to answer whether a proposed file already matches content registered in a version.
+This allows the backend to answer whether a proposed file already matches content registered in the target version, or whether an existing repository artifact at the same path can be reused for the target version without uploading again.
 
 Artifact creation requires `storage_version_id`. Cordis treats that as the durable reference to the exact stored object version behind the artifact metadata.
 
@@ -117,6 +117,8 @@ Core routes:
 - `POST /uploads/sessions/{session_id}/abort`
 
 Upload sessions track the target version, path, checksum, size, upload state, and uploaded parts. Finalization creates or resolves artifact metadata and associates it to the target version. Completion also requires the storage backend to return a real object version ID; if that metadata is missing, finalization fails and the session is marked failed.
+
+Before creating an upload session, the CLI may call `POST /resources/check` and, when the backend finds a repository-scoped artifact at the same path with identical checksum and size, attach that artifact directly to the target version through `POST /versions/{version_id}/artifacts` instead of uploading the file again.
 
 Read [Transfer Workflows](./transfer-workflows.md) for the detailed upload sequence from CLI file discovery through backend session completion.
 

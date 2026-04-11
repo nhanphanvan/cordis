@@ -31,6 +31,7 @@ A version tag binds a stable name to a repository-scoped version.
 ### Artifact
 
 An artifact represents file content metadata such as path, checksum, size, repository ownership, and the required `storage_version_id` that identifies the exact underlying object version in storage.
+Artifacts are repository-scoped and path-sensitive: the same repository path can be reused across multiple versions when checksum and size match exactly.
 
 ### Version Artifact
 
@@ -60,4 +61,5 @@ An upload session part records uploaded multipart progress for resumable uploads
 - repository boundaries drive authorization
 - version boundaries drive content lifecycle and retrieval
 - artifact metadata lets content be reasoned about independently from transfer transport while still preserving exact storage object lineage through `storage_version_id`
+- repository-scoped artifact reuse lets unchanged files at the same path be attached to later versions without re-uploading
 - upload sessions make large-file workflows explicit and resumable

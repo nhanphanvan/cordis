@@ -51,7 +51,8 @@ When working on the CLI in this repository, follow these structural preferences:
 - keep CLI presentation in a shared rendering layer and prefer Rich tables, detail views, and status panels over manual string concatenation
 - keep transfer- and cache-specific local behavior under `cordis/cli/transfer/`
 - keep upload file discovery and `.cordisignore` handling in `cordis/cli/transfer/`, not in command handlers or SDK API modules
-- keep CLI uploads session-based and truly multipart: chunk files locally, upload parts sequentially, and resume by skipping persisted session parts rather than sending whole files as one part
+- keep CLI uploads path-aware and repository-aware: pre-check for reusable artifacts at the same repository path before starting upload, and only use session-based multipart transfer when reuse is not possible
+- keep CLI uploads session-based and truly multipart when transfer is required: chunk files locally, upload parts sequentially, and resume by skipping persisted session parts rather than sending whole files as one part
 - keep shared CLI transfer sizing in a small transfer constants module; the current canonical chunk size is `8 * 1024 * 1024`
 - keep remote artifact download transport in `cordis/cli/utils/httpx_service.py`; streamed downloads should use the shared HTTP layer with retry, resume, and Rich progress rather than ad-hoc network helpers in the transfer layer
 - prefer human-friendly default output; if adding machine-readable output later, make it explicit rather than degrading the default presentation

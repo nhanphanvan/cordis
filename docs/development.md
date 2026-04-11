@@ -74,6 +74,7 @@ When adding CLI functionality:
 Keep HTTP details inside the SDK layer, not directly inside command handlers.
 Keep expected failure rendering centralized through the shared CLI error path rather than duplicating command-local `try/except` formatting.
 Keep upload ignore semantics in the transfer layer and treat `.cordisignore` as the only upload ignore file in the current design.
+Keep pre-upload artifact reuse checks in the SDK/transfer workflow rather than duplicating repository/path reuse logic in command handlers.
 Keep CLI uploads sequential and resumable against backend upload sessions rather than collapsing files into one synthetic part.
 Keep remote artifact download streaming in `cordis.cli.utils.httpx_service` rather than reintroducing raw network helpers under `cordis.cli.transfer`.
 
