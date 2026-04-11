@@ -37,6 +37,17 @@ class VersionArtifactService:
             path=path.strip("/"),
         )
         if association is None:
+            version = await self.uow.versions.get(version_id)
+            if version is None:
+                return ResourceCheckStatus.MISSING, None
+            artifact = await self.uow.artifacts.get_by_repository_and_path(
+                repository_id=version.repository_id,
+                path=path.strip("/"),
+            )
+            if artifact is None:
+                return ResourceCheckStatus.MISSING, None
+            if artifact.checksum == checksum and artifact.size == size:
+                return ResourceCheckStatus.EXISTS, artifact.id
             return ResourceCheckStatus.MISSING, None
 
         artifact = association.artifact

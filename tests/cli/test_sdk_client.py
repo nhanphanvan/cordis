@@ -239,8 +239,18 @@ def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_p
         )
     )
 
-    assert result == {"uploaded": ["keep.txt"]}
+    assert result == {"uploaded": ["keep.txt"], "reused": []}
     assert requests[0] == (
+        "POST",
+        "/api/v1/resources/check",
+        {
+            "version_id": "version-1",
+            "path": "keep.txt",
+            "checksum": "sha256:6ca7ea2feefc88ecb5ed6356ed963f47dc9137f82526fdd25d618ea626d0803f",
+            "size": 4,
+        },
+    )
+    assert requests[1] == (
         "POST",
         "/api/v1/uploads/sessions",
         {
@@ -290,8 +300,9 @@ def test_upload_directory_splits_large_file_into_multiple_parts(monkeypatch, tmp
         )
     )
 
-    assert result == {"uploaded": ["large.bin"]}
-    assert requests[1:3] == [
+    assert result == {"uploaded": ["large.bin"], "reused": []}
+    assert requests[0][1] == "/api/v1/resources/check"
+    assert requests[2:4] == [
         (
             "POST",
             "/api/v1/uploads/sessions/session-1/parts",
@@ -309,7 +320,7 @@ def test_upload_directory_splits_large_file_into_multiple_parts(monkeypatch, tmp
             },
         ),
     ]
-    assert requests[3] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)
+    assert requests[4] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)
 
 
 def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatch, tmp_path: Path) -> None:
@@ -348,8 +359,9 @@ def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatc
         )
     )
 
-    assert result == {"uploaded": ["resume.bin"]}
-    assert requests[1:2] == [
+    assert result == {"uploaded": ["resume.bin"], "reused": []}
+    assert requests[0][1] == "/api/v1/resources/check"
+    assert requests[2:3] == [
         (
             "POST",
             "/api/v1/uploads/sessions/session-1/parts",
@@ -359,4 +371,62 @@ def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatc
             },
         )
     ]
-    assert requests[2] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)
+    assert requests[3] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)
+
+
+def test_upload_directory_reuses_matching_repository_artifact_without_upload(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    (root / "keep.txt").write_text("keep", encoding="utf-8")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        assert repository_id == 7
+        assert name == "v1"
+        return {"id": "version-1", "name": "v1"}
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/resources/check":
+            return {"status": "exists", "artifact_id": "artifact-1"}
+        if path == "/api/v1/versions/version-1/artifacts":
+            return {"id": "artifact-1"}
+        raise AssertionError(f"unexpected request: {method} {path}")
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+
+    result = asyncio.run(
+        client.upload_directory(
+            repository_id=7,
+            version_name="v1",
+            folder_path=str(root),
+        )
+    )
+
+    assert result == {"uploaded": [], "reused": ["keep.txt"]}
+    assert requests == [
+        (
+            "POST",
+            "/api/v1/resources/check",
+            {
+                "version_id": "version-1",
+                "path": "keep.txt",
+                "checksum": "sha256:6ca7ea2feefc88ecb5ed6356ed963f47dc9137f82526fdd25d618ea626d0803f",
+                "size": 4,
+            },
+        ),
+        (
+            "POST",
+            "/api/v1/versions/version-1/artifacts",
+            {"artifact_id": "artifact-1"},
+        ),
+    ]

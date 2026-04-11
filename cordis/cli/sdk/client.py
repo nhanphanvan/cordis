@@ -79,6 +79,19 @@ class CordisClient:
     async def create_version(self, *, repository_id: int, name: str) -> dict[str, Any]:
         return await self.versions.create_version(repository_id=repository_id, name=name)
 
+    async def check_resource(
+        self,
+        *,
+        version_id: str,
+        path: str,
+        checksum: str,
+        size: int,
+    ) -> dict[str, Any]:
+        return await self.versions.check_resource(version_id=version_id, path=path, checksum=checksum, size=size)
+
+    async def attach_artifact(self, *, version_id: str, artifact_id: str) -> dict[str, Any]:
+        return await self.versions.attach_artifact(version_id=version_id, artifact_id=artifact_id)
+
     async def delete_version(self, *, repository_id: int, name: str) -> None:
         await self.versions.delete_version(repository_id=repository_id, name=name)
 

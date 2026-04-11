@@ -42,9 +42,23 @@ class TransferHelper:
 
         root = Path(folder_path)
         uploaded: list[str] = []
+        reused: list[str] = []
         for file_path, relative_path in iter_files(root):
             checksum = sha256_file(file_path)
             size = file_path.stat().st_size
+            resource = await self.client.check_resource(
+                version_id=str(version["id"]),
+                path=relative_path,
+                checksum=checksum,
+                size=size,
+            )
+            if resource.get("status") == "exists" and resource.get("artifact_id") is not None:
+                await self.client.attach_artifact(
+                    version_id=str(version["id"]),
+                    artifact_id=str(resource["artifact_id"]),
+                )
+                reused.append(relative_path)
+                continue
             session = await self.client.request(
                 method="POST",
                 path="/api/v1/uploads/sessions",
@@ -71,7 +85,7 @@ class TransferHelper:
             await self.client.request(method="POST", path=f"/api/v1/uploads/sessions/{session['id']}/complete")
             save_to_cache(str(repository_id), checksum, file_path)
             uploaded.append(relative_path)
-        return {"uploaded": uploaded}
+        return {"uploaded": uploaded, "reused": reused}
 
     async def download_version(self, *, repository_id: int, version_name: str, save_dir: str) -> dict[str, Any]:
         artifacts = await self.client.list_version_artifacts(repository_id=repository_id, version_name=version_name)

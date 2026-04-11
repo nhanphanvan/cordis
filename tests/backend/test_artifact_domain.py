@@ -213,6 +213,55 @@ def test_resource_check_distinguishes_match_conflict_and_missing(monkeypatch, tm
     assert missing_response.json() == {"status": "missing", "artifact_id": None}
 
 
+def test_resource_check_reuses_matching_repository_artifact_from_another_version(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-resource-check-reuse.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
+    repository_id = asyncio.run(_create_repository(name="repo-check-reuse"))
+    asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "developer@example.com", "password123")
+    version_1_id = _create_version(client, headers, repository_id, "v1")
+    version_2_id = _create_version(client, headers, repository_id, "v2")
+    artifact_response = client.post(
+        "/api/v1/artifacts",
+        json={
+            "repository_id": repository_id,
+            "path": "models/model.bin",
+            "checksum": "sha256:same",
+            "size": 256,
+            "storage_version_id": "object-v1",
+        },
+        headers=headers,
+    )
+    artifact_id = artifact_response.json()["id"]
+    client.post(
+        f"/api/v1/versions/{version_1_id}/artifacts",
+        json={"artifact_id": artifact_id},
+        headers=headers,
+    )
+
+    reusable_response = client.post(
+        "/api/v1/resources/check",
+        json={
+            "version_id": version_2_id,
+            "path": "models/model.bin",
+            "checksum": "sha256:same",
+            "size": 256,
+        },
+        headers=headers,
+    )
+
+    assert reusable_response.status_code == 200
+    assert reusable_response.json() == {"status": "exists", "artifact_id": artifact_id}
+
+
 def test_resource_check_response_schema_accepts_enum_values() -> None:
     from uuid import uuid4
 
