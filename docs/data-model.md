@@ -15,6 +15,7 @@ Roles define repository-scoped access levels. In practice the main access levels
 ### Repository
 
 A repository is the main ownership and authorization boundary. It has a name, optional description, a Cordis API `visibility` policy (`private` or `authenticated`), and an `allow_public_object_urls` flag for provider-native raw object exposure.
+`visibility` controls Cordis API reads. `allow_public_object_urls` is a separate storage-facing control that lets the backend expose `public_url` values and synchronize public object-read access for the repository's storage prefix.
 
 ### Repository Membership
 
@@ -31,7 +32,7 @@ A version tag binds a stable name to a repository-scoped version.
 ### Artifact
 
 An artifact represents file content metadata such as path, checksum, size, repository ownership, and the required `storage_version_id` that identifies the exact underlying object version in storage.
-Artifacts are repository-scoped and path-sensitive: the same repository path can be reused across multiple versions when checksum and size match exactly. When a repository enables `allow_public_object_urls`, an artifact also has one stable provider-native `public_url`, shared across every Cordis version that attaches that artifact.
+Artifacts are repository-scoped and path-sensitive: the same repository path can be reused across multiple versions when checksum and size match exactly. When a repository enables `allow_public_object_urls`, an artifact also has one stable provider-native `public_url`, shared across every Cordis version that attaches that artifact. Public raw-object exposure is prefix-scoped within the shared storage bucket, not a bucket-wide public mode.
 
 ### Version Artifact
 

@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 import pytest
@@ -500,6 +501,71 @@ def test_minio_storage_client_maps_bucket_and_object_operations() -> None:
     client.delete_object(bucket="cordis-artifacts", key="path/file.bin")
 
 
+def test_minio_storage_client_uses_prefix_scoped_public_policy_statement() -> None:
+    sdk = FakeMinioSdk("localhost:9000", access_key="minioadmin", secret_key="minioadmin", secure=False)
+    client = MinioStorageClient(sdk)
+
+    changed = client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42")
+    policy = json.loads(sdk.policy_json)
+
+    assert changed is True
+    assert policy == {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "CordisPublicPrefixtenant_repositories_42",
+                "Effect": "Allow",
+                "Principal": {"AWS": ["*"]},
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::cordis-artifacts/tenant/repositories/42/*"],
+            }
+        ],
+    }
+
+
+def test_minio_storage_client_disable_public_prefix_access_removes_only_cordis_statement() -> None:
+    sdk = FakeMinioSdk("localhost:9000", access_key="minioadmin", secret_key="minioadmin", secure=False)
+    sdk.policy_json = json.dumps(
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "KeepMe",
+                    "Effect": "Allow",
+                    "Principal": {"AWS": ["*"]},
+                    "Action": ["s3:GetObject"],
+                    "Resource": ["arn:aws:s3:::cordis-artifacts/shared/*"],
+                },
+                {
+                    "Sid": "CordisPublicPrefixtenant_repositories_42",
+                    "Effect": "Allow",
+                    "Principal": {"AWS": ["*"]},
+                    "Action": ["s3:GetObject"],
+                    "Resource": ["arn:aws:s3:::cordis-artifacts/tenant/repositories/42/*"],
+                },
+            ],
+        }
+    )
+    client = MinioStorageClient(sdk)
+
+    changed = client.disable_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42")
+    policy = json.loads(sdk.policy_json)
+
+    assert changed is True
+    assert policy == {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "KeepMe",
+                "Effect": "Allow",
+                "Principal": {"AWS": ["*"]},
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::cordis-artifacts/shared/*"],
+            }
+        ],
+    }
+
+
 def test_aws_s3_storage_client_maps_bucket_and_object_operations() -> None:
     sdk = FakeAwsSdk()
     client = AwsS3StorageClient(sdk)
@@ -545,6 +611,71 @@ def test_aws_s3_storage_client_maps_bucket_and_object_operations() -> None:
     ) == {"etag": "complete-etag", "version_id": "version-1"}
     client.abort_multipart_upload(bucket="cordis-artifacts", key="path/file.bin", upload_id="upload-123")
     client.delete_object(bucket="cordis-artifacts", key="path/file.bin")
+
+
+def test_aws_s3_storage_client_uses_prefix_scoped_public_policy_statement() -> None:
+    sdk = FakeAwsSdk()
+    client = AwsS3StorageClient(sdk)
+
+    changed = client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42")
+    policy = json.loads(sdk.policy_json or "")
+
+    assert changed is True
+    assert policy == {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "CordisPublicPrefixtenant_repositories_42",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::cordis-artifacts/tenant/repositories/42/*"],
+            }
+        ],
+    }
+
+
+def test_aws_s3_storage_client_disable_public_prefix_access_removes_only_cordis_statement() -> None:
+    sdk = FakeAwsSdk()
+    sdk.policy_json = json.dumps(
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "KeepMe",
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": ["s3:GetObject"],
+                    "Resource": ["arn:aws:s3:::cordis-artifacts/shared/*"],
+                },
+                {
+                    "Sid": "CordisPublicPrefixtenant_repositories_42",
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": ["s3:GetObject"],
+                    "Resource": ["arn:aws:s3:::cordis-artifacts/tenant/repositories/42/*"],
+                },
+            ],
+        }
+    )
+    client = AwsS3StorageClient(sdk)
+
+    changed = client.disable_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42")
+    policy = json.loads(sdk.policy_json or "")
+
+    assert changed is True
+    assert policy == {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "KeepMe",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::cordis-artifacts/shared/*"],
+            }
+        ],
+    }
 
 
 def test_storage_factory_builds_minio_backed_adapter_and_bootstraps_bucket(monkeypatch: pytest.MonkeyPatch) -> None:

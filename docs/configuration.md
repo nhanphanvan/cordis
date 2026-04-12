@@ -63,6 +63,8 @@ Security settings are loaded from the same backend config layer. `cordis.backend
 - `CORDIS_JWT_ALGORITHM`
 - `CORDIS_ACCESS_TOKEN_EXPIRE_MINUTES`
 
+There is no separate backend storage-policy environment variable for public object exposure. Raw provider-native object exposure is controlled per repository through the repository-level `allow_public_object_urls` flag.
+
 ## MinIO Storage Behavior
 
 The backend storage layer supports two providers:
@@ -85,6 +87,8 @@ At adapter initialization time, the backend:
 
 This versioning behavior is required because completed artifacts must persist a real `storage_version_id`. If MinIO cannot provide an object version ID for a completed upload, upload finalization fails.
 
+When a repository enables `allow_public_object_urls`, Cordis updates the bucket policy for only that repository's storage prefix inside the shared bucket. For MinIO, this is a prefix-scoped public-read policy for object fetches, not a bucket-wide public/private toggle.
+
 For `CORDIS_STORAGE_PROVIDER=s3`, the backend uses `boto3` and expects a pre-provisioned AWS S3 bucket.
 
 Operational expectations for `s3`:
@@ -95,6 +99,8 @@ Operational expectations for `s3`:
 - the backend does not create AWS buckets or enable AWS bucket versioning automatically
 
 If the S3 bucket is missing, inaccessible, or not versioned, adapter initialization fails.
+
+When a repository enables `allow_public_object_urls`, Cordis applies the same prefix-scoped policy model for S3. The repository flag updates public read access only for that repository's object prefix in the shared bucket. Disabling the flag removes the Cordis-managed allow statement for that prefix; it does not write a blanket deny policy.
 
 ## CLI Configuration
 
@@ -151,3 +157,6 @@ Commands such as `cordis resource upload`, `cordis resource download`, and sever
 - CLI state is local to the developer or operator machine and is safe to treat as user-specific state.
 - Resource transfer behavior depends on both the configured backend endpoint and the local cache directory.
 - Remote download behavior also depends on the shared CLI HTTP transport, which now owns retry, resume, and progress handling.
+- Repository `visibility` and storage public access are separate controls.
+- `visibility` governs Cordis API read authorization.
+- `allow_public_object_urls` governs whether artifact responses include provider-native `public_url` values and whether the backend syncs prefix-scoped storage read access for that repository.

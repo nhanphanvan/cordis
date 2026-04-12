@@ -55,8 +55,9 @@ def _auth_header(client: TestClient, email: str, password: str) -> dict[str, str
 
 
 class FakeRepositoryStorage:
-    def __init__(self, *, fail_publish: bool = False) -> None:
+    def __init__(self, *, fail_publish: bool = False, fail_disable: bool = False) -> None:
         self.fail_publish = fail_publish
+        self.fail_disable = fail_disable
         self.calls: list[tuple[str, int]] = []
 
     def ensure_repository_public_access(self, *, repository_id: int) -> bool:
@@ -67,6 +68,8 @@ class FakeRepositoryStorage:
 
     def disable_repository_public_access(self, *, repository_id: int) -> bool:
         self.calls.append(("disable", repository_id))
+        if self.fail_disable:
+            raise ValueError("cannot disable")
         return True
 
 
@@ -170,6 +173,140 @@ def test_repository_update_rejects_when_storage_cannot_publish_prefix(monkeypatc
     response = client.patch(
         f"/api/v1/repositories/{repository_id}",
         json={"description": "assets", "visibility": "private", "allow_public_object_urls": True},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Repository public object URL policy could not be updated"
+
+
+def test_repository_create_enables_prefix_public_access_when_requested(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-repository-create-public.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    fake_storage = FakeRepositoryStorage()
+    monkeypatch.setattr("cordis.backend.services.repository.storage_factory.get_storage_adapter", lambda: fake_storage)
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "admin@example.com", "password123")
+
+    response = client.post(
+        "/api/v1/repositories",
+        json={
+            "name": "repo-public",
+            "description": "public objects",
+            "visibility": "private",
+            "allow_public_object_urls": True,
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    assert fake_storage.calls == [("enable", response.json()["id"])]
+
+
+def test_repository_create_rejects_when_storage_cannot_publish_prefix(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-repository-create-public-failure.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    fake_storage = FakeRepositoryStorage(fail_publish=True)
+    monkeypatch.setattr("cordis.backend.services.repository.storage_factory.get_storage_adapter", lambda: fake_storage)
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "admin@example.com", "password123")
+
+    response = client.post(
+        "/api/v1/repositories",
+        json={
+            "name": "repo-public",
+            "description": "public objects",
+            "visibility": "private",
+            "allow_public_object_urls": True,
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Repository public object URL policy could not be updated"
+
+
+def test_repository_update_disables_prefix_public_access_when_requested(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-repository-disable-public.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    fake_storage = FakeRepositoryStorage()
+    monkeypatch.setattr("cordis.backend.services.repository.storage_factory.get_storage_adapter", lambda: fake_storage)
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "admin@example.com", "password123")
+
+    create_response = client.post(
+        "/api/v1/repositories",
+        json={
+            "name": "repo-public",
+            "description": "public objects",
+            "visibility": "private",
+            "allow_public_object_urls": True,
+        },
+        headers=headers,
+    )
+    repository_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/repositories/{repository_id}",
+        json={"description": "public objects", "visibility": "private", "allow_public_object_urls": False},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert fake_storage.calls == [("enable", repository_id), ("disable", repository_id)]
+
+
+def test_repository_update_rejects_when_storage_cannot_disable_prefix(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-repository-disable-public-failure.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    fake_storage = FakeRepositoryStorage(fail_disable=True)
+    monkeypatch.setattr("cordis.backend.services.repository.storage_factory.get_storage_adapter", lambda: fake_storage)
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "admin@example.com", "password123")
+
+    create_response = client.post(
+        "/api/v1/repositories",
+        json={
+            "name": "repo-public",
+            "description": "public objects",
+            "visibility": "private",
+            "allow_public_object_urls": True,
+        },
+        headers=headers,
+    )
+    repository_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/repositories/{repository_id}",
+        json={"description": "public objects", "visibility": "private", "allow_public_object_urls": False},
         headers=headers,
     )
 

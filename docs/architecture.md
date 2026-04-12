@@ -61,7 +61,8 @@ Model relationships follow an explicit reference-style convention: typed `Mapped
 
 ### Storage boundary
 
-`cordis.backend.storage` defines the storage protocol, transfer-related types, provider bootstrapping, and provider error mapping. The current concrete implementations are MinIO and real AWS S3, with the rest of the backend still working against the shared adapter boundary rather than provider-specific calls.
+`cordis.backend.storage` defines the storage protocol, transfer-related types, provider bootstrapping, provider error mapping, and repository-scoped public-object access helpers. The current concrete implementations are MinIO and real AWS S3, with the rest of the backend still working against the shared adapter boundary rather than provider-specific calls.
+Cordis uses a shared storage bucket and structured object keys. When a repository enables `allow_public_object_urls`, the repository service asks the storage adapter to sync public read access only for that repository's key prefix rather than switching the whole bucket between public and private modes.
 
 ### Exceptions
 
@@ -108,6 +109,8 @@ Typical backend flow:
 5. A service coordinates repositories or storage and performs the mutation.
 6. Repository calls load or persist state through the unit of work.
 7. The route returns a response schema.
+
+For repository create and update mutations, the service layer also synchronizes prefix-scoped storage public access when `allow_public_object_urls` changes.
 
 ## Resource Transfer Flow
 
