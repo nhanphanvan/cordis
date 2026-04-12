@@ -8,7 +8,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 
 - A FastAPI backend with versioned API routes under `/api/v1`
 - A Typer CLI for login, repository, version, tag, user, and resource workflows
-- Rich-rendered CLI tables, detail views, success panels, typed error output, and streamed transfer progress
+- Rich-rendered CLI tables, detail views, success panels, typed error output, and streamed remote download progress
 - Artifact metadata, upload-session, and download flows for large object handling
 - `.cordisignore` support for Gitignore-style upload exclusions
 - Pre-upload artifact reuse for unchanged files at the same repository path across versions
@@ -101,7 +101,8 @@ cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <passwo
 ## Project Layout
 
 - `cordis/backend/`: FastAPI application, API routers, policies, validators, services, repositories, security, exception handling, and storage integration
-- `cordis/cli/`: Typer CLI, SDK client, presentation/error handling, config handling, and transfer helpers
+- `cordis/cli/`: Typer CLI, presentation/error handling, config handling, and CLI-local transfer helpers
+- `cordis/sdk/`: public Python SDK, API client modules, transfer orchestration, and shared HTTP transport
 - `tests/backend/`: backend-focused tests
 - `tests/cli/`: CLI-focused tests
 
@@ -123,7 +124,7 @@ Common CLI areas include:
 
 Common shared short flags include `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`.
 
-The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, performs a pre-upload reuse check so unchanged files at the same repository path can be attached to a new version without re-uploading, uses sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size when transfer is required, and streams remote artifact downloads through the shared HTTP transport with retry, resume, and Rich progress. The backend storage layer now supports MinIO and real AWS S3, preserves required object versioning so persisted artifacts always carry a `storage_version_id` that resolves the exact underlying object version, and can expose provider-native raw object URLs when a repository enables `allow_public_object_urls` by synchronizing public read access for that repository's storage prefix.
+The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, performs a pre-upload reuse check so unchanged files at the same repository path can be attached to a new version without re-uploading, uses sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size when transfer is required, and streams remote artifact downloads through the shared SDK HTTP transport with retry, resume, and Rich progress. The `resource download-item` command still only resolves and prints the mediated URL; it does not yet stream the file itself. The backend storage layer now supports MinIO and real AWS S3, preserves required object versioning so persisted artifacts always carry a `storage_version_id` that resolves the exact underlying object version, and can expose provider-native raw object URLs when a repository enables `allow_public_object_urls` by synchronizing public read access for that repository's storage prefix.
 
 ## Quality Checks
 

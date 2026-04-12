@@ -16,14 +16,13 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/backend/storage`: storage abstraction and provider adapter
 - `cordis/backend/utils`: backend logging and utility helpers
 - `cordis/cli/commands`: Typer command definitions
+- `cordis/sdk`: public SDK package for `CordisClient`, API modules, transport, and reusable transfer orchestration
 - `cordis/cli/errors.py`: typed CLI exception surface for config, API, and transport failures
 - `cordis/cli/presentation.py`: Rich-based output helpers for tables, detail views, and status panels
-- `cordis/cli/sdk`: backend-facing client wrapper
-- `cordis/cli/utils/httpx_service.py`: shared CLI HTTP transport, including streamed artifact downloads with retry and resume
 - `cordis/cli/config`: config and workspace-registration helpers
-- `cordis/cli/transfer`: local file and cache helpers
-- `cordis/cli/transfer/files.py`: upload file discovery, `.cordisignore` matching, multipart chunk iteration, checksums, and cache file paths
-- `cordis/cli/transfer/constants.py`: shared transfer constants such as the canonical `8 MiB` chunk size
+- `cordis/cli/transfer`: local upload file discovery, ignore matching, chunk iteration, and checksums
+- `cordis/cli/transfer/files.py`: upload file discovery, `.cordisignore` matching, multipart chunk iteration, and checksums
+- `cordis/constants.py`: shared transfer constants such as the canonical `8 MiB` chunk size
 - `cordis/backend/settings.py`: backend startup wiring for logging and security
 - `cordis/backend/exceptions/`: app status catalog, backend exception types, and centralized exception handlers
 
@@ -63,11 +62,11 @@ Use module-level loggers for key mutation and auth workflows rather than scatter
 
 When adding CLI functionality:
 
-1. add or update the SDK client behavior in `cordis.cli.sdk`
+1. add or update the SDK client behavior in `cordis.sdk`
 2. add or update typed CLI errors if the feature introduces a new expected failure mode
 3. wire the user-facing command in `cordis.cli.commands`
 4. render human-facing output through the shared presentation helpers
-5. use config helpers for persisted endpoint, token, or workspace state
+5. use CLI config helpers for persisted endpoint, token, or workspace state
 6. use transfer helpers for local file and cache behavior when relevant
 7. add tests in `tests/cli`
 
@@ -76,7 +75,7 @@ Keep expected failure rendering centralized through the shared CLI error path ra
 Keep upload ignore semantics in the transfer layer and treat `.cordisignore` as the only upload ignore file in the current design.
 Keep pre-upload artifact reuse checks in the SDK/transfer workflow rather than duplicating repository/path reuse logic in command handlers.
 Keep CLI uploads sequential and resumable against backend upload sessions rather than collapsing files into one synthetic part.
-Keep remote artifact download streaming in `cordis.cli.utils.httpx_service` rather than reintroducing raw network helpers under `cordis.cli.transfer`.
+Keep remote artifact download streaming in `cordis.sdk.httpx_service` rather than reintroducing raw network helpers under `cordis.cli.transfer`.
 
 ## Configuration and State
 

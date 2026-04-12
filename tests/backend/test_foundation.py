@@ -45,6 +45,22 @@ def test_cordis_package_is_root_level_not_src_layout() -> None:
     assert "src" not in package_path.parts
 
 
+def test_public_sdk_package_exports_cordis_client() -> None:
+    sdk = importlib.import_module("cordis.sdk")
+
+    assert hasattr(sdk, "CordisClient")
+
+
+def test_legacy_cli_sdk_package_is_not_importable() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.cli.sdk")
+
+
+def test_sdk_config_helper_module_is_not_importable() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("cordis.sdk.config")
+
+
 def test_database_config_derives_async_and_sync_database_urls() -> None:
     database = DatabaseConfig(
         db_url="postgresql+asyncpg://user:password@localhost:5432/cordis",
@@ -52,6 +68,13 @@ def test_database_config_derives_async_and_sync_database_urls() -> None:
 
     assert database.db_url == "postgresql+asyncpg://user:password@localhost:5432/cordis"
     assert database.sync_db_url == "postgresql://user:password@localhost:5432/cordis"
+
+
+def test_public_sdk_client_does_not_require_cli_config_for_explicit_construction() -> None:
+    client = importlib.import_module("cordis.sdk").CordisClient(base_url="http://127.0.0.1:8000")
+
+    assert client.base_url == "http://127.0.0.1:8000"
+    assert client.token is None
 
 
 def test_backend_migrations_helpers_expose_sync_url_and_metadata(monkeypatch: pytest.MonkeyPatch) -> None:

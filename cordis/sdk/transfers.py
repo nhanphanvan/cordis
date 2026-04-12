@@ -6,17 +6,12 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from cordis.cli.errors import ApiError, TransportError
-from cordis.cli.transfer import (
-    copy_from_cache,
-    iter_file_chunks,
-    iter_files,
-    save_to_cache,
-    sha256_file,
-)
+from cordis.cli.config import copy_from_cache, save_to_cache
+from cordis.cli.transfer import iter_file_chunks, iter_files, sha256_file
+from cordis.sdk.errors import ApiError, TransportError
 
 if TYPE_CHECKING:
-    from cordis.cli.sdk.client import CordisClient
+    from cordis.sdk.client import CordisClient
 
 
 class TransferHelper:
@@ -62,12 +57,7 @@ class TransferHelper:
             session = await self.client.request(
                 method="POST",
                 path="/api/v1/uploads/sessions",
-                payload={
-                    "version_id": version["id"],
-                    "path": relative_path,
-                    "checksum": checksum,
-                    "size": size,
-                },
+                payload={"version_id": version["id"], "path": relative_path, "checksum": checksum, "size": size},
             )
             uploaded_parts = {
                 int(part["part_number"])

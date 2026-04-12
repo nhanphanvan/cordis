@@ -1,6 +1,6 @@
 from typing import Any
 
-from cordis.cli.sdk.apis.base import BaseAPI
+from cordis.sdk.apis.base import BaseAPI
 
 
 class VersionsAPI(BaseAPI):
@@ -17,14 +17,7 @@ class VersionsAPI(BaseAPI):
             payload={"repository_id": repository_id, "name": name},
         )
 
-    async def check_resource(
-        self,
-        *,
-        version_id: str,
-        path: str,
-        checksum: str,
-        size: int,
-    ) -> dict[str, Any]:
+    async def check_resource(self, *, version_id: str, path: str, checksum: str, size: int) -> dict[str, Any]:
         return await self._request(
             method="POST",
             path="/api/v1/resources/check",

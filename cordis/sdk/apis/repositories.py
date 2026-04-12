@@ -1,6 +1,6 @@
 from typing import Any
 
-from cordis.cli.sdk.apis.base import BaseAPI
+from cordis.sdk.apis.base import BaseAPI
 
 
 class RepositoriesAPI(BaseAPI):
@@ -32,10 +32,7 @@ class RepositoriesAPI(BaseAPI):
         return await self._request(
             method="PATCH",
             path=f"/api/v1/repositories/{repository_id}",
-            payload={
-                "visibility": visibility,
-                "allow_public_object_urls": allow_public_object_urls,
-            },
+            payload={"visibility": visibility, "allow_public_object_urls": allow_public_object_urls},
         )
 
     async def delete_repository(self, *, repository_id: int) -> dict[str, Any]:
@@ -67,7 +64,4 @@ class RepositoriesAPI(BaseAPI):
 
     async def delete_repository_member(self, *, repository_id: int, email: str) -> dict[str, Any]:
         user = await self.client.users.get_user_by_email(email=email)
-        return await self._request(
-            method="DELETE",
-            path=f"/api/v1/repositories/{repository_id}/members/{user['id']}",
-        )
+        return await self._request(method="DELETE", path=f"/api/v1/repositories/{repository_id}/members/{user['id']}")

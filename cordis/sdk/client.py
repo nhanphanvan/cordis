@@ -3,11 +3,10 @@ from typing import Any
 
 import httpx
 
-from cordis.cli.config.files import ensure_global_config, get_global_config_path, read_config
-from cordis.cli.errors import ApiError, TransportError
-from cordis.cli.sdk.apis import AuthAPI, RepositoriesAPI, TagsAPI, UsersAPI, VersionsAPI
-from cordis.cli.sdk.transfers import TransferHelper
-from cordis.cli.utils.httpx_service import HttpxService
+from cordis.sdk.apis import AuthAPI, RepositoriesAPI, TagsAPI, UsersAPI, VersionsAPI
+from cordis.sdk.errors import ApiError, TransportError
+from cordis.sdk.httpx_service import HttpxService
+from cordis.sdk.transfers import TransferHelper
 
 
 @dataclass(slots=True)
@@ -49,13 +48,7 @@ class CordisClient:
     async def list_my_repositories(self) -> list[dict[str, Any]]:
         return await self.users.list_my_repositories()
 
-    async def create_repository(
-        self,
-        *,
-        name: str,
-        visibility: str,
-        allow_public_object_urls: bool,
-    ) -> dict[str, Any]:
+    async def create_repository(self, *, name: str, visibility: str, allow_public_object_urls: bool) -> dict[str, Any]:
         return await self.repositories.create_repository(
             name=name,
             visibility=visibility,
@@ -99,14 +92,7 @@ class CordisClient:
     async def create_version(self, *, repository_id: int, name: str) -> dict[str, Any]:
         return await self.versions.create_version(repository_id=repository_id, name=name)
 
-    async def check_resource(
-        self,
-        *,
-        version_id: str,
-        path: str,
-        checksum: str,
-        size: int,
-    ) -> dict[str, Any]:
+    async def check_resource(self, *, version_id: str, path: str, checksum: str, size: int) -> dict[str, Any]:
         return await self.versions.check_resource(version_id=version_id, path=path, checksum=checksum, size=size)
 
     async def attach_artifact(self, *, version_id: str, artifact_id: str) -> dict[str, Any]:
@@ -173,7 +159,12 @@ class CordisClient:
             headers["Authorization"] = f"Bearer {self.token}"
 
         try:
-            response = await self.transport.request(method=method, path=path, json=payload, headers=headers)
+            response = await self.transport.request(
+                method=method,
+                path=path,
+                json=payload,
+                headers=headers,
+            )
         except httpx.HTTPError as error:
             raise TransportError("Could not connect to the Cordis backend", detail=str(error)) from error
 
@@ -196,11 +187,9 @@ class CordisClient:
         user_message = str(
             detail or status_message or response.text or f"Request failed with status {response.status_code}"
         )
-
         app_status_code = payload.get("app_status_code")
         if app_status_code is not None:
             app_status_code = int(app_status_code)
-
         return ApiError(
             http_status=response.status_code,
             app_status_code=app_status_code,
@@ -208,11 +197,3 @@ class CordisClient:
             user_message=user_message,
             detail=None if detail is None else str(detail),
         )
-
-
-def get_client() -> CordisClient:
-    ensure_global_config()
-    config = read_config(get_global_config_path())
-    base_url = str(config.get("endpoint") or "http://127.0.0.1:8000")
-    token = config.get("token")
-    return CordisClient(base_url=base_url, token=None if token is None else str(token))

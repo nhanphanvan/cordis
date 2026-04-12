@@ -5,7 +5,8 @@ Cordis is split into a backend service and a CLI surface.
 ## High-Level Shape
 
 - `cordis.backend`: FastAPI application, domain services, persistence, security, exception handling, storage integration, and API schemas
-- `cordis.cli`: Typer command surface, SDK client, config helpers, and transfer utilities
+- `cordis.cli`: Typer command surface, config helpers, and transfer utilities
+- `cordis.sdk`: public Python SDK client, transport, API modules, and reusable transfer orchestration
 The backend owns repository, version, tag, artifact, upload-session, runtime settings, and app-status exception contracts. The CLI turns those capabilities into local operator workflows such as login, workspace registration, uploads, downloads, and cache-aware retrieval.
 
 ## Backend Layers
@@ -84,15 +85,11 @@ Cordis uses a shared storage bucket and structured object keys. When a repositor
 
 ### SDK
 
-`cordis.cli.sdk` contains the backend-facing client wrapper used by the CLI. It centralizes HTTP request construction, backend error normalization, and higher-level transfer workflows.
-
-### CLI utilities
-
-`cordis.cli.utils` contains CLI-owned support code such as the shared HTTP transport used by the SDK. Remote artifact downloads also stream through this layer so retry, resume, and progress behavior stay transport-owned.
+`cordis.sdk` contains the backend-facing client used both by Python consumers and by the CLI. It centralizes HTTP request construction, backend error normalization, and higher-level transfer workflows.
 
 ### Config
 
-`cordis.cli.config` owns global config, workspace registration, and cache path helpers.
+`cordis.cli.config` owns global config, workspace registration, and cache path helpers. CLI-specific client construction from local config also stays on the CLI side rather than in the public SDK package.
 
 ### Transfer helpers
 

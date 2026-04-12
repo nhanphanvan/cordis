@@ -20,13 +20,15 @@ That split is why the transfer flow is more than a single HTTP request.
 
 - `cordis.cli.commands.resource`
   Runs the operator-facing `resource upload`, `resource download`, and `resource download-item` commands.
-- `cordis.cli.sdk.transfers.TransferHelper`
+- `cordis.sdk.transfers.TransferHelper`
   Orchestrates upload and download workflows after command input has been resolved.
 - `cordis.cli.transfer.files`
-  Handles local file iteration, `.cordisignore` filtering, multipart chunk iteration, checksums, and cache path management.
-- `cordis.cli.transfer.constants`
+  Handles local file iteration, `.cordisignore` filtering, multipart chunk iteration, and checksums.
+- `cordis.cli.config.files`
+  Owns CLI-local cache paths and cache copy/save/clean helpers under `~/.cordis/cache`.
+- `cordis.constants`
   Defines shared transfer constants such as the canonical `8 MiB` chunk size used by both upload and download paths.
-- `cordis.cli.utils.httpx_service.HttpxService`
+- `cordis.sdk.httpx_service.HttpxService`
   Owns remote HTTP transport, including streamed artifact downloads with retry, resume, and Rich progress.
 
 ### Backend side
@@ -361,7 +363,7 @@ The CLI then streams from `download_url`.
 
 ### Remote streaming behavior
 
-Remote download streaming is owned by `cordis.cli.utils.httpx_service.HttpxService`.
+Remote download streaming is owned by `cordis.sdk.httpx_service.HttpxService`.
 
 That transport is responsible for:
 
@@ -472,7 +474,7 @@ The following rules are important to preserve when changing transfer code:
 - upload-session state is the backend source of truth for multipart ingest
 - completed artifacts require `storage_version_id`
 - version download is cache-aware and checksum-based
-- remote artifact downloads stream through `HttpxService`, not ad-hoc network helpers in the transfer layer
+- remote artifact downloads stream through `cordis.sdk.httpx_service.HttpxService`, not ad-hoc network helpers in the transfer layer
 - the CLI should keep human-friendly output and typed error behavior around transfer failures
 - the backend storage adapter must preserve provider object version IDs so completed artifacts keep durable storage lineage
 

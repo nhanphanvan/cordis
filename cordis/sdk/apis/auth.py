@@ -1,4 +1,4 @@
-from cordis.cli.sdk.apis.base import BaseAPI
+from cordis.sdk.apis.base import BaseAPI
 
 
 class AuthAPI(BaseAPI):

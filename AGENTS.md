@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI service and backend-owned runtime concerns such as config, exception handling, storage integration, and migration helpers, and `cordis/cli/` for the Typer CLI and SDK. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, `README.md`, `Dockerfile`, `compose.yml`, and `alembic.ini` define tooling and local workflow.
+Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI service and backend-owned runtime concerns such as config, exception handling, storage integration, and migration helpers, `cordis/cli/` for the Typer CLI and CLI-owned local behavior, and `cordis/sdk/` for the public Python SDK and shared transport. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, `README.md`, `Dockerfile`, `compose.yml`, and `alembic.ini` define tooling and local workflow.
 
 ## Build, Test, and Development Commands
 
@@ -48,7 +48,7 @@ When working on a backend project in this repository, follow these structural pr
 When working on the CLI in this repository, follow these structural preferences:
 
 - keep `cordis/cli/commands/` focused on command wiring and input collection, not HTTP or transport details
-- keep backend communication inside `cordis/cli/sdk/`
+- keep backend communication inside `cordis/sdk/`; CLI-specific config-driven client construction belongs under `cordis/cli/`
 - keep CLI error types in `cordis/cli/errors.py` and prefer typed CLI exceptions over raw `RuntimeError`
 - keep command error handling centralized; expected failures should render through the shared CLI error path rather than ad-hoc `try/except` blocks in each command
 - keep CLI presentation in a shared rendering layer and prefer Rich tables, detail views, and status panels over manual string concatenation
@@ -57,8 +57,8 @@ When working on the CLI in this repository, follow these structural preferences:
 - keep upload file discovery and `.cordisignore` handling in `cordis/cli/transfer/`, not in command handlers or SDK API modules
 - keep CLI uploads path-aware and repository-aware: pre-check for reusable artifacts at the same repository path before starting upload, and only use session-based multipart transfer when reuse is not possible
 - keep CLI uploads session-based and truly multipart when transfer is required: chunk files locally, upload parts sequentially, and resume by skipping persisted session parts rather than sending whole files as one part
-- keep shared CLI transfer sizing in a small transfer constants module; the current canonical chunk size is `8 * 1024 * 1024`
-- keep remote artifact download transport in `cordis/cli/utils/httpx_service.py`; streamed downloads should use the shared HTTP layer with retry, resume, and Rich progress rather than ad-hoc network helpers in the transfer layer
+- keep the canonical transfer chunk size in `cordis/constants.py`; the current value is `8 * 1024 * 1024`
+- keep remote artifact download transport in `cordis/sdk/httpx_service.py`; streamed downloads should use the shared HTTP layer with retry, resume, and Rich progress rather than ad-hoc network helpers in the transfer layer
 - prefer human-friendly default output; if adding machine-readable output later, make it explicit rather than degrading the default presentation
 - keep common CLI short flags consistent: prefer `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`
 

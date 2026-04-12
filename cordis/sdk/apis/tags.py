@@ -1,6 +1,6 @@
 from typing import Any
 
-from cordis.cli.sdk.apis.base import BaseAPI
+from cordis.sdk.apis.base import BaseAPI
 
 
 class TagsAPI(BaseAPI):
@@ -9,10 +9,7 @@ class TagsAPI(BaseAPI):
         return list(response.get("items", []))
 
     async def get_tag(self, *, repository_id: int, name: str) -> dict[str, Any]:
-        return await self._request(
-            method="GET",
-            path=f"/api/v1/tags?repository_id={repository_id}&name={name}",
-        )
+        return await self._request(method="GET", path=f"/api/v1/tags?repository_id={repository_id}&name={name}")
 
     async def create_tag(self, *, repository_id: int, version_name: str, name: str) -> dict[str, Any]:
         version = await self.client.versions.get_version(repository_id=repository_id, name=version_name)

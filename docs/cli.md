@@ -8,7 +8,7 @@ The CLI uses a shared presentation layer for human-friendly terminal output:
 - labeled detail views for single records
 - success panels for mutations and cache/auth actions
 - error panels for expected API, config, and transport failures
-- Rich progress for streamed remote downloads
+- Rich progress for streamed remote downloads triggered by `cordis resource download`
 
 Common short aliases are available for the highest-frequency shared options:
 
@@ -82,7 +82,7 @@ Resource commands use the registered repository and version when explicit values
 Uploads are session-based and use sequential resumable multipart transfer with a shared `8 MiB` chunk size.
 Before uploading, the CLI checks whether the same repository already has an artifact at the same path with the same checksum and size; if so, it reuses that artifact for the target version instead of uploading the file again.
 When artifact responses include `public_url`, `cordis resource ls` shows that raw provider-native URL in the default table output.
-Remote downloads stream through the shared HTTP transport with retry and resume behavior, while cached file copies stay local and quiet.
+Remote version downloads stream through the shared SDK HTTP transport with retry, resume, and Rich progress behavior, while cached file copies stay local and quiet. `cordis resource download-item` still resolves and prints the mediated URL only.
 Read [Transfer Workflows](./transfer-workflows.md) for the full end-to-end upload and download sequence, including cache behavior, upload sessions, and mediated download URLs.
 
 ## Common Workflows
@@ -150,7 +150,8 @@ read [Transfer Workflows](./transfer-workflows.md).
 - transfer helpers reuse cached file content when checksums match
 - upload traversal honors `.cordisignore` using Gitignore-style matching rules
 - uploads use sequential resumable multipart transfer with a shared `8 MiB` chunk size
-- remote artifact downloads stream through the shared HTTP transport with retry, resume, and Rich progress
+- remote version downloads stream through the shared HTTP transport with retry, resume, and Rich progress
+- `resource download-item` still prints the mediated URL rather than streaming the file
 
 ## Error Behavior
 

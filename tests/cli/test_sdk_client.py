@@ -4,9 +4,9 @@ from pathlib import Path
 
 import httpx
 
-from cordis.cli.errors import ApiError, TransportError
-from cordis.cli.sdk.client import CordisClient
-from cordis.cli.transfer.constants import DEFAULT_TRANSFER_CHUNK_SIZE
+from cordis.constants import DEFAULT_TRANSFER_CHUNK_SIZE
+from cordis.sdk import CordisClient
+from cordis.sdk.errors import ApiError, TransportError
 
 
 class FakeHttpxService:
@@ -164,7 +164,7 @@ def test_download_version_uses_cached_file_before_remote_download(
 
     monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
     monkeypatch.setattr(CordisClient, "download_item", fake_download_item)
-    monkeypatch.setattr("cordis.cli.sdk.transfers.copy_from_cache", lambda repo_id, checksum, destination: True)
+    monkeypatch.setattr("cordis.sdk.transfers.copy_from_cache", lambda repo_id, checksum, destination: True)
 
     result = asyncio.run(
         client.download_version(repository_id=7, version_name="v1", save_dir=str(tmp_path / "downloads"))
@@ -182,7 +182,7 @@ def test_download_version_uses_transport_stream_download_for_remote_file(
     cached: list[tuple[str, str, Path]] = []
 
     class FakeTransport:
-        def stream_download(self, *, path: str, save_path: Path, show_progress: bool = True) -> None:
+        def stream_download(self, *, path: str, save_path: Path, show_progress: bool = False) -> None:
             assert show_progress is True
             streamed.append((path, save_path))
             save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -209,9 +209,9 @@ def test_download_version_uses_transport_stream_download_for_remote_file(
 
     monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
     monkeypatch.setattr(CordisClient, "download_item", fake_download_item)
-    monkeypatch.setattr("cordis.cli.sdk.transfers.copy_from_cache", lambda repo_id, checksum, destination: False)
+    monkeypatch.setattr("cordis.sdk.transfers.copy_from_cache", lambda repo_id, checksum, destination: False)
     monkeypatch.setattr(
-        "cordis.cli.sdk.transfers.save_to_cache",
+        "cordis.sdk.transfers.save_to_cache",
         lambda repository_key, checksum, source_path: cached.append((repository_key, checksum, source_path)),
     )
     client.transport = FakeTransport()  # type: ignore[assignment]
@@ -256,7 +256,7 @@ def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_p
 
     monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
     monkeypatch.setattr(CordisClient, "request", fake_request)
-    monkeypatch.setattr("cordis.cli.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
 
     result = asyncio.run(
         client.upload_directory(
@@ -317,7 +317,7 @@ def test_upload_directory_splits_large_file_into_multiple_parts(monkeypatch, tmp
 
     monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
     monkeypatch.setattr(CordisClient, "request", fake_request)
-    monkeypatch.setattr("cordis.cli.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
 
     result = asyncio.run(
         client.upload_directory(
@@ -376,7 +376,7 @@ def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatc
 
     monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
     monkeypatch.setattr(CordisClient, "request", fake_request)
-    monkeypatch.setattr("cordis.cli.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
 
     result = asyncio.run(
         client.upload_directory(

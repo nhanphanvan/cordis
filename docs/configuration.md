@@ -136,7 +136,7 @@ Default location:
 ~/.cordis/cache
 ```
 
-The CLI cache is used by resource transfer helpers to reuse downloaded or uploaded file content when possible. When cached content is missing, remote artifact downloads stream through the shared CLI HTTP transport and then populate the cache after success.
+The CLI cache is used by resource transfer helpers to reuse downloaded or uploaded file content when possible. When cached content is missing, remote artifact downloads stream through the shared SDK HTTP transport and then populate the cache after success.
 
 ### Workspace registration
 
@@ -170,7 +170,7 @@ The repository includes a `migrate` Compose service, but schema migration execut
 - Backend settings are environment-driven and should not be stored in CLI config files.
 - CLI state is local to the developer or operator machine and is safe to treat as user-specific state.
 - Resource transfer behavior depends on both the configured backend endpoint and the local cache directory.
-- Remote download behavior also depends on the shared CLI HTTP transport, which now owns retry, resume, and progress handling.
+- Remote download behavior also depends on the shared SDK HTTP transport, which now owns retry, resume, and progress handling.
 - Repository `visibility` and storage public access are separate controls.
 - `visibility` governs Cordis API read authorization.
 - `allow_public_object_urls` governs whether artifact responses include provider-native `public_url` values and whether the backend syncs prefix-scoped storage read access for that repository.

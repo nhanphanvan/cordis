@@ -2,9 +2,9 @@ from pathlib import Path
 
 import httpx
 
-from cordis.cli.transfer.constants import DEFAULT_TRANSFER_CHUNK_SIZE
 from cordis.cli.transfer.files import iter_file_chunks, iter_files
-from cordis.cli.utils.httpx_service import HttpxService
+from cordis.constants import DEFAULT_TRANSFER_CHUNK_SIZE
+from cordis.sdk.httpx_service import HttpxService
 
 
 def test_iter_files_skips_paths_ignored_by_cordisignore(tmp_path: Path) -> None:
@@ -116,7 +116,7 @@ def test_stream_download_resumes_after_remote_protocol_error(monkeypatch, tmp_pa
             calls.append({"method": method, "url": url, "headers": headers})
             return responses.pop(0)
 
-    monkeypatch.setattr("cordis.cli.utils.httpx_service.httpx.Client", FakeClient)
+    monkeypatch.setattr("cordis.sdk.httpx_service.httpx.Client", FakeClient)
     destination = tmp_path / "artifact.bin"
 
     HttpxService().stream_download(path="https://example.com/artifact.bin", save_path=destination, show_progress=False)
@@ -154,9 +154,63 @@ def test_stream_download_restarts_when_server_ignores_resume_range(monkeypatch, 
             calls.append({"method": method, "url": url, "headers": headers})
             return responses.pop(0)
 
-    monkeypatch.setattr("cordis.cli.utils.httpx_service.httpx.Client", FakeClient)
+    monkeypatch.setattr("cordis.sdk.httpx_service.httpx.Client", FakeClient)
 
     HttpxService().stream_download(path="https://example.com/artifact.bin", save_path=destination, show_progress=False)
 
     assert destination.read_bytes() == b"abcdefghij"
     assert calls == [{"method": "GET", "url": "https://example.com/artifact.bin", "headers": {"Range": "bytes=3-"}}]
+
+
+def test_stream_download_updates_progress_when_enabled(monkeypatch, tmp_path: Path) -> None:
+    progress_events: list[tuple[str, object, object]] = []
+
+    class FakeProgress:
+        def __enter__(self) -> "FakeProgress":
+            progress_events.append(("enter", None, None))
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            progress_events.append(("exit", None, None))
+            return False
+
+        def add_task(self, description: str, *, total: object = None, completed: object = 0) -> int:
+            progress_events.append((description, total, completed))
+            return 1
+
+        def update(self, task_id: int, *, total: object = None, completed: object | None = None) -> None:
+            progress_events.append((f"update:{task_id}", total, completed))
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            del args, kwargs
+
+        def __enter__(self) -> "FakeClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def stream(self, method: str, url: str, headers: dict[str, str] | None = None):
+            del method, url, headers
+            return _FakeStreamResponse(
+                status_code=200,
+                chunks=[b"ab", b"cde"],
+                headers={"Content-Length": "5"},
+            )
+
+    monkeypatch.setattr("cordis.sdk.httpx_service.httpx.Client", FakeClient)
+    monkeypatch.setattr("cordis.sdk.httpx_service.HttpxService._create_download_progress", lambda self: FakeProgress())
+
+    destination = tmp_path / "artifact.bin"
+
+    HttpxService().stream_download(path="https://example.com/artifact.bin", save_path=destination, show_progress=True)
+
+    assert destination.read_bytes() == b"abcde"
+    assert progress_events == [
+        ("enter", None, None),
+        ("Downloading artifact.bin", 5, 0),
+        ("update:1", 5, 2),
+        ("update:1", 5, 5),
+        ("exit", None, None),
+    ]

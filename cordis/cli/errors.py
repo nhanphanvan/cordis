@@ -1,8 +1,10 @@
-class CordisCliError(Exception):
-    def __init__(self, *, user_message: str, status_line: str) -> None:
-        super().__init__(user_message)
-        self.user_message = user_message
-        self.status_line = status_line
+from cordis.sdk.errors import ApiError as SdkApiError
+from cordis.sdk.errors import CordisError
+from cordis.sdk.errors import TransportError as SdkTransportError
+
+
+class CordisCliError(CordisError):
+    """CLI-facing compatibility alias for shared Cordis errors."""
 
 
 class ConfigurationError(CordisCliError):
@@ -10,27 +12,9 @@ class ConfigurationError(CordisCliError):
         super().__init__(user_message=user_message, status_line="CONFIG")
 
 
-class TransportError(CordisCliError):
-    def __init__(self, user_message: str, detail: str | None = None) -> None:
-        super().__init__(user_message=user_message, status_line="TRANSPORT")
-        self.detail = detail
+class TransportError(SdkTransportError, CordisCliError):
+    """CLI transport error preserving legacy catch behavior."""
 
 
-class ApiError(CordisCliError):
-    def __init__(
-        self,
-        *,
-        http_status: int,
-        app_status_code: int | None,
-        status_message: str,
-        user_message: str,
-        detail: str | None = None,
-    ) -> None:
-        status_line = f"HTTP {http_status}"
-        if app_status_code is not None:
-            status_line = f"{status_line} • APP {app_status_code}"
-        super().__init__(user_message=user_message, status_line=status_line)
-        self.http_status = http_status
-        self.app_status_code = app_status_code
-        self.status_message = status_message
-        self.detail = detail
+class ApiError(SdkApiError, CordisCliError):
+    """CLI API error preserving legacy catch behavior."""
