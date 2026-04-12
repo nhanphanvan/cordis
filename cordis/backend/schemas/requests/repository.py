@@ -1,15 +1,19 @@
 from pydantic import BaseModel
 
+from cordis.backend.enums import RepositoryVisibility
+
 
 class RepositoryCreateRequest(BaseModel):
     name: str
     description: str | None = None
-    is_public: bool = False
+    visibility: RepositoryVisibility = RepositoryVisibility.PRIVATE
+    allow_public_object_urls: bool = False
 
 
 class RepositoryUpdateRequest(BaseModel):
     description: str | None = None
-    is_public: bool
+    visibility: RepositoryVisibility
+    allow_public_object_urls: bool
 
 
 class RepositoryMemberMutationRequest(BaseModel):

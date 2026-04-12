@@ -16,6 +16,11 @@ class ResourceCheckStatus(str, Enum):
     CONFLICT = "conflict"
 
 
+class RepositoryVisibility(str, Enum):
+    PRIVATE = "private"
+    AUTHENTICATED = "authenticated"
+
+
 class RepositoryAccessRole(str, Enum):
     VIEWER = "viewer"
     DEVELOPER = "developer"

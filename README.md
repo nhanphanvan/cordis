@@ -15,6 +15,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 - Sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size
 - Backend-owned configuration, JWT security, app-status exceptions, and S3-compatible storage integration
 - Required storage object-version lineage for persisted artifacts
+- Repository `visibility` for Cordis API reads and `allow_public_object_urls` for raw provider-native asset and package URLs
 
 ## Requirements
 
@@ -88,7 +89,7 @@ Common CLI areas include:
 
 Common shared short flags include `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`.
 
-The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, performs a pre-upload reuse check so unchanged files at the same repository path can be attached to a new version without re-uploading, uses sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size when transfer is required, and streams remote artifact downloads through the shared HTTP transport with retry, resume, and Rich progress. The backend storage layer now supports MinIO and real AWS S3, while preserving required object versioning so persisted artifacts always carry a `storage_version_id` that resolves the exact underlying object version.
+The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now renders both success and expected failure states through a shared presentation layer, performs a pre-upload reuse check so unchanged files at the same repository path can be attached to a new version without re-uploading, uses sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size when transfer is required, and streams remote artifact downloads through the shared HTTP transport with retry, resume, and Rich progress. The backend storage layer now supports MinIO and real AWS S3, preserves required object versioning so persisted artifacts always carry a `storage_version_id` that resolves the exact underlying object version, and can expose provider-native raw object URLs when a repository enables `allow_public_object_urls`.
 
 ## Quality Checks
 

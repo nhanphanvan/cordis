@@ -114,6 +114,33 @@ def test_client_exposes_domain_apis_and_facade_methods_delegate() -> None:
     assert token == "token-from-auth-api"
 
 
+def test_repository_facade_delegates_visibility_and_public_object_flags() -> None:
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+
+    async def fake_create_repository(
+        *,
+        name: str,
+        visibility: str,
+        allow_public_object_urls: bool,
+    ) -> dict[str, object]:
+        assert name == "repo-assets"
+        assert visibility == "authenticated"
+        assert allow_public_object_urls is True
+        return {"id": 4}
+
+    client.repositories.create_repository = fake_create_repository  # type: ignore[method-assign]
+
+    result = asyncio.run(
+        client.create_repository(
+            name="repo-assets",
+            visibility="authenticated",
+            allow_public_object_urls=True,
+        )
+    )
+
+    assert result == {"id": 4}
+
+
 def test_download_version_uses_cached_file_before_remote_download(
     monkeypatch,
     tmp_path: Path,

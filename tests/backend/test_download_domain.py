@@ -8,6 +8,7 @@ from sqlalchemy import select
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
+from cordis.backend.enums import RepositoryVisibility
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security import get_password_hash
@@ -48,10 +49,14 @@ async def _create_user(*, email: str, password: str) -> int:
         return user.id
 
 
-async def _create_repository(*, name: str, is_public: bool = False) -> int:
+async def _create_repository(
+    *,
+    name: str,
+    visibility: RepositoryVisibility = RepositoryVisibility.PRIVATE,
+) -> int:
     session_factory = get_session_factory()
     async with session_factory() as session:
-        repository = Repository(name=name, description=name, is_public=is_public)
+        repository = Repository(name=name, description=name, visibility=visibility.value)
         session.add(repository)
         await session.commit()
         await session.refresh(repository)
@@ -157,6 +162,7 @@ def test_viewer_can_lookup_version_artifact_by_path_and_request_download(monkeyp
         "checksum": "sha256:artifact",
         "size": 128,
         "storage_version_id": "object-v1",
+        "public_url": None,
     }
     assert download_response.status_code == 200
     assert download_response.json() == {
@@ -167,8 +173,8 @@ def test_viewer_can_lookup_version_artifact_by_path_and_request_download(monkeyp
     assert fake_storage.calls == [(UUID(artifact_id), "models/weights.bin", repository_id, 3600)]
 
 
-def test_anonymous_user_can_download_from_public_repository(monkeypatch, tmp_path: Path) -> None:
-    db_path = tmp_path / "cordis-download-public.db"
+def test_logged_in_non_member_can_download_from_authenticated_repository(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-download-authenticated.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
     build_config.cache_clear()
     get_engine.cache_clear()
@@ -176,7 +182,10 @@ def test_anonymous_user_can_download_from_public_repository(monkeypatch, tmp_pat
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
-    repository_id = asyncio.run(_create_repository(name="repo-public-downloads", is_public=True))
+    asyncio.run(_create_user(email="reader@example.com", password="password123"))
+    repository_id = asyncio.run(
+        _create_repository(name="repo-authenticated-downloads", visibility=RepositoryVisibility.AUTHENTICATED)
+    )
     asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
 
     fake_storage = FakeDownloadStorage()
@@ -187,6 +196,7 @@ def test_anonymous_user_can_download_from_public_repository(monkeypatch, tmp_pat
 
     client = TestClient(create_app())
     developer_headers = _auth_header(client, "developer@example.com", "password123")
+    reader_headers = _auth_header(client, "reader@example.com", "password123")
     version_id = _create_version(client, developer_headers, repository_id, "v1")
     artifact_id = _create_artifact(client, developer_headers, repository_id, "public/model.bin")
     client.post(
@@ -198,8 +208,12 @@ def test_anonymous_user_can_download_from_public_repository(monkeypatch, tmp_pat
     lookup_response = client.get(
         f"/api/v1/versions/{version_id}/artifacts/by-path",
         params={"path": "public/model.bin"},
+        headers=reader_headers,
     )
-    download_response = client.post(f"/api/v1/versions/{version_id}/artifacts/{artifact_id}/download")
+    download_response = client.post(
+        f"/api/v1/versions/{version_id}/artifacts/{artifact_id}/download",
+        headers=reader_headers,
+    )
 
     assert lookup_response.status_code == 200
     assert lookup_response.json()["id"] == artifact_id

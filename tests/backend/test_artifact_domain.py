@@ -7,6 +7,7 @@ from sqlalchemy import select
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
+from cordis.backend.enums import RepositoryVisibility
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security import get_password_hash
@@ -47,10 +48,20 @@ async def _create_user(*, email: str, password: str) -> int:
         return user.id
 
 
-async def _create_repository(*, name: str) -> int:
+async def _create_repository(
+    *,
+    name: str,
+    visibility: RepositoryVisibility = RepositoryVisibility.PRIVATE,
+    allow_public_object_urls: bool = False,
+) -> int:
     session_factory = get_session_factory()
     async with session_factory() as session:
-        repository = Repository(name=name, description=name, is_public=False)
+        repository = Repository(
+            name=name,
+            description=name,
+            visibility=visibility.value,
+            allow_public_object_urls=allow_public_object_urls,
+        )
         session.add(repository)
         await session.commit()
         await session.refresh(repository)
@@ -82,6 +93,13 @@ def _create_version(client: TestClient, headers: dict[str, str], repository_id: 
     return response.json()["id"]
 
 
+class FakeArtifactPublicStorage:
+    def get_public_url(self, ref, *, storage_version_id: str) -> str:
+        return (
+            f"https://storage.invalid/{ref.repository_id}/{ref.artifact_id}/{ref.path}?versionId={storage_version_id}"
+        )
+
+
 def test_developer_can_register_artifact_associate_it_with_version_and_list_version_artifacts(
     monkeypatch,
     tmp_path: Path,
@@ -91,6 +109,9 @@ def test_developer_can_register_artifact_associate_it_with_version_and_list_vers
     build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
+    fake_storage = FakeArtifactPublicStorage()
+    monkeypatch.setattr("cordis.backend.api.v1.artifacts.storage_factory.get_storage_adapter", lambda: fake_storage)
+    monkeypatch.setattr("cordis.backend.api.v1.versions.storage_factory.get_storage_adapter", lambda: fake_storage)
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
@@ -130,6 +151,7 @@ def test_developer_can_register_artifact_associate_it_with_version_and_list_vers
         "checksum": "sha256:abc123",
         "size": 1024,
         "storage_version_id": "object-v1",
+        "public_url": None,
     }
     assert register_response.status_code == 201
     assert register_response.json() == expected
@@ -260,6 +282,65 @@ def test_resource_check_reuses_matching_repository_artifact_from_another_version
 
     assert reusable_response.status_code == 200
     assert reusable_response.json() == {"status": "exists", "artifact_id": artifact_id}
+
+
+def test_artifact_response_includes_public_url_and_reused_artifact_keeps_same_url(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-artifact-public-url.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    fake_storage = FakeArtifactPublicStorage()
+    monkeypatch.setattr("cordis.backend.api.v1.artifacts.storage_factory.get_storage_adapter", lambda: fake_storage)
+    monkeypatch.setattr("cordis.backend.api.v1.versions.storage_factory.get_storage_adapter", lambda: fake_storage)
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
+    repository_id = asyncio.run(_create_repository(name="repo-assets-public", allow_public_object_urls=True))
+    asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "developer@example.com", "password123")
+    version_1_id = _create_version(client, headers, repository_id, "v1")
+    version_2_id = _create_version(client, headers, repository_id, "v2")
+
+    register_response = client.post(
+        "/api/v1/artifacts",
+        json={
+            "repository_id": repository_id,
+            "path": "images/logo.png",
+            "checksum": "sha256:logo",
+            "size": 12,
+            "storage_version_id": "storage-object-v1",
+        },
+        headers=headers,
+    )
+    artifact_id = register_response.json()["id"]
+    client.post(
+        f"/api/v1/versions/{version_1_id}/artifacts",
+        json={"artifact_id": artifact_id},
+        headers=headers,
+    )
+    client.post(
+        f"/api/v1/versions/{version_2_id}/artifacts",
+        json={"artifact_id": artifact_id},
+        headers=headers,
+    )
+
+    get_response = client.get(f"/api/v1/artifacts/{artifact_id}", headers=headers)
+    version_lookup_response = client.get(
+        f"/api/v1/versions/{version_2_id}/artifacts/by-path",
+        params={"path": "images/logo.png"},
+        headers=headers,
+    )
+
+    expected_url = f"https://storage.invalid/{repository_id}/{artifact_id}/images/logo.png?versionId=storage-object-v1"
+    assert register_response.status_code == 201
+    assert register_response.json()["public_url"] == expected_url
+    assert get_response.status_code == 200
+    assert get_response.json()["public_url"] == expected_url
+    assert version_lookup_response.status_code == 200
+    assert version_lookup_response.json()["public_url"] == expected_url
 
 
 def test_resource_check_response_schema_accepts_enum_values() -> None:

@@ -26,6 +26,18 @@ class StorageAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_public_url(self, ref: StorageObjectRef, *, storage_version_id: str) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def ensure_repository_public_access(self, *, repository_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def disable_repository_public_access(self, *, repository_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     def create_multipart_upload(self, ref: StorageObjectRef) -> str:
         raise NotImplementedError
 

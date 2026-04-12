@@ -40,6 +40,7 @@ class FakeS3Client:
     def __init__(self) -> None:
         self.calls: list[tuple[Any, ...]] = []
         self.mode = "ok"
+        self.public_prefixes: set[str] = set()
 
     def head_object(self, *, bucket: str, key: str) -> dict[str, Any]:
         self.calls.append(("head_object", bucket, key))
@@ -63,6 +64,28 @@ class FakeS3Client:
         if self.mode != "ok":
             raise FakeProviderError(self.mode)
         return f"https://example.invalid/{bucket}/{key}?expires={expires_in}"
+
+    def create_public_object_url(self, *, bucket: str, key: str, version_id: str) -> str:
+        self.calls.append(("create_public_object_url", bucket, key, version_id))
+        if self.mode != "ok":
+            raise FakeProviderError(self.mode)
+        return f"https://example.invalid/{bucket}/{key}?versionId={version_id}"
+
+    def ensure_public_prefix_access(self, *, bucket: str, prefix: str) -> bool:
+        self.calls.append(("ensure_public_prefix_access", bucket, prefix))
+        if self.mode != "ok":
+            raise FakeProviderError(self.mode)
+        created = prefix not in self.public_prefixes
+        self.public_prefixes.add(prefix)
+        return created
+
+    def disable_public_prefix_access(self, *, bucket: str, prefix: str) -> bool:
+        self.calls.append(("disable_public_prefix_access", bucket, prefix))
+        if self.mode != "ok":
+            raise FakeProviderError(self.mode)
+        existed = prefix in self.public_prefixes
+        self.public_prefixes.discard(prefix)
+        return existed
 
     def create_multipart_upload(self, *, bucket: str, key: str) -> dict[str, Any]:
         self.calls.append(("create_multipart_upload", bucket, key))
@@ -111,6 +134,12 @@ class FakeMinioSdk:
         self.mode = "ok"
         self.bucket_exists_result = True
         self.versioning_status = "Enabled"
+        self.policy_json = ""
+        self._base_url = type(
+            "BaseUrl",
+            (),
+            {"is_https": bool(kwargs.get("secure", True)), "host": args[0] if args else "localhost:9000"},
+        )()
 
     def bucket_exists(self, bucket_name: str) -> bool:
         self.calls.append(("bucket_exists", bucket_name))
@@ -165,6 +194,18 @@ class FakeMinioSdk:
             raise FakeProviderError(self.mode)
         return f"https://example.invalid/{bucket_name}/{object_name}?expires={int(expires.total_seconds())}"
 
+    def get_bucket_policy(self, bucket_name: str) -> str:
+        self.calls.append(("get_bucket_policy", bucket_name))
+        if self.mode != "ok":
+            raise FakeProviderError(self.mode)
+        return self.policy_json
+
+    def set_bucket_policy(self, bucket_name: str, policy: str) -> None:
+        self.calls.append(("set_bucket_policy", bucket_name, policy))
+        if self.mode != "ok":
+            raise FakeProviderError(self.mode)
+        self.policy_json = policy
+
     def _create_multipart_upload(self, bucket_name: str, object_name: str, headers: dict[str, Any]) -> str:
         self.calls.append(("_create_multipart_upload", bucket_name, object_name, headers))
         if self.mode != "ok":
@@ -218,6 +259,19 @@ class FakeAwsSdk:
         self.calls: list[tuple[Any, ...]] = []
         self.mode = "ok"
         self.versioning_status = "Enabled"
+        self.policy_json: str | None = None
+        self.public_access_block = {
+            "BlockPublicPolicy": False,
+            "RestrictPublicBuckets": False,
+        }
+        self.meta = type(
+            "Meta",
+            (),
+            {
+                "endpoint_url": "https://s3.us-east-1.amazonaws.com",
+                "config": type("Config", (), {"region_name": "us-east-1"})(),
+            },
+        )()
 
     def head_bucket(self, *, Bucket: str) -> None:
         self.calls.append(("head_bucket", Bucket))
@@ -254,6 +308,34 @@ class FakeAwsSdk:
         if self.mode != "ok":
             raise FakeBotoClientError(self.mode)
         return f"https://example.invalid/{Params['Bucket']}/{Params['Key']}?expires={ExpiresIn}"
+
+    def get_bucket_policy(self, *, Bucket: str) -> dict[str, Any]:
+        self.calls.append(("get_bucket_policy", Bucket))
+        if self.mode == "NoSuchBucketPolicy":
+            raise FakeBotoClientError("NoSuchBucketPolicy")
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        if self.policy_json is None:
+            raise FakeBotoClientError("NoSuchBucketPolicy")
+        return {"Policy": self.policy_json}
+
+    def put_bucket_policy(self, *, Bucket: str, Policy: str) -> None:
+        self.calls.append(("put_bucket_policy", Bucket, Policy))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        self.policy_json = Policy
+
+    def delete_bucket_policy(self, *, Bucket: str) -> None:
+        self.calls.append(("delete_bucket_policy", Bucket))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        self.policy_json = None
+
+    def get_public_access_block(self, *, Bucket: str) -> dict[str, Any]:
+        self.calls.append(("get_public_access_block", Bucket))
+        if self.mode != "ok":
+            raise FakeBotoClientError(self.mode)
+        return {"PublicAccessBlockConfiguration": self.public_access_block}
 
     def create_multipart_upload(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         self.calls.append(("create_multipart_upload", Bucket, Key))
@@ -306,6 +388,9 @@ def test_s3_storage_adapter_builds_object_keys_and_maps_object_operations() -> N
     metadata = adapter.stat_object(ref)
     upload_etag = adapter.put_object(ref, body=b"payload", checksum="sha256:abc123")
     download_url = adapter.get_download_url(ref, expires_in=900)
+    public_url = adapter.get_public_url(ref, storage_version_id="version-1")
+    published = adapter.ensure_repository_public_access(repository_id=42)
+    unpublished = adapter.disable_repository_public_access(repository_id=42)
     adapter.delete_object(ref)
 
     assert metadata == ObjectMetadata(etag="sha256:abc123", size=1024)
@@ -314,6 +399,12 @@ def test_s3_storage_adapter_builds_object_keys_and_maps_object_operations() -> N
         "https://example.invalid/cordis-artifacts/"
         "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin?expires=900"
     )
+    assert public_url == (
+        "https://example.invalid/cordis-artifacts/"
+        "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin?versionId=version-1"
+    )
+    assert published is True
+    assert unpublished is True
     assert client.calls == [
         (
             "head_object",
@@ -333,6 +424,14 @@ def test_s3_storage_adapter_builds_object_keys_and_maps_object_operations() -> N
             "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin",
             900,
         ),
+        (
+            "create_public_object_url",
+            "cordis-artifacts",
+            "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin",
+            "version-1",
+        ),
+        ("ensure_public_prefix_access", "cordis-artifacts", "tenant-a/repositories/42"),
+        ("disable_public_prefix_access", "cordis-artifacts", "tenant-a/repositories/42"),
         (
             "delete_object",
             "cordis-artifacts",
@@ -376,6 +475,12 @@ def test_minio_storage_client_maps_bucket_and_object_operations() -> None:
         client.create_presigned_get_url(bucket="cordis-artifacts", key="path/file.bin", expires_in=900)
         == "https://example.invalid/cordis-artifacts/path/file.bin?expires=900"
     )
+    assert (
+        client.create_public_object_url(bucket="cordis-artifacts", key="path/file.bin", version_id="version-1")
+        == "http://localhost:9000/cordis-artifacts/path/file.bin?versionId=version-1"
+    )
+    assert client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
+    assert client.disable_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
     upload_id = client.create_multipart_upload(bucket="cordis-artifacts", key="path/file.bin")
     assert upload_id == {"upload_id": "upload-123"}
     assert client.upload_part(
@@ -418,6 +523,12 @@ def test_aws_s3_storage_client_maps_bucket_and_object_operations() -> None:
         client.create_presigned_get_url(bucket="cordis-artifacts", key="path/file.bin", expires_in=900)
         == "https://example.invalid/cordis-artifacts/path/file.bin?expires=900"
     )
+    assert (
+        client.create_public_object_url(bucket="cordis-artifacts", key="path/file.bin", version_id="version-1")
+        == "https://s3.us-east-1.amazonaws.com/cordis-artifacts/path/file.bin?versionId=version-1"
+    )
+    assert client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
+    assert client.disable_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
     assert client.create_multipart_upload(bucket="cordis-artifacts", key="path/file.bin") == {"upload_id": "upload-123"}
     assert client.upload_part(
         bucket="cordis-artifacts",

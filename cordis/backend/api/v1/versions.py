@@ -23,6 +23,8 @@ from cordis.backend.schemas.responses.version import VersionResponse
 from cordis.backend.services.download import DownloadService
 from cordis.backend.services.version import VersionService
 from cordis.backend.services.version_artifact import VersionArtifactService
+from cordis.backend.storage import StorageObjectRef
+from cordis.backend.storage import factory as storage_factory
 from cordis.backend.validators.artifact import VersionArtifactAttachValidator
 from cordis.backend.validators.download import VersionArtifactPathReadValidator, VersionArtifactReadValidator
 from cordis.backend.validators.repository import RepositoryAccessValidator
@@ -43,6 +45,7 @@ def _artifact_response(
     checksum: str,
     size: int,
     storage_version_id: str,
+    public_url: str | None,
 ) -> ArtifactResponse:
     return ArtifactResponse(
         id=artifact_id,
@@ -51,6 +54,23 @@ def _artifact_response(
         name=name,
         checksum=checksum,
         size=size,
+        storage_version_id=storage_version_id,
+        public_url=public_url,
+    )
+
+
+def _build_public_url(
+    *,
+    repository_id: int,
+    artifact_id: UUID,
+    path: str,
+    storage_version_id: str,
+    allow_public_object_urls: bool,
+) -> str | None:
+    if not allow_public_object_urls:
+        return None
+    return storage_factory.get_storage_adapter().get_public_url(
+        StorageObjectRef(repository_id=repository_id, artifact_id=artifact_id, path=path),
         storage_version_id=storage_version_id,
     )
 
@@ -158,6 +178,13 @@ async def attach_artifact_to_version(
         artifact.checksum,
         artifact.size,
         artifact.storage_version_id,
+        _build_public_url(
+            repository_id=artifact.repository_id,
+            artifact_id=artifact.id,
+            path=artifact.path,
+            storage_version_id=artifact.storage_version_id,
+            allow_public_object_urls=access.repository.allow_public_object_urls,
+        ),
     )
 
 
@@ -191,6 +218,13 @@ async def list_version_artifacts(
                 artifact.checksum,
                 artifact.size,
                 artifact.storage_version_id,
+                _build_public_url(
+                    repository_id=artifact.repository_id,
+                    artifact_id=artifact.id,
+                    path=artifact.path,
+                    storage_version_id=artifact.storage_version_id,
+                    allow_public_object_urls=access.repository.allow_public_object_urls,
+                ),
             )
             for artifact in artifacts
         ]
@@ -226,6 +260,13 @@ async def get_version_artifact_by_path(
         artifact.checksum,
         artifact.size,
         artifact.storage_version_id,
+        _build_public_url(
+            repository_id=artifact.repository_id,
+            artifact_id=artifact.id,
+            path=artifact.path,
+            storage_version_id=artifact.storage_version_id,
+            allow_public_object_urls=access.repository.allow_public_object_urls,
+        ),
     )
 
 

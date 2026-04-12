@@ -60,25 +60,50 @@ def list_repositories() -> None:
 @handle_cli_errors
 def create_repository(
     name: str = typer.Option(..., "--name"),
-    public: bool = typer.Option(False, "--public"),
+    visibility: str = typer.Option("private", "--visibility"),
+    allow_public_object_urls: bool = typer.Option(False, "--allow-public-object-urls"),
 ) -> None:
-    created = run_async(get_client().create_repository(name=name, is_public=public))
-    print_detail("Repository", {"ID": created["id"], "Name": created["name"], "Public": created["is_public"]})
+    created = run_async(
+        get_client().create_repository(
+            name=name,
+            visibility=visibility,
+            allow_public_object_urls=allow_public_object_urls,
+        )
+    )
+    print_detail(
+        "Repository",
+        {
+            "ID": created["id"],
+            "Name": created["name"],
+            "Visibility": created["visibility"],
+            "Public Object URLs": created["allow_public_object_urls"],
+        },
+    )
 
 
 @app.command("update")
 @handle_cli_errors
 def update_repository_command(
-    public: bool = typer.Option(False, "--public"),
+    visibility: str = typer.Option("private", "--visibility"),
+    allow_public_object_urls: bool = typer.Option(False, "--allow-public-object-urls"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
     item = run_async(
         get_client().update_repository(
             repository_id=get_registered_repo_id(repo_id),
-            is_public=public,
+            visibility=visibility,
+            allow_public_object_urls=allow_public_object_urls,
         )
     )
-    print_detail("Repository", {"ID": item["id"], "Name": item["name"], "Public": item["is_public"]})
+    print_detail(
+        "Repository",
+        {
+            "ID": item["id"],
+            "Name": item["name"],
+            "Visibility": item["visibility"],
+            "Public Object URLs": item["allow_public_object_urls"],
+        },
+    )
 
 
 @app.command("delete")

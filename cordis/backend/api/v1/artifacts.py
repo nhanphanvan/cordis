@@ -11,6 +11,8 @@ from cordis.backend.repositories.unit_of_work import UnitOfWork
 from cordis.backend.schemas.requests.artifact import ArtifactCreateRequest
 from cordis.backend.schemas.responses.artifact import ArtifactResponse
 from cordis.backend.services.artifact import ArtifactService
+from cordis.backend.storage import StorageObjectRef
+from cordis.backend.storage import factory as storage_factory
 from cordis.backend.validators.artifact import ArtifactCreateValidator, ArtifactReadValidator
 from cordis.backend.validators.repository import RepositoryAccessValidator
 
@@ -25,6 +27,7 @@ def _artifact_response(
     checksum: str,
     size: int,
     storage_version_id: str,
+    public_url: str | None,
 ) -> ArtifactResponse:
     return ArtifactResponse(
         id=artifact_id,
@@ -33,6 +36,23 @@ def _artifact_response(
         name=name,
         checksum=checksum,
         size=size,
+        storage_version_id=storage_version_id,
+        public_url=public_url,
+    )
+
+
+def _build_public_url(
+    *,
+    repository_id: int,
+    artifact_id: UUID,
+    path: str,
+    storage_version_id: str,
+    allow_public_object_urls: bool,
+) -> str | None:
+    if not allow_public_object_urls:
+        return None
+    return storage_factory.get_storage_adapter().get_public_url(
+        StorageObjectRef(repository_id=repository_id, artifact_id=artifact_id, path=path),
         storage_version_id=storage_version_id,
     )
 
@@ -66,6 +86,13 @@ async def create_artifact(
         artifact.checksum,
         artifact.size,
         artifact.storage_version_id,
+        _build_public_url(
+            repository_id=artifact.repository_id,
+            artifact_id=artifact.id,
+            path=artifact.path,
+            storage_version_id=artifact.storage_version_id,
+            allow_public_object_urls=artifact_input.repository.allow_public_object_urls,
+        ),
     )
 
 
@@ -96,4 +123,11 @@ async def get_artifact(
         artifact.checksum,
         artifact.size,
         artifact.storage_version_id,
+        _build_public_url(
+            repository_id=artifact.repository_id,
+            artifact_id=artifact.id,
+            path=artifact.path,
+            storage_version_id=artifact.storage_version_id,
+            allow_public_object_urls=access.repository.allow_public_object_urls,
+        ),
     )

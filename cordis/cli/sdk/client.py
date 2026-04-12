@@ -49,11 +49,31 @@ class CordisClient:
     async def list_my_repositories(self) -> list[dict[str, Any]]:
         return await self.users.list_my_repositories()
 
-    async def create_repository(self, *, name: str, is_public: bool) -> dict[str, Any]:
-        return await self.repositories.create_repository(name=name, is_public=is_public)
+    async def create_repository(
+        self,
+        *,
+        name: str,
+        visibility: str,
+        allow_public_object_urls: bool,
+    ) -> dict[str, Any]:
+        return await self.repositories.create_repository(
+            name=name,
+            visibility=visibility,
+            allow_public_object_urls=allow_public_object_urls,
+        )
 
-    async def update_repository(self, *, repository_id: int, is_public: bool) -> dict[str, Any]:
-        return await self.repositories.update_repository(repository_id=repository_id, is_public=is_public)
+    async def update_repository(
+        self,
+        *,
+        repository_id: int,
+        visibility: str,
+        allow_public_object_urls: bool,
+    ) -> dict[str, Any]:
+        return await self.repositories.update_repository(
+            repository_id=repository_id,
+            visibility=visibility,
+            allow_public_object_urls=allow_public_object_urls,
+        )
 
     async def delete_repository(self, *, repository_id: int) -> dict[str, Any]:
         return await self.repositories.delete_repository(repository_id=repository_id)

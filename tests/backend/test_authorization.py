@@ -7,6 +7,7 @@ from sqlalchemy import select
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
+from cordis.backend.enums import RepositoryVisibility
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security import get_password_hash
@@ -47,10 +48,10 @@ async def _create_user(*, email: str, password: str, is_admin: bool = False) -> 
         return user.id
 
 
-async def _create_repository(*, name: str, is_public: bool) -> int:
+async def _create_repository(*, name: str, visibility: RepositoryVisibility) -> int:
     session_factory = get_session_factory()
     async with session_factory() as session:
-        repository = Repository(name=name, description=f"{name} repo", is_public=is_public)
+        repository = Repository(name=name, description=f"{name} repo", visibility=visibility.value)
         session.add(repository)
         await session.commit()
         await session.refresh(repository)
@@ -74,19 +75,25 @@ def _auth_header(client: TestClient, email: str, password: str) -> dict[str, str
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_public_repository_allows_viewer_check_without_membership(monkeypatch, tmp_path: Path) -> None:
-    db_path = tmp_path / "cordis-rbac-public.db"
+def test_authenticated_repository_allows_viewer_check_for_logged_in_non_member(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-rbac-authenticated.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
     build_config.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    repository_id = asyncio.run(_create_repository(name="public-repo", is_public=True))
+    asyncio.run(_create_user(email="reader@example.com", password="password123"))
+    repository_id = asyncio.run(
+        _create_repository(name="authenticated-repo", visibility=RepositoryVisibility.AUTHENTICATED)
+    )
 
     client = TestClient(create_app())
 
-    response = client.get(f"/api/v1/repositories/{repository_id}/auth-check/viewer")
+    response = client.get(
+        f"/api/v1/repositories/{repository_id}/auth-check/viewer",
+        headers=_auth_header(client, "reader@example.com", "password123"),
+    )
 
     assert response.status_code == 200
     assert response.json() == {"repository_id": repository_id, "access": "viewer"}
@@ -100,7 +107,7 @@ def test_private_repository_requires_membership_for_viewer_access(monkeypatch, t
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    repository_id = asyncio.run(_create_repository(name="private-repo", is_public=False))
+    repository_id = asyncio.run(_create_repository(name="private-repo", visibility=RepositoryVisibility.PRIVATE))
     viewer_id = asyncio.run(_create_user(email="viewer@example.com", password="password123"))
     asyncio.run(_add_membership(repository_id=repository_id, user_id=viewer_id, role_name="viewer"))
 
@@ -125,7 +132,7 @@ def test_developer_access_requires_developer_or_owner_or_admin(monkeypatch, tmp_
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    repository_id = asyncio.run(_create_repository(name="dev-repo", is_public=False))
+    repository_id = asyncio.run(_create_repository(name="dev-repo", visibility=RepositoryVisibility.PRIVATE))
     viewer_id = asyncio.run(_create_user(email="viewer@example.com", password="password123"))
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
     asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
@@ -160,7 +167,7 @@ def test_membership_listing_requires_owner_or_admin(monkeypatch, tmp_path: Path)
     get_session_factory.cache_clear()
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
-    repository_id = asyncio.run(_create_repository(name="member-repo", is_public=False))
+    repository_id = asyncio.run(_create_repository(name="member-repo", visibility=RepositoryVisibility.PRIVATE))
     owner_id = asyncio.run(_create_user(email="owner@example.com", password="password123"))
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
     asyncio.run(_add_membership(repository_id=repository_id, user_id=owner_id, role_name="owner"))

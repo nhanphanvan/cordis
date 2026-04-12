@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
-from cordis.backend.enums import RepositoryAccessRole
+from cordis.backend.enums import RepositoryAccessRole, RepositoryVisibility
 from cordis.backend.models import Role, User
 from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security import get_password_hash
@@ -54,6 +54,22 @@ def _auth_header(client: TestClient, email: str, password: str) -> dict[str, str
     return {"Authorization": f"Bearer {token}"}
 
 
+class FakeRepositoryStorage:
+    def __init__(self, *, fail_publish: bool = False) -> None:
+        self.fail_publish = fail_publish
+        self.calls: list[tuple[str, int]] = []
+
+    def ensure_repository_public_access(self, *, repository_id: int) -> bool:
+        self.calls.append(("enable", repository_id))
+        if self.fail_publish:
+            raise ValueError("cannot publish")
+        return True
+
+    def disable_repository_public_access(self, *, repository_id: int) -> bool:
+        self.calls.append(("disable", repository_id))
+        return True
+
+
 def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-repository-domain.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
@@ -63,13 +79,20 @@ def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_pat
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
     asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    fake_storage = FakeRepositoryStorage()
+    monkeypatch.setattr("cordis.backend.services.repository.storage_factory.get_storage_adapter", lambda: fake_storage)
 
     client = TestClient(create_app())
     headers = _auth_header(client, "admin@example.com", "password123")
 
     create_response = client.post(
         "/api/v1/repositories",
-        json={"name": "repo-alpha", "description": "alpha", "is_public": False},
+        json={
+            "name": "repo-alpha",
+            "description": "alpha",
+            "visibility": "private",
+            "allow_public_object_urls": False,
+        },
         headers=headers,
     )
     repository_id = create_response.json()["id"]
@@ -78,7 +101,7 @@ def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_pat
     get_response = client.get(f"/api/v1/repositories/{repository_id}", headers=headers)
     update_response = client.patch(
         f"/api/v1/repositories/{repository_id}",
-        json={"description": "renamed", "is_public": True},
+        json={"description": "renamed", "visibility": "authenticated", "allow_public_object_urls": True},
         headers=headers,
     )
     delete_response = client.delete(f"/api/v1/repositories/{repository_id}", headers=headers)
@@ -88,7 +111,8 @@ def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_pat
         "id": repository_id,
         "name": "repo-alpha",
         "description": "alpha",
-        "is_public": False,
+        "visibility": "private",
+        "allow_public_object_urls": False,
     }
     assert list_response.status_code == 200
     assert list_response.json() == {
@@ -97,7 +121,8 @@ def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_pat
                 "id": repository_id,
                 "name": "repo-alpha",
                 "description": "alpha",
-                "is_public": False,
+                "visibility": "private",
+                "allow_public_object_urls": False,
             }
         ]
     }
@@ -107,10 +132,49 @@ def test_admin_can_create_list_update_and_delete_repository(monkeypatch, tmp_pat
         "id": repository_id,
         "name": "repo-alpha",
         "description": "renamed",
-        "is_public": True,
+        "visibility": "authenticated",
+        "allow_public_object_urls": True,
     }
+    assert fake_storage.calls == [("enable", repository_id)]
     assert delete_response.status_code == 200
     assert delete_response.json()["id"] == repository_id
+
+
+def test_repository_update_rejects_when_storage_cannot_publish_prefix(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-repository-publish-failure.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    asyncio.run(_create_user(email="admin@example.com", password="password123", is_admin=True))
+    fake_storage = FakeRepositoryStorage(fail_publish=True)
+    monkeypatch.setattr("cordis.backend.services.repository.storage_factory.get_storage_adapter", lambda: fake_storage)
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "admin@example.com", "password123")
+
+    create_response = client.post(
+        "/api/v1/repositories",
+        json={
+            "name": "repo-assets",
+            "description": "assets",
+            "visibility": "private",
+            "allow_public_object_urls": False,
+        },
+        headers=headers,
+    )
+    repository_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/repositories/{repository_id}",
+        json={"description": "assets", "visibility": "private", "allow_public_object_urls": True},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Repository public object URL policy could not be updated"
 
 
 def test_owner_can_manage_repository_members(monkeypatch, tmp_path: Path) -> None:
@@ -128,7 +192,12 @@ def test_owner_can_manage_repository_members(monkeypatch, tmp_path: Path) -> Non
     admin_headers = _auth_header(client, "admin@example.com", "password123")
     create_response = client.post(
         "/api/v1/repositories",
-        json={"name": "repo-members", "description": "members", "is_public": False},
+        json={
+            "name": "repo-members",
+            "description": "members",
+            "visibility": "private",
+            "allow_public_object_urls": False,
+        },
         headers=admin_headers,
     )
     repository_id = create_response.json()["id"]
@@ -179,7 +248,12 @@ def test_non_admin_cannot_create_repository(monkeypatch, tmp_path: Path) -> None
 
     response = client.post(
         "/api/v1/repositories",
-        json={"name": "repo-denied", "description": "denied", "is_public": False},
+        json={
+            "name": "repo-denied",
+            "description": "denied",
+            "visibility": "private",
+            "allow_public_object_urls": False,
+        },
         headers=headers,
     )
 
@@ -213,13 +287,30 @@ def test_create_repository_route_calls_policy_then_validator_then_service(monkey
         assert request.name == "repo-alpha"
         calls.append("validator")
 
-    async def fake_create_repository(self, *, name, description, is_public, creator, owner_role):
+    async def fake_create_repository(
+        self,
+        *,
+        name,
+        description,
+        visibility,
+        allow_public_object_urls,
+        creator,
+        owner_role,
+    ):
         assert calls == ["policy", "validator"]
         assert self.uow is fake_uow
         assert creator is fake_user
         assert owner_role is None or owner_role is not None
+        assert visibility == RepositoryVisibility.PRIVATE
+        assert allow_public_object_urls is False
         calls.append("service")
-        return SimpleNamespace(id=42, name=name, description=description, is_public=is_public)
+        return SimpleNamespace(
+            id=42,
+            name=name,
+            description=description,
+            visibility=visibility.value,
+            allow_public_object_urls=allow_public_object_urls,
+        )
 
     monkeypatch.setattr("cordis.backend.api.v1.repositories.authorize", fake_authorize)
     monkeypatch.setattr(
@@ -242,7 +333,12 @@ def test_create_repository_route_calls_policy_then_validator_then_service(monkey
 
     response = client.post(
         "/api/v1/repositories",
-        json={"name": "repo-alpha", "description": "alpha", "is_public": False},
+        json={
+            "name": "repo-alpha",
+            "description": "alpha",
+            "visibility": "private",
+            "allow_public_object_urls": False,
+        },
     )
 
     assert response.status_code == 201

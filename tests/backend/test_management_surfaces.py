@@ -7,6 +7,7 @@ from sqlalchemy import select
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
+from cordis.backend.enums import RepositoryVisibility
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security import get_password_hash, verify_password
@@ -51,7 +52,7 @@ async def _create_user(*, email: str, password: str, name: str | None = None, is
 async def _create_repository(*, name: str) -> int:
     session_factory = get_session_factory()
     async with session_factory() as session:
-        repository = Repository(name=name, description=name, is_public=False)
+        repository = Repository(name=name, description=name, visibility=RepositoryVisibility.PRIVATE.value)
         session.add(repository)
         await session.commit()
         await session.refresh(repository)

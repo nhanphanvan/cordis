@@ -33,8 +33,8 @@ def list_resources(
     )
     print_table(
         "Resources",
-        ["Path", "Checksum", "Size"],
-        [[item["path"], item["checksum"], item["size"]] for item in items],
+        ["Path", "Checksum", "Size", "Public URL"],
+        [[item["path"], item["checksum"], item["size"], item.get("public_url", "") or ""] for item in items],
     )
 
 

@@ -1,8 +1,11 @@
 import logging
 
+from cordis.backend.enums import RepositoryVisibility
+from cordis.backend.exceptions import AppStatus, UnprocessableEntityError
 from cordis.backend.models import Repository, RepositoryMember, User
 from cordis.backend.models.role import Role
 from cordis.backend.repositories.unit_of_work import UnitOfWork
+from cordis.backend.storage import factory as storage_factory
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +19,19 @@ class RepositoryService:
         *,
         name: str,
         description: str | None,
-        is_public: bool,
+        visibility: RepositoryVisibility,
+        allow_public_object_urls: bool,
         creator: User,
         owner_role: Role,
     ) -> Repository:
-        repository = await self.uow.repositories.create(name=name, description=description, is_public=is_public)
+        repository = await self.uow.repositories.create(
+            name=name,
+            description=description,
+            visibility=visibility.value,
+            allow_public_object_urls=allow_public_object_urls,
+        )
+        if allow_public_object_urls:
+            self._sync_public_object_access(repository_id=repository.id, allow_public_object_urls=True)
         await self.uow.repository_members.create(
             repository_id=repository.id,
             user_id=creator.id,
@@ -48,13 +59,25 @@ class RepositoryService:
         *,
         repository: Repository,
         description: str | None,
-        is_public: bool,
+        visibility: RepositoryVisibility,
+        allow_public_object_urls: bool,
     ) -> Repository:
+        if repository.allow_public_object_urls != allow_public_object_urls:
+            self._sync_public_object_access(
+                repository_id=repository.id,
+                allow_public_object_urls=allow_public_object_urls,
+            )
         repository.description = description
-        repository.is_public = is_public
+        repository.visibility = visibility.value
+        repository.allow_public_object_urls = allow_public_object_urls
         await self.uow.flush()
         await self.uow.commit()
-        logger.info("Repository updated repository_id=%s is_public=%s", repository.id, repository.is_public)
+        logger.info(
+            "Repository updated repository_id=%s visibility=%s allow_public_object_urls=%s",
+            repository.id,
+            repository.visibility,
+            repository.allow_public_object_urls,
+        )
         return repository
 
     async def delete_repository(self, repository: Repository) -> Repository:
@@ -107,3 +130,17 @@ class RepositoryService:
             membership.user_id,
         )
         return membership
+
+    @staticmethod
+    def _sync_public_object_access(*, repository_id: int, allow_public_object_urls: bool) -> None:
+        storage = storage_factory.get_storage_adapter()
+        try:
+            if allow_public_object_urls:
+                storage.ensure_repository_public_access(repository_id=repository_id)
+            else:
+                storage.disable_repository_public_access(repository_id=repository_id)
+        except Exception as error:
+            raise UnprocessableEntityError(
+                "Repository public object URL policy could not be updated",
+                app_status=AppStatus.ERROR_UNPROCESSABLE_ENTITY,
+            ) from error

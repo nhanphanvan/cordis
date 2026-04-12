@@ -48,8 +48,20 @@ def _member_item_from_membership(email: str, role: str) -> RepositoryMemberItem:
     return RepositoryMemberItem(email=email, role=role)
 
 
-def _repository_response(repository_id: int, name: str, description: str | None, is_public: bool) -> RepositoryResponse:
-    return RepositoryResponse(id=repository_id, name=name, description=description, is_public=is_public)
+def _repository_response(
+    repository_id: int,
+    name: str,
+    description: str | None,
+    visibility: str,
+    allow_public_object_urls: bool,
+) -> RepositoryResponse:
+    return RepositoryResponse(
+        id=repository_id,
+        name=name,
+        description=description,
+        visibility=visibility,
+        allow_public_object_urls=allow_public_object_urls,
+    )
 
 
 def _version_response(version_id: UUID, repository_id: int, name: str, description: str | None) -> VersionResponse:
@@ -82,11 +94,18 @@ async def create_repository(
     repository = await RepositoryService(uow).create_repository(
         name=request.name,
         description=request.description,
-        is_public=request.is_public,
+        visibility=request.visibility,
+        allow_public_object_urls=request.allow_public_object_urls,
         creator=current_user,
         owner_role=owner_role,
     )
-    return _repository_response(repository.id, repository.name, repository.description, repository.is_public)
+    return _repository_response(
+        repository.id,
+        repository.name,
+        repository.description,
+        repository.visibility,
+        repository.allow_public_object_urls,
+    )
 
 
 @router.get("", response_model=RepositoryListResponse)
@@ -102,7 +121,16 @@ async def list_repositories(
     )
     repositories = await RepositoryService(uow).list_repositories()
     return RepositoryListResponse(
-        items=[_repository_response(item.id, item.name, item.description, item.is_public) for item in repositories]
+        items=[
+            _repository_response(
+                item.id,
+                item.name,
+                item.description,
+                item.visibility,
+                item.allow_public_object_urls,
+            )
+            for item in repositories
+        ]
     )
 
 
@@ -121,7 +149,13 @@ async def get_repository(
         unauthorized_app_status=AppStatus.ERROR_MISSING_BEARER_TOKEN,
     )
     repository = access.repository
-    return _repository_response(repository.id, repository.name, repository.description, repository.is_public)
+    return _repository_response(
+        repository.id,
+        repository.name,
+        repository.description,
+        repository.visibility,
+        repository.allow_public_object_urls,
+    )
 
 
 @router.patch("/{repository_id}", response_model=RepositoryResponse)
@@ -137,9 +171,16 @@ async def update_repository(
     repository = await RepositoryService(uow).update_repository(
         repository=access.repository,
         description=request.description,
-        is_public=request.is_public,
+        visibility=request.visibility,
+        allow_public_object_urls=request.allow_public_object_urls,
     )
-    return _repository_response(repository.id, repository.name, repository.description, repository.is_public)
+    return _repository_response(
+        repository.id,
+        repository.name,
+        repository.description,
+        repository.visibility,
+        repository.allow_public_object_urls,
+    )
 
 
 @router.delete("/{repository_id}", response_model=RepositoryResponse)
@@ -152,7 +193,13 @@ async def delete_repository(
     access = await RepositoryAccessValidator.validate(uow=uow, repository_id=repository_id, current_user=current_user)
     await authorize(current_user, RepositoryPolicy.owner, access)
     repository = await RepositoryService(uow).delete_repository(access.repository)
-    return _repository_response(repository.id, repository.name, repository.description, repository.is_public)
+    return _repository_response(
+        repository.id,
+        repository.name,
+        repository.description,
+        repository.visibility,
+        repository.allow_public_object_urls,
+    )
 
 
 @router.get("/{repository_id}/auth-check/viewer", response_model=RepositoryAccessResponse)

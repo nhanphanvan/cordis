@@ -153,7 +153,8 @@ In broad terms:
 
 - unauthenticated requests fail on protected routes
 - unauthorized requests fail when the current user lacks the required repository or admin access
-- repository visibility and membership determine viewer/developer/owner behavior
+- repository `visibility=private` requires membership for reads, while `visibility=authenticated` allows any logged-in user to read
+- `allow_public_object_urls=true` exposes provider-native raw object URLs for artifact fetches, but it does not relax Cordis API write rules
 - write operations use stronger access requirements than read operations
 
 Handled backend errors use a top-level app-status payload:

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from cordis.backend.app import create_app
 from cordis.backend.config import build_config
 from cordis.backend.database import get_engine, get_session_factory
+from cordis.backend.enums import RepositoryVisibility
 from cordis.backend.models import Repository, RepositoryMember, Role, User
 from cordis.backend.models.base import DatabaseModel
 from cordis.backend.security import get_password_hash
@@ -47,10 +48,10 @@ async def _create_user(*, email: str, password: str, is_admin: bool = False) -> 
         return user.id
 
 
-async def _create_repository(*, name: str, is_public: bool) -> int:
+async def _create_repository(*, name: str, visibility: RepositoryVisibility) -> int:
     session_factory = get_session_factory()
     async with session_factory() as session:
-        repository = Repository(name=name, description=name, is_public=is_public)
+        repository = Repository(name=name, description=name, visibility=visibility.value)
         session.add(repository)
         await session.commit()
         await session.refresh(repository)
@@ -82,7 +83,7 @@ def test_developer_can_create_get_list_lookup_and_delete_versions(monkeypatch, t
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
-    repository_id = asyncio.run(_create_repository(name="repo-version", is_public=False))
+    repository_id = asyncio.run(_create_repository(name="repo-version", visibility=RepositoryVisibility.PRIVATE))
     asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
 
     client = TestClient(create_app())
@@ -148,8 +149,8 @@ def test_version_name_must_be_unique_within_repository(monkeypatch, tmp_path: Pa
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
-    repo_a = asyncio.run(_create_repository(name="repo-a", is_public=False))
-    repo_b = asyncio.run(_create_repository(name="repo-b", is_public=False))
+    repo_a = asyncio.run(_create_repository(name="repo-a", visibility=RepositoryVisibility.PRIVATE))
+    repo_b = asyncio.run(_create_repository(name="repo-b", visibility=RepositoryVisibility.PRIVATE))
     asyncio.run(_add_membership(repository_id=repo_a, user_id=developer_id, role_name="developer"))
     asyncio.run(_add_membership(repository_id=repo_b, user_id=developer_id, role_name="developer"))
 
@@ -189,7 +190,7 @@ def test_viewer_can_read_but_cannot_create_or_delete_versions(monkeypatch, tmp_p
     asyncio.run(_seed_roles())
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
     viewer_id = asyncio.run(_create_user(email="viewer@example.com", password="password123"))
-    repository_id = asyncio.run(_create_repository(name="repo-rbac", is_public=False))
+    repository_id = asyncio.run(_create_repository(name="repo-rbac", visibility=RepositoryVisibility.PRIVATE))
     asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
     asyncio.run(_add_membership(repository_id=repository_id, user_id=viewer_id, role_name="viewer"))
 

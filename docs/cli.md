@@ -40,8 +40,8 @@ These commands cover current-user inspection and admin-facing user lookup/listin
 - `cordis repository unregister`
 - `cordis repository current`
 - `cordis repository ls`
-- `cordis repository create --name <name> [--public]`
-- `cordis repository update [--repo-id <id>] [--public]`
+- `cordis repository create --name <name> [--visibility <private|authenticated>] [--allow-public-object-urls]`
+- `cordis repository update [--repo-id <id>] [--visibility <private|authenticated>] [--allow-public-object-urls]`
 - `cordis repository delete [--repo-id <id>]`
 - `cordis repository versions [--repo-id <id>]`
 - `cordis repository create-version --name <name> [--repo-id <id>]`
@@ -81,6 +81,7 @@ Resource commands use the registered repository and version when explicit values
 `cordis resource upload` reads `.cordisignore` from the upload root and skips matching files using Gitignore-style rules.
 Uploads are session-based and use sequential resumable multipart transfer with a shared `8 MiB` chunk size.
 Before uploading, the CLI checks whether the same repository already has an artifact at the same path with the same checksum and size; if so, it reuses that artifact for the target version instead of uploading the file again.
+When artifact responses include `public_url`, `cordis resource ls` shows that raw provider-native URL in the default table output.
 Remote downloads stream through the shared HTTP transport with retry and resume behavior, while cached file copies stay local and quiet.
 Read [Transfer Workflows](./transfer-workflows.md) for the full end-to-end upload and download sequence, including cache behavior, upload sessions, and mediated download URLs.
 

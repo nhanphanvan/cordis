@@ -13,6 +13,7 @@ class ArtifactResponse(BaseModel):
     checksum: str
     size: int
     storage_version_id: str
+    public_url: str | None
 
 
 class ArtifactListResponse(BaseModel):

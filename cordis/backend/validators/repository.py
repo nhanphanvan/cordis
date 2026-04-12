@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from cordis.backend.constants import BUILTIN_OWNER_ROLE, ROLE_RANK
-from cordis.backend.enums import RepositoryAccessRole
+from cordis.backend.enums import RepositoryAccessRole, RepositoryVisibility
 from cordis.backend.exceptions import (
     AppStatus,
     InternalServerError,
@@ -67,9 +67,9 @@ class RepositoryAccessValidator(BaseValidator):
                 except ValueError:
                     role_name = None
 
-        viewer_allowed = repository.is_public or (
-            role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK[RepositoryAccessRole.VIEWER]
-        )
+        viewer_allowed = (
+            current_user is not None and repository.visibility == RepositoryVisibility.AUTHENTICATED.value
+        ) or (role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK[RepositoryAccessRole.VIEWER])
         developer_allowed = role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK[RepositoryAccessRole.DEVELOPER]
         owner_allowed = role_name is not None and ROLE_RANK[role_name] >= ROLE_RANK[RepositoryAccessRole.OWNER]
 

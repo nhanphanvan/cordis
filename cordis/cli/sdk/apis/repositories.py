@@ -4,18 +4,38 @@ from cordis.cli.sdk.apis.base import BaseAPI
 
 
 class RepositoriesAPI(BaseAPI):
-    async def create_repository(self, *, name: str, is_public: bool) -> dict[str, Any]:
+    async def create_repository(
+        self,
+        *,
+        name: str,
+        visibility: str,
+        allow_public_object_urls: bool,
+    ) -> dict[str, Any]:
         return await self._request(
             method="POST",
             path="/api/v1/repositories",
-            payload={"name": name, "description": name, "is_public": is_public},
+            payload={
+                "name": name,
+                "description": name,
+                "visibility": visibility,
+                "allow_public_object_urls": allow_public_object_urls,
+            },
         )
 
-    async def update_repository(self, *, repository_id: int, is_public: bool) -> dict[str, Any]:
+    async def update_repository(
+        self,
+        *,
+        repository_id: int,
+        visibility: str,
+        allow_public_object_urls: bool,
+    ) -> dict[str, Any]:
         return await self._request(
             method="PATCH",
             path=f"/api/v1/repositories/{repository_id}",
-            payload={"is_public": is_public},
+            payload={
+                "visibility": visibility,
+                "allow_public_object_urls": allow_public_object_urls,
+            },
         )
 
     async def delete_repository(self, *, repository_id: int) -> dict[str, Any]:

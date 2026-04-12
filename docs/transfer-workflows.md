@@ -347,7 +347,7 @@ For a cache miss, the CLI calls `download_item(...)`, which resolves:
 The backend:
 
 - validates version existence
-- validates repository access for the current user or anonymous reader, depending on repository visibility and membership
+- validates repository access for the current user based on repository `visibility` and membership
 - validates that the artifact belongs to the requested version
 - asks `DownloadService` to build a presigned or mediated storage URL
 

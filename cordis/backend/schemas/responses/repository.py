@@ -1,13 +1,14 @@
 from pydantic import BaseModel
 
-from cordis.backend.enums import RepositoryAccessRole
+from cordis.backend.enums import RepositoryAccessRole, RepositoryVisibility
 
 
 class RepositoryResponse(BaseModel):
     id: int
     name: str
     description: str | None
-    is_public: bool
+    visibility: RepositoryVisibility
+    allow_public_object_urls: bool
 
 
 class RepositoryListResponse(BaseModel):

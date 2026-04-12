@@ -37,6 +37,7 @@ When working on a backend project in this repository, follow these structural pr
 - prefer the flow `api -> policy -> validator -> service -> repository -> model -> database`
 - keep FastAPI routes thin, keep services focused on orchestration and transactions, and keep persistence access in repositories
 - treat `artifact.storage_version_id` as required durable storage lineage; do not model persisted artifacts without an exact storage object version reference
+- keep repository API visibility separate from raw storage exposure: use repository `visibility` for Cordis read authorization and `allow_public_object_urls` only for world-readable provider-native object URLs
 - backend utilities should stay backend-runtime-specific; CLI-specific helpers belong under `cordis/cli/`
 - prefer hard-cut refactors over temporary compatibility wrappers unless compatibility is explicitly required
 
@@ -49,6 +50,7 @@ When working on the CLI in this repository, follow these structural preferences:
 - keep CLI error types in `cordis/cli/errors.py` and prefer typed CLI exceptions over raw `RuntimeError`
 - keep command error handling centralized; expected failures should render through the shared CLI error path rather than ad-hoc `try/except` blocks in each command
 - keep CLI presentation in a shared rendering layer and prefer Rich tables, detail views, and status panels over manual string concatenation
+- surface artifact `public_url` values in CLI output when present, but do not degrade mediated download flows for repositories that keep raw storage private
 - keep transfer- and cache-specific local behavior under `cordis/cli/transfer/`
 - keep upload file discovery and `.cordisignore` handling in `cordis/cli/transfer/`, not in command handlers or SDK API modules
 - keep CLI uploads path-aware and repository-aware: pre-check for reusable artifacts at the same repository path before starting upload, and only use session-based multipart transfer when reuse is not possible

@@ -183,15 +183,30 @@ def test_repository_create_prints_created_repository(monkeypatch, tmp_path: Path
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
 
     class FakeClient:
-        async def create_repository(self, *, name: str, is_public: bool) -> dict[str, object]:
+        async def create_repository(
+            self,
+            *,
+            name: str,
+            visibility: str,
+            allow_public_object_urls: bool,
+        ) -> dict[str, object]:
             assert name == "repo-two"
-            assert is_public is True
-            return {"id": 8, "name": "repo-two", "is_public": True}
+            assert visibility == "authenticated"
+            assert allow_public_object_urls is True
+            return {
+                "id": 8,
+                "name": "repo-two",
+                "visibility": "authenticated",
+                "allow_public_object_urls": True,
+            }
 
     monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
     runner = CliRunner()
 
-    result = runner.invoke(app, ["repository", "create", "--name", "repo-two", "--public"])
+    result = runner.invoke(
+        app,
+        ["repository", "create", "--name", "repo-two", "--visibility", "authenticated", "--allow-public-object-urls"],
+    )
 
     assert result.exit_code == 0
     assert "Repository" in result.stdout
@@ -377,8 +392,20 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
                 assert repository_id == 9
                 assert version_name == "v2"
                 return [
-                    {"id": "artifact-1", "path": "models/file.bin", "checksum": "sha256:file", "size": 64},
-                    {"id": "artifact-2", "path": "README.md", "checksum": "sha256:readme", "size": 10},
+                    {
+                        "id": "artifact-1",
+                        "path": "models/file.bin",
+                        "checksum": "sha256:file",
+                        "size": 64,
+                        "public_url": "https://storage.invalid/9/models/file.bin",
+                    },
+                    {
+                        "id": "artifact-2",
+                        "path": "README.md",
+                        "checksum": "sha256:readme",
+                        "size": 10,
+                        "public_url": None,
+                    },
                 ]
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
@@ -389,6 +416,8 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
         assert "Resources" in result.stdout
         assert "models/file.bin" in result.stdout
         assert "README.md" in result.stdout
+        assert "Public URL" in result.stdout
+        assert "storage.invalid" in result.stdout
 
 
 def test_repository_member_mutation_commands_use_registered_repository(monkeypatch, tmp_path: Path) -> None:
@@ -518,10 +547,22 @@ def test_repository_update_and_delete_use_registered_repository(monkeypatch, tmp
         (config_dir / "config.json").write_text(json.dumps({"repo_id": 31}), encoding="utf-8")
 
         class FakeClient:
-            async def update_repository(self, *, repository_id: int, is_public: bool) -> dict[str, object]:
+            async def update_repository(
+                self,
+                *,
+                repository_id: int,
+                visibility: str,
+                allow_public_object_urls: bool,
+            ) -> dict[str, object]:
                 assert repository_id == 31
-                assert is_public is True
-                return {"id": 31, "name": "repo-31", "is_public": True}
+                assert visibility == "authenticated"
+                assert allow_public_object_urls is True
+                return {
+                    "id": 31,
+                    "name": "repo-31",
+                    "visibility": "authenticated",
+                    "allow_public_object_urls": True,
+                }
 
             async def delete_repository(self, *, repository_id: int) -> dict[str, object]:
                 assert repository_id == 31
@@ -529,12 +570,16 @@ def test_repository_update_and_delete_use_registered_repository(monkeypatch, tmp
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
 
-        update_result = runner.invoke(app, ["repository", "update", "--public"])
+        update_result = runner.invoke(
+            app,
+            ["repository", "update", "--visibility", "authenticated", "--allow-public-object-urls"],
+        )
         delete_result = runner.invoke(app, ["repository", "delete"])
 
         assert update_result.exit_code == 0
         assert "Repository" in update_result.stdout
         assert "repo-31" in update_result.stdout
+        assert "authenticated" in update_result.stdout
         assert "True" in update_result.stdout
         assert delete_result.exit_code == 0
         assert "repo-31" in delete_result.stdout

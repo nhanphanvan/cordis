@@ -26,6 +26,12 @@ class S3ClientProtocol(Protocol):
 
     def create_presigned_get_url(self, *, bucket: str, key: str, expires_in: int) -> str: ...
 
+    def create_public_object_url(self, *, bucket: str, key: str, version_id: str) -> str: ...
+
+    def ensure_public_prefix_access(self, *, bucket: str, prefix: str) -> bool: ...
+
+    def disable_public_prefix_access(self, *, bucket: str, prefix: str) -> bool: ...
+
     def create_multipart_upload(self, *, bucket: str, key: str) -> dict[str, Any]: ...
 
     def upload_part(
@@ -80,6 +86,34 @@ class S3StorageAdapter(StorageAdapter):
                 bucket=self.bucket,
                 key=self._build_key(ref),
                 expires_in=expires_in,
+            )
+        )
+
+    def get_public_url(self, ref: StorageObjectRef, *, storage_version_id: str) -> str:
+        return str(
+            self._call(
+                self.client.create_public_object_url,
+                bucket=self.bucket,
+                key=self._build_key(ref),
+                version_id=storage_version_id,
+            )
+        )
+
+    def ensure_repository_public_access(self, *, repository_id: int) -> bool:
+        return bool(
+            self._call(
+                self.client.ensure_public_prefix_access,
+                bucket=self.bucket,
+                prefix=self._build_repository_prefix(repository_id),
+            )
+        )
+
+    def disable_repository_public_access(self, *, repository_id: int) -> bool:
+        return bool(
+            self._call(
+                self.client.disable_public_prefix_access,
+                bucket=self.bucket,
+                prefix=self._build_repository_prefix(repository_id),
             )
         )
 
@@ -144,6 +178,10 @@ class S3StorageAdapter(StorageAdapter):
             )
             if part
         ]
+        return "/".join(parts)
+
+    def _build_repository_prefix(self, repository_id: int) -> str:
+        parts = [part for part in (self.prefix, f"repositories/{repository_id}") if part]
         return "/".join(parts)
 
     def _call(self, operation: Any, **kwargs: Any) -> Any:
