@@ -64,6 +64,40 @@ Inspect the CLI entrypoint and available commands:
 make run-cli-help
 ```
 
+## Docker
+
+Cordis now includes a backend-focused Docker workflow for local stacks and deployment packaging.
+
+The container stack standardizes on:
+
+- PostgreSQL for the application database
+- MinIO for S3-compatible object storage
+- the FastAPI backend service
+- an explicit Alembic workflow that is still operator-managed
+
+Start the stack:
+
+```bash
+cp .env.docker.example .env
+docker compose up --build postgres minio backend
+```
+
+The backend is then available on `http://127.0.0.1:8000`, MinIO on `http://127.0.0.1:9000`, and the MinIO console on `http://127.0.0.1:9001`.
+
+If you want to run Alembic in the Docker workflow, do it as an explicit operator step:
+
+```bash
+docker compose run --rm migrate
+```
+
+That migration flow is still being finalized. Treat it as manual infrastructure work for now rather than assuming the stack will bootstrap a fresh database automatically.
+
+The CLI remains host-native in this first pass. Point it at the containerized backend with:
+
+```bash
+cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <password>
+```
+
 ## Project Layout
 
 - `cordis/backend/`: FastAPI application, API routers, policies, validators, services, repositories, security, exception handling, and storage integration

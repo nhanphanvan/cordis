@@ -70,3 +70,34 @@ If you upload a later version where a file is unchanged at the same repository p
 - Read [Configuration](./configuration.md) to understand backend settings and CLI persistence.
 - Read [CLI Guide](./cli.md) for command workflows.
 - Read [Architecture](./architecture.md) for the internal structure.
+
+## Dockerized Local Stack
+
+Cordis also supports a backend-focused Docker Compose workflow built around PostgreSQL and MinIO.
+
+Recommended startup flow:
+
+```bash
+cp .env.docker.example .env
+docker compose up --build postgres minio backend
+```
+
+This stack runs:
+
+- `postgres` for the application database
+- `minio` for S3-compatible object storage
+- `backend` as the FastAPI service
+
+If you want to run Alembic from Docker, do it explicitly:
+
+```bash
+docker compose run --rm migrate
+```
+
+Treat that migration step as operator-managed for now. The Docker stack should currently be read as backend packaging plus service orchestration, not as guaranteed fresh-database bootstrap automation.
+
+The host-native CLI can target that backend once it is running:
+
+```bash
+cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <password>
+```

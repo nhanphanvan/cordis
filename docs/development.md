@@ -83,6 +83,8 @@ Keep remote artifact download streaming in `cordis.cli.utils.httpx_service` rath
 - backend runtime config comes from `CORDIS_` environment variables
 - CLI global state lives under `~/.cordis` by default
 - workspace registration lives under `<cwd>/.cordis`
+- Docker/Compose runtime uses the same `CORDIS_*` env surface through `.env.docker.example`
+- Alembic is present in the repository, but migration execution should currently be treated as manual/operator-managed in the container workflow
 
 Read [Configuration](./configuration.md) before changing any of these boundaries.
 

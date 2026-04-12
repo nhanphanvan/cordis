@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI service and backend-owned runtime concerns such as config, exception handling, and storage integration, and `cordis/cli/` for the Typer CLI and SDK. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, and `README.md` define tooling and local workflow.
+Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI service and backend-owned runtime concerns such as config, exception handling, storage integration, and migration helpers, and `cordis/cli/` for the Typer CLI and SDK. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, `README.md`, `Dockerfile`, `compose.yml`, and `alembic.ini` define tooling and local workflow.
 
 ## Build, Test, and Development Commands
 
@@ -14,6 +14,8 @@ Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI se
 - `make test`: run the full pytest suite.
 - `make run-backend`: start the backend with `python -m cordis.backend`.
 - `make run-cli-help`: inspect the CLI entrypoint and available commands.
+- `docker compose config`: validate the Docker Compose stack definition.
+- `docker compose up --build postgres minio backend`: run the containerized backend stack.
 
 ## Coding Style & Naming Conventions
 
@@ -71,3 +73,4 @@ Use short, imperative commit messages. The current history favors Conventional C
 ## Environment Notes
 
 Local commands intentionally use module-based execution from the repo root. Keep that pattern unless the Poetry environment setup changes, because this repository may be used from an already-active virtual environment. When documenting commands or examples, prefer the Make targets first and fall back to the module-based form only when extra detail matters.
+The repository now includes Docker and Compose assets for a backend-focused PostgreSQL + MinIO stack. Keep migration execution explicit in documentation and operator workflows; do not assume the Docker stack should auto-apply schema changes unless that behavior is deliberately implemented and verified.

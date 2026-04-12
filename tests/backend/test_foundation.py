@@ -54,6 +54,17 @@ def test_database_config_derives_async_and_sync_database_urls() -> None:
     assert database.sync_db_url == "postgresql://user:password@localhost:5432/cordis"
 
 
+def test_backend_migrations_helpers_expose_sync_url_and_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORDIS_DB_URL", "postgresql+asyncpg://user:password@localhost:5432/cordis")
+    importlib.import_module("cordis.backend.config").build_config.cache_clear()
+
+    migrations = importlib.import_module("cordis.backend.migrations")
+    database_model = importlib.import_module("cordis.backend.models.base").DatabaseModel
+
+    assert migrations.get_alembic_database_url() == "postgresql://user:password@localhost:5432/cordis"
+    assert migrations.get_alembic_target_metadata() is database_model.metadata
+
+
 def test_database_config_exposes_full_engine_args_for_postgresql_urls() -> None:
     database = DatabaseConfig(
         db_url="postgresql+asyncpg://user:password@localhost:5432/cordis",
@@ -92,6 +103,39 @@ def test_build_config_groups_app_database_and_storage_defaults() -> None:
     assert config.app.api_v1_prefix == "/api/v1"
     assert config.database.db_url == "sqlite+aiosqlite:///./.cordis/cordis.db"
     assert config.storage.bucket == "cordis-artifacts"
+
+
+def test_docker_assets_exist_for_backend_postgres_and_minio_stack() -> None:
+    dockerfile = Path("Dockerfile")
+    dockerignore = Path(".dockerignore")
+    compose = Path("compose.yml")
+    docker_env = Path(".env.docker.example")
+
+    assert dockerfile.exists()
+    assert dockerignore.exists()
+    assert compose.exists()
+    assert docker_env.exists()
+
+
+def test_compose_stack_defines_backend_migrate_postgres_and_minio_services() -> None:
+    compose_text = Path("compose.yml").read_text(encoding="utf-8")
+
+    assert "backend:" in compose_text
+    assert "migrate:" in compose_text
+    assert "postgres:" in compose_text
+    assert "minio:" in compose_text
+    assert "/healthz" in compose_text
+    assert "alembic upgrade head" in compose_text
+    assert "postgresql+asyncpg://" in compose_text
+    assert "CORDIS_STORAGE_PROVIDER:" in compose_text
+
+
+def test_docker_env_example_uses_postgres_and_minio_defaults() -> None:
+    env_text = Path(".env.docker.example").read_text(encoding="utf-8")
+
+    assert "CORDIS_DB_URL=postgresql+asyncpg://" in env_text
+    assert "CORDIS_STORAGE_PROVIDER=minio" in env_text
+    assert "CORDIS_STORAGE_ENDPOINT=minio:9000" in env_text
 
 
 def test_app_config_loads_from_env_files(monkeypatch, tmp_path: Path) -> None:

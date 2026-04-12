@@ -1,0 +1,16 @@
+.git
+.gitignore
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+*.pyc
+.coverage*
+.cordis
+.env
+.env.local
+dist
+build
+tests
+alembic/__pycache__
