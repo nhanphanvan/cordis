@@ -81,7 +81,7 @@ Cordis uses a shared storage bucket and structured object keys. When a repositor
 
 ### Presentation and errors
 
-`cordis.cli.presentation` owns Rich-rendered tables, detail views, success panels, and error panels. `cordis.cli.errors` defines the typed CLI exception surface used to normalize config, transport, and backend API failures before they reach the terminal.
+`cordis.cli.utils.presentation` owns Rich-rendered tables, detail views, success panels, and error panels. `cordis.cli.errors` defines the typed CLI exception surface used to normalize config, transport, and backend API failures before they reach the terminal.
 
 ### SDK
 
@@ -89,11 +89,11 @@ Cordis uses a shared storage bucket and structured object keys. When a repositor
 
 ### Config
 
-`cordis.cli.config` owns global config, workspace registration, and cache path helpers. CLI-specific client construction from local config also stays on the CLI side rather than in the public SDK package.
+`cordis.cli.utils.files` owns global config, workspace registration, cache path helpers, and CLI-local file helpers. CLI-specific client construction from local config also stays on the CLI side rather than in the public SDK package.
 
 ### Transfer helpers
 
-`cordis.cli.transfer` handles local file iteration, multipart upload chunking, checksums, cache reuse, and other local transfer helpers. Remote HTTP download streaming lives in the CLI transport layer rather than here.
+`cordis.cli.utils.files` handles local file iteration, multipart upload chunking, checksums, cache reuse, and other local transfer helpers. Remote HTTP download streaming lives in the shared SDK HTTP transport layer rather than here.
 
 ## Request Flow
 

@@ -50,6 +50,7 @@ Run the main verification commands:
 ```bash
 make lint
 make test
+make build
 ```
 
 Start the backend locally:
@@ -63,6 +64,14 @@ Inspect the CLI entrypoint and available commands:
 ```bash
 make run-cli-help
 ```
+
+Build the CLI/SDK distribution artifacts:
+
+```bash
+make build
+```
+
+This staged build excludes `cordis/backend`. If you need a full repository build including backend code, run `python3 -m poetry build` directly.
 
 ## Docker
 
@@ -101,7 +110,7 @@ cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <passwo
 ## Project Layout
 
 - `cordis/backend/`: FastAPI application, API routers, policies, validators, services, repositories, security, exception handling, and storage integration
-- `cordis/cli/`: Typer CLI, presentation/error handling, config handling, and CLI-local transfer helpers
+- `cordis/cli/`: Typer CLI, command wiring, error handling, and CLI-local helpers under `cordis/cli/utils/`
 - `cordis/sdk/`: public Python SDK, API client modules, transfer orchestration, and shared HTTP transport
 - `tests/backend/`: backend-focused tests
 - `tests/cli/`: CLI-focused tests

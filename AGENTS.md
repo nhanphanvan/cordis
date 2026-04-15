@@ -12,6 +12,7 @@ Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI se
 - `make format`: format the repository with Ruff.
 - `make typecheck`: run MyPy only.
 - `make test`: run the full pytest suite.
+- `make build`: build the CLI/SDK-focused source distribution and wheel.
 - `make run-backend`: start the backend with `python -m cordis.backend`.
 - `make run-cli-help`: inspect the CLI entrypoint and available commands.
 - `docker compose config`: validate the Docker Compose stack definition.
@@ -51,14 +52,15 @@ When working on the CLI in this repository, follow these structural preferences:
 - keep backend communication inside `cordis/sdk/`; CLI-specific config-driven client construction belongs under `cordis/cli/`
 - keep CLI error types in `cordis/cli/errors.py` and prefer typed CLI exceptions over raw `RuntimeError`
 - keep command error handling centralized; expected failures should render through the shared CLI error path rather than ad-hoc `try/except` blocks in each command
-- keep CLI presentation in a shared rendering layer and prefer Rich tables, detail views, and status panels over manual string concatenation
+- keep CLI presentation helpers under `cordis/cli/utils/presentation.py` and prefer Rich tables, detail views, and status panels over manual string concatenation
 - surface artifact `public_url` values in CLI output when present, but do not degrade mediated download flows for repositories that keep raw storage private
-- keep transfer- and cache-specific local behavior under `cordis/cli/transfer/`
-- keep upload file discovery and `.cordisignore` handling in `cordis/cli/transfer/`, not in command handlers or SDK API modules
+- keep transfer-, cache-, and CLI config-specific local behavior under `cordis/cli/utils/files.py`
+- keep upload file discovery and `.cordisignore` handling in `cordis/cli/utils/files.py`, not in command handlers or SDK API modules
 - keep CLI uploads path-aware and repository-aware: pre-check for reusable artifacts at the same repository path before starting upload, and only use session-based multipart transfer when reuse is not possible
 - keep CLI uploads session-based and truly multipart when transfer is required: chunk files locally, upload parts sequentially, and resume by skipping persisted session parts rather than sending whole files as one part
 - keep the canonical transfer chunk size in `cordis/constants.py`; the current value is `8 * 1024 * 1024`
 - keep remote artifact download transport in `cordis/sdk/httpx_service.py`; streamed downloads should use the shared HTTP layer with retry, resume, and Rich progress rather than ad-hoc network helpers in the transfer layer
+- `make build` is for the CLI/SDK distribution only; use `python3 -m poetry build` directly when a full repository build including `cordis/backend` is required
 - prefer human-friendly default output; if adding machine-readable output later, make it explicit rather than degrading the default presentation
 - keep common CLI short flags consistent: prefer `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`
 

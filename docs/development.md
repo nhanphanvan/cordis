@@ -18,10 +18,8 @@ This guide is for contributors working inside the Cordis repository.
 - `cordis/cli/commands`: Typer command definitions
 - `cordis/sdk`: public SDK package for `CordisClient`, API modules, transport, and reusable transfer orchestration
 - `cordis/cli/errors.py`: typed CLI exception surface for config, API, and transport failures
-- `cordis/cli/presentation.py`: Rich-based output helpers for tables, detail views, and status panels
-- `cordis/cli/config`: config and workspace-registration helpers
-- `cordis/cli/transfer`: local upload file discovery, ignore matching, chunk iteration, and checksums
-- `cordis/cli/transfer/files.py`: upload file discovery, `.cordisignore` matching, multipart chunk iteration, and checksums
+- `cordis/cli/utils/presentation.py`: Rich-based output helpers for tables, detail views, and status panels
+- `cordis/cli/utils/files.py`: CLI config, workspace-registration, cache, `.cordisignore`, chunk iteration, and checksum helpers
 - `cordis/constants.py`: shared transfer constants such as the canonical `8 MiB` chunk size
 - `cordis/backend/settings.py`: backend startup wiring for logging and security
 - `cordis/backend/exceptions/`: app status catalog, backend exception types, and centralized exception handlers
@@ -40,6 +38,49 @@ Additional useful targets:
 ```bash
 make format
 make typecheck
+```
+
+## Build Distributions
+
+`make build` now produces a CLI/SDK-focused Python distribution named `cordis`.
+That staged build includes:
+
+- `cordis/__init__.py`
+- `cordis/constants.py`
+- `cordis/cli`
+- `cordis/sdk`
+
+It intentionally excludes `cordis/backend`, so the generated wheel is for the CLI and SDK surface only.
+
+Build the source distribution and wheel from the repo root with:
+
+```bash
+make build
+```
+
+The generated artifacts are written to `dist/`, typically including:
+
+- `dist/cordis-<version>.tar.gz`
+- `dist/cordis-<version>-py3-none-any.whl`
+
+If you only need the wheel:
+
+```bash
+python3 scripts/build_cli_sdk_dist.py --format wheel
+```
+
+You can inspect the built wheel locally with:
+
+```bash
+python3 -m pip install dist/cordis-<version>-py3-none-any.whl
+cordis --help
+python3 -c "from cordis.sdk import CordisClient; print(CordisClient)"
+```
+
+If you need a full repository build that also includes `cordis/backend`, use Poetry directly against the repo root:
+
+```bash
+python3 -m poetry build
 ```
 
 ## Backend Extension Pattern
@@ -75,7 +116,7 @@ Keep expected failure rendering centralized through the shared CLI error path ra
 Keep upload ignore semantics in the transfer layer and treat `.cordisignore` as the only upload ignore file in the current design.
 Keep pre-upload artifact reuse checks in the SDK/transfer workflow rather than duplicating repository/path reuse logic in command handlers.
 Keep CLI uploads sequential and resumable against backend upload sessions rather than collapsing files into one synthetic part.
-Keep remote artifact download streaming in `cordis.sdk.httpx_service` rather than reintroducing raw network helpers under `cordis.cli.transfer`.
+Keep remote artifact download streaming in `cordis.sdk.httpx_service` rather than reintroducing raw network helpers under `cordis.cli.utils.files`.
 
 ## Configuration and State
 

@@ -27,6 +27,10 @@ typecheck:
 test:
 	python3 -m poetry run pytest
 
+.PHONY: build
+build:
+	python3 scripts/build_cli_sdk_dist.py
+
 .PHONY: run-backend
 run-backend:
 	python3 -m poetry run python -m cordis.backend
