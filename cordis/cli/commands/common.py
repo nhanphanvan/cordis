@@ -6,9 +6,9 @@ from typing import Any, ParamSpec, TypeVar
 
 import typer
 
-from cordis.cli.config import get_project_config_path, read_config
 from cordis.cli.errors import ConfigurationError, CordisCliError
-from cordis.cli.presentation import print_detail, print_error, print_path_summary, print_success, print_table
+from cordis.cli.utils.files import get_project_config_path, read_config
+from cordis.cli.utils.presentation import print_detail, print_error, print_path_summary, print_success, print_table
 
 T = TypeVar("T")
 P = ParamSpec("P")

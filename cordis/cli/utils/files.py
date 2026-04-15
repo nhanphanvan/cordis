@@ -1,8 +1,17 @@
+import hashlib
 import json
 import os
 import shutil
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, cast
+
+from pathspec import PathSpec
+
+from cordis.constants import DEFAULT_TRANSFER_CHUNK_SIZE
+
+IGNORE_FILE_NAME = ".cordisignore"
+DEFAULT_IGNORE_PATTERNS = [IGNORE_FILE_NAME, ".cordis/"]
 
 
 def get_cordis_home() -> Path:
@@ -100,3 +109,41 @@ def copy_from_cache(repository_key: str, checksum: str, destination_path: Path) 
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(cached, destination_path)
     return True
+
+
+def _build_ignore_spec(root: Path) -> PathSpec:
+    patterns = list(DEFAULT_IGNORE_PATTERNS)
+    ignore_file = root / IGNORE_FILE_NAME
+    if ignore_file.exists():
+        lines = ignore_file.read_text(encoding="utf-8").splitlines()
+        patterns.extend(line for line in lines if line.strip() and not line.lstrip().startswith("#"))
+    return PathSpec.from_lines("gitignore", patterns)
+
+
+def iter_files(root: Path) -> Iterator[tuple[Path, str]]:
+    ignore_spec = _build_ignore_spec(root)
+    for path in root.rglob("*"):
+        if path.is_file():
+            relative_path = path.relative_to(root).as_posix()
+            if ignore_spec.match_file(relative_path):
+                continue
+            yield path, relative_path
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def iter_file_chunks(path: Path, chunk_size: int = DEFAULT_TRANSFER_CHUNK_SIZE) -> Iterator[tuple[int, bytes]]:
+    with path.open("rb") as handle:
+        part_number = 1
+        while True:
+            chunk = handle.read(chunk_size)
+            if not chunk:
+                break
+            yield part_number, chunk
+            part_number += 1

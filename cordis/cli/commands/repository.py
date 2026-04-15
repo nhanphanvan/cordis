@@ -9,7 +9,7 @@ from cordis.cli.commands.common import (
     print_table,
     run_async,
 )
-from cordis.cli.config import clear_project_registration, get_project_config_path, read_config, update_config_value
+from cordis.cli.utils.files import clear_project_registration, get_project_config_path, read_config, update_config_value
 
 app = typer.Typer(help="Repository commands.")
 

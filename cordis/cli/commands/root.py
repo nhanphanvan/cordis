@@ -7,7 +7,7 @@ from cordis.cli.commands.resource import app as resource_app
 from cordis.cli.commands.tag import app as tag_app
 from cordis.cli.commands.user import app as user_app
 from cordis.cli.commands.version import app as version_app
-from cordis.cli.config import clean_cache, get_global_config_path, remove_config_value, update_config_value
+from cordis.cli.utils.files import clean_cache, get_global_config_path, remove_config_value, update_config_value
 
 app = typer.Typer(help="Cordis command line interface.")
 

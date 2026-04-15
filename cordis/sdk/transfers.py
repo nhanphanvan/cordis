@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from cordis.cli.config import copy_from_cache, save_to_cache
-from cordis.cli.transfer import iter_file_chunks, iter_files, sha256_file
+from cordis.cli.utils.files import copy_from_cache, iter_file_chunks, iter_files, save_to_cache, sha256_file
 from cordis.sdk.errors import ApiError, TransportError
 
 if TYPE_CHECKING:

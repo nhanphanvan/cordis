@@ -2,7 +2,7 @@ from pathlib import Path
 
 import httpx
 
-from cordis.cli.transfer.files import iter_file_chunks, iter_files
+from cordis.cli.utils.files import iter_file_chunks, iter_files
 from cordis.constants import DEFAULT_TRANSFER_CHUNK_SIZE
 from cordis.sdk.httpx_service import HttpxService
 

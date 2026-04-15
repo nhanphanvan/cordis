@@ -1,4 +1,4 @@
-from cordis.cli.config.files import ensure_global_config, get_global_config_path, read_config
+from cordis.cli.utils.files import ensure_global_config, get_global_config_path, read_config
 from cordis.sdk import CordisClient
 
 
