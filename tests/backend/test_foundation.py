@@ -126,6 +126,9 @@ def test_build_config_groups_app_database_and_storage_defaults(monkeypatch: pyte
     monkeypatch.delenv("CORDIS_STORAGE_ENDPOINT", raising=False)
     monkeypatch.delenv("CORDIS_STORAGE_ACCESS_KEY", raising=False)
     monkeypatch.delenv("CORDIS_STORAGE_SECRET_KEY", raising=False)
+    monkeypatch.delenv("CORDIS_BOOTSTRAP_ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("CORDIS_BOOTSTRAP_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("CORDIS_BOOTSTRAP_ADMIN_NAME", raising=False)
     build_config.cache_clear()
     config = build_config()
 
@@ -133,6 +136,9 @@ def test_build_config_groups_app_database_and_storage_defaults(monkeypatch: pyte
     assert config.app.api_v1_prefix == "/api/v1"
     assert config.database.db_url == "sqlite+aiosqlite:///./.cordis/cordis.db"
     assert config.storage.bucket == "cordis-artifacts"
+    assert config.bootstrap.admin_email is None
+    assert config.bootstrap.admin_password is None
+    assert config.bootstrap.admin_name == "Admin"
 
 
 def test_docker_assets_exist_for_backend_postgres_and_minio_stack() -> None:
@@ -166,6 +172,8 @@ def test_docker_env_example_uses_postgres_and_minio_defaults() -> None:
     assert "CORDIS_DB_URL=postgresql+asyncpg://" in env_text
     assert "CORDIS_STORAGE_PROVIDER=minio" in env_text
     assert "CORDIS_STORAGE_ENDPOINT=minio:9000" in env_text
+    assert "CORDIS_BOOTSTRAP_ADMIN_EMAIL=" in env_text
+    assert "CORDIS_BOOTSTRAP_ADMIN_PASSWORD=" in env_text
 
 
 def test_app_config_loads_from_env_files(monkeypatch, tmp_path: Path) -> None:

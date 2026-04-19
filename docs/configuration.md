@@ -63,6 +63,20 @@ Security settings are loaded from the same backend config layer. `cordis.backend
 - `CORDIS_JWT_ALGORITHM`
 - `CORDIS_ACCESS_TOKEN_EXPIRE_MINUTES`
 
+Cordis also supports first-run admin bootstrap during backend startup:
+
+- `CORDIS_BOOTSTRAP_ADMIN_EMAIL`
+- `CORDIS_BOOTSTRAP_ADMIN_PASSWORD`
+- `CORDIS_BOOTSTRAP_ADMIN_NAME`
+
+Bootstrap behavior:
+
+- default repository roles `owner`, `developer`, and `viewer` are ensured on every startup
+- if the database has zero users, backend startup requires `CORDIS_BOOTSTRAP_ADMIN_EMAIL` and `CORDIS_BOOTSTRAP_ADMIN_PASSWORD`
+- if the database has zero users and those env vars are missing or invalid, backend startup fails
+- if the database already has at least one user, bootstrap admin env values are ignored and existing users are not modified
+- `CORDIS_BOOTSTRAP_ADMIN_NAME` is optional and defaults to `Admin`
+
 There is no separate backend storage-policy environment variable for public object exposure. Raw provider-native object exposure is controlled per repository through the repository-level `allow_public_object_urls` flag.
 
 For Docker and Compose workflows, Cordis keeps the same `CORDIS_*` contract instead of introducing a second container-specific config layer. The repository now includes `.env.docker.example` as the baseline local stack environment.

@@ -97,6 +97,19 @@ class SecurityConfig(BaseSettings):
     access_token_expire_minutes: int = Field(60, validation_alias="CORDIS_ACCESS_TOKEN_EXPIRE_MINUTES")
 
 
+class BootstrapConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=(".env", ".env.local"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    admin_email: str | None = Field(None, validation_alias="CORDIS_BOOTSTRAP_ADMIN_EMAIL")
+    admin_password: str | None = Field(None, validation_alias="CORDIS_BOOTSTRAP_ADMIN_PASSWORD")
+    admin_name: str | None = Field("Admin", validation_alias="CORDIS_BOOTSTRAP_ADMIN_NAME")
+
+
 class Config(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -104,6 +117,7 @@ class Config(BaseModel):
     database: DatabaseConfig
     security: SecurityConfig
     storage: StorageConfig
+    bootstrap: BootstrapConfig
 
 
 @lru_cache(maxsize=1)
@@ -113,4 +127,5 @@ def build_config() -> Config:
         database=DatabaseConfig(),
         security=SecurityConfig(),
         storage=StorageConfig(),
+        bootstrap=BootstrapConfig(),
     )

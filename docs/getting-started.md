@@ -87,6 +87,14 @@ cp .env.docker.example .env
 docker compose up --build postgres minio backend
 ```
 
+The bootstrap admin env in `.env.docker.example` is now part of first-run startup. On an empty database, the backend creates the first admin user from:
+
+- `CORDIS_BOOTSTRAP_ADMIN_EMAIL`
+- `CORDIS_BOOTSTRAP_ADMIN_PASSWORD`
+- `CORDIS_BOOTSTRAP_ADMIN_NAME`
+
+If the database has no users and the required bootstrap env is missing or invalid, backend startup fails.
+
 This stack runs:
 
 - `postgres` for the application database

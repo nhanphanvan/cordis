@@ -24,11 +24,19 @@ async def _resolve_current_user(request: Request, uow: UnitOfWork, *, required: 
     return user
 
 
-async def get_current_user(request: Request, uow: Annotated[UnitOfWork, Depends(get_uow)]) -> User:
+async def get_current_user(
+    request: Request,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    _bearer: Annotated[str | None, Depends(BearerTokenAuthenticationBackend.scheme)],
+) -> User:
     user = await _resolve_current_user(request, uow, required=True)
     assert user is not None
     return user
 
 
-async def get_optional_current_user(request: Request, uow: Annotated[UnitOfWork, Depends(get_uow)]) -> User | None:
+async def get_optional_current_user(
+    request: Request,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    _bearer: Annotated[str | None, Depends(BearerTokenAuthenticationBackend.scheme)],
+) -> User | None:
     return await _resolve_current_user(request, uow, required=False)

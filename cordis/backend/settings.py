@@ -1,3 +1,6 @@
+import asyncio
+
+from cordis.backend.bootstrap import bootstrap_runtime_state
 from cordis.backend.config import build_config
 from cordis.backend.security import setup_security
 from cordis.backend.utils.logging import setup_logging
@@ -11,3 +14,4 @@ def setup() -> None:
         jwt_algorithm=config.security.jwt_algorithm,
         access_token_expire_minutes=config.security.access_token_expire_minutes,
     )
+    asyncio.run(bootstrap_runtime_state())

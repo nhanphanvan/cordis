@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import FastAPI
@@ -66,6 +67,7 @@ def test_backend_main_configures_logging_before_running_server(monkeypatch) -> N
 
 def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch) -> None:
     calls: list[tuple[str, object]] = []
+    bootstrap_calls: list[str] = []
     fake_config = type(
         "FakeConfig",
         (),
@@ -89,6 +91,16 @@ def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch
         lambda **kwargs: calls.append(("setup_security", kwargs)),
     )
 
+    async def _fake_bootstrap() -> None:
+        bootstrap_calls.append("bootstrap")
+
+    monkeypatch.setattr("cordis.backend.settings.bootstrap_runtime_state", _fake_bootstrap)
+    real_asyncio_run = asyncio.run
+    monkeypatch.setattr(
+        "cordis.backend.settings.asyncio.run",
+        lambda coroutine: (calls.append(("asyncio.run", "bootstrap")), real_asyncio_run(coroutine)),
+    )
+
     from cordis.backend.settings import setup
 
     setup()
@@ -103,7 +115,9 @@ def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch
                 "access_token_expire_minutes": 90,
             },
         ),
+        ("asyncio.run", "bootstrap"),
     ]
+    assert bootstrap_calls == ["bootstrap"]
 
 
 def test_cordis_error_handler_logs_exception(caplog) -> None:
