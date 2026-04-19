@@ -59,7 +59,7 @@ That split is why the transfer flow is more than a single HTTP request.
 
 ## Upload Workflow
 
-Cordis upload is session-based and uses real multipart behavior from the CLI side. Files are chunked locally, uploaded sequentially, and resumed by reusing the backend's persisted uploaded-part state.
+Cordis upload is a two-phase CLI workflow: atomic preflight first, then session-based multipart transfer only if preflight succeeds. Files are chunked locally, uploaded sequentially, and resumed by reusing the backend's persisted uploaded-part state.
 
 ### Operator entrypoint
 
@@ -96,25 +96,37 @@ For each yielded file, the CLI computes:
 - `path`
   The relative artifact path inside the version
 
-Before creating an upload session, the CLI now performs a reuse check against the backend for the target version and file metadata. If the backend finds an existing repository artifact at the same path with the same checksum and size, the CLI attaches that artifact to the target version directly and skips multipart upload entirely.
+Before creating any upload session, the CLI preflights the whole folder against the target version and the repository-level reuse surface.
+
+Preflight classification rules:
+
+- if the target version already contains the same path with the same checksum and size, the file is treated as `unchanged`
+- if the target version already contains the same path with different metadata, the file is a `conflict`
+- if the target version does not contain the path and the backend finds a reusable repository artifact with the same checksum and size, the file is marked for direct attach
+- otherwise the file is marked for normal upload-session handling
+
+If any file is classified as a conflict, the CLI aborts the whole command before attaching reusable artifacts or creating upload sessions. This makes `resource upload` atomic at the CLI workflow level for same-version path conflicts.
 
 ### Upload request sequence
 
-For each file, the CLI executes this sequence:
+The CLI executes this sequence:
 
-1. `POST /api/v1/resources/check`
+1. `GET /api/v1/versions/{version_id}/artifacts`
+   This populates the current target-version path map used to detect unchanged files and same-version conflicts locally.
+2. for each candidate path not already present in the target version, `POST /api/v1/resources/check`
    The payload includes:
    - `version_id`
    - `path`
    - `checksum`
    - `size`
-2. if the backend returns an existing matching artifact ID, `POST /api/v1/versions/{version_id}/artifacts` and skip upload
-3. otherwise `POST /api/v1/uploads/sessions`
-4. inspect the returned session's `parts` list and build the set of already-uploaded `part_number` values
-5. read the local file in `8 MiB` chunks
-6. `POST /api/v1/uploads/sessions/{session_id}/parts` once per missing chunk
-7. `POST /api/v1/uploads/sessions/{session_id}/complete`
-8. on successful multipart upload, store the local file in the cache under the repository/checksum key
+3. if any candidate is a same-version conflict, abort the whole command and report all conflict paths
+4. for each reusable artifact, `POST /api/v1/versions/{version_id}/artifacts`
+5. for each upload candidate, `POST /api/v1/uploads/sessions`
+6. inspect the returned session's `parts` list and build the set of already-uploaded `part_number` values
+7. read the local file in `8 MiB` chunks
+8. `POST /api/v1/uploads/sessions/{session_id}/parts` once per missing chunk
+9. `POST /api/v1/uploads/sessions/{session_id}/complete`
+10. on successful multipart upload, store the local file in the cache under the repository/checksum key
 
 Each part request still uses `content_base64`, but only for the current chunk rather than the entire file.
 
@@ -133,6 +145,7 @@ Version path collision rules are important:
 - if the target version already has the same path with the same checksum and size, creation fails with an artifact-already-exists conflict
 - if the target version already has the same path with different metadata, creation fails with a metadata-conflict error
 
+The current CLI preflight is designed to prevent these conflicts before session creation, but the backend validations remain the authoritative guardrail.
 After validation, the route checks repository access and requires upload mutation permission through `UploadPolicy.mutate`.
 
 ### Session creation vs resume
@@ -239,6 +252,15 @@ If the target version does not already contain the path, the reuse check looks f
 - if no repository artifact exists, the file proceeds through normal upload-session handling
 - if a repository artifact exists at the same path with different metadata, the file still proceeds to normal upload handling, which preserves the current repository-path conflict behavior
 
+### Same-version exact matches
+
+Exact matches already present in the target version are not re-attached and are not uploaded again.
+
+- the CLI reports these files as `Unchanged`
+- they do not block the upload
+- they do not create upload sessions
+- they do not call `POST /versions/{version_id}/artifacts`
+
 ### Upload failure paths
 
 Important upload failure cases include:
@@ -246,6 +268,7 @@ Important upload failure cases include:
 - version not found
 - invalid path
 - negative size
+- CLI preflight conflict against an existing target-version path with different metadata
 - duplicate artifact already present in the version
 - session already terminal
 - session has no parts at completion time
@@ -255,6 +278,7 @@ Important upload failure cases include:
 
 Failure effects vary by stage:
 
+- preflight conflicts abort the whole CLI upload before any attach or multipart mutation occurs
 - validation failures are returned immediately as handled backend errors
 - multipart-state, checksum, and storage-version failures mark the session `failed` and record an `error_message`
 - abort explicitly marks the session `aborted`
@@ -448,12 +472,15 @@ The backend response still includes the URL and expiry metadata, so this command
 2. CLI resolves repository/version context.
 3. CLI walks the local folder with `.cordisignore` filtering.
 4. CLI computes checksum and size for each file.
-5. Backend validates the upload request and creates or resumes an upload session.
-6. CLI uploads part content to the session.
-7. Backend records uploaded parts and finalizes multipart state.
-8. Backend validates checksum and storage version metadata.
-9. Backend creates or reuses the repository artifact and attaches it to the version.
-10. CLI saves the local file into the cache.
+5. CLI preflights the full folder against the target version and repository reuse surface.
+6. If any same-version conflict exists, the command stops and no files are uploaded or attached.
+7. Otherwise reusable artifacts are attached and the remaining files enter upload-session handling.
+8. Backend validates the upload request and creates or resumes an upload session.
+9. CLI uploads part content to the session.
+10. Backend records uploaded parts and finalizes multipart state.
+11. Backend validates checksum and storage version metadata.
+12. Backend creates or reuses the repository artifact and attaches it to the version.
+13. CLI saves the local file into the cache.
 
 ### Download sequence
 
@@ -471,6 +498,8 @@ The backend response still includes the URL and expiry metadata, so this command
 The following rules are important to preserve when changing transfer code:
 
 - `.cordisignore` is the only upload ignore file in the current design
+- same-version path conflicts abort the full CLI upload before mutation
+- exact same-content paths already in the target version are treated as unchanged, not errors
 - upload-session state is the backend source of truth for multipart ingest
 - completed artifacts require `storage_version_id`
 - version download is cache-aware and checksum-based

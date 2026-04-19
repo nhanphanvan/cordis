@@ -29,3 +29,16 @@ class ApiError(CordisError):
         self.app_status_code = app_status_code
         self.status_message = status_message
         self.detail = detail
+
+
+class UploadPreflightError(CordisError):
+    def __init__(self, *, conflicts: list[str]) -> None:
+        conflict_lines = "\n".join(conflicts)
+        super().__init__(
+            user_message=(
+                "Upload preflight failed. No files were uploaded.\n\n"
+                f"Conflicting paths:\n{conflict_lines}"
+            ),
+            status_line="UPLOAD PREFLIGHT",
+        )
+        self.conflicts = conflicts

@@ -9,6 +9,7 @@ import typer
 from cordis.cli.errors import ConfigurationError, CordisCliError
 from cordis.cli.utils.files import get_project_config_path, read_config
 from cordis.cli.utils.presentation import print_detail, print_error, print_path_summary, print_success, print_table
+from cordis.sdk.errors import CordisError as SdkCordisError
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -48,7 +49,7 @@ def handle_cli_errors(function: Callable[P, None]) -> Callable[P, None]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> None:
         try:
             function(*args, **kwargs)
-        except CordisCliError as error:
+        except (CordisCliError, SdkCordisError) as error:
             print_error(error)
             raise typer.Exit(code=1) from error
 

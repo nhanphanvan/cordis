@@ -74,6 +74,8 @@ def upload_resources(
     print_path_summary("Uploaded", [str(item) for item in result["uploaded"]])
     if result.get("reused"):
         print_path_summary("Reused", [str(item) for item in result["reused"]])
+    if result.get("unchanged"):
+        print_path_summary("Unchanged", [str(item) for item in result["unchanged"]])
 
 
 @app.command("download-item")

@@ -1,6 +1,7 @@
 from cordis.sdk.errors import ApiError as SdkApiError
 from cordis.sdk.errors import CordisError
 from cordis.sdk.errors import TransportError as SdkTransportError
+from cordis.sdk.errors import UploadPreflightError as SdkUploadPreflightError
 
 
 class CordisCliError(CordisError):
@@ -18,3 +19,7 @@ class TransportError(SdkTransportError, CordisCliError):
 
 class ApiError(SdkApiError, CordisCliError):
     """CLI API error preserving legacy catch behavior."""
+
+
+class UploadPreflightError(SdkUploadPreflightError, CordisCliError):
+    """CLI upload preflight error preserving legacy catch behavior."""

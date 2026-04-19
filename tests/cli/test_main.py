@@ -3,7 +3,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from cordis.cli.errors import ApiError
+from cordis.cli.errors import ApiError, UploadPreflightError
 from cordis.cli.main import app
 
 
@@ -698,6 +698,82 @@ def test_resource_upload_renders_uploaded_and_reused_paths(monkeypatch, tmp_path
         assert "file-b.txt" in result.stdout
         assert "Reused" in result.stdout
         assert "file-a.txt" in result.stdout
+
+
+def test_resource_upload_renders_uploaded_reused_and_unchanged_paths(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 43, "version": "v7"}), encoding="utf-8")
+        upload_dir = Path("payloads")
+        upload_dir.mkdir()
+        (upload_dir / "file-a.txt").write_text("same", encoding="utf-8")
+        (upload_dir / "file-b.txt").write_text("new", encoding="utf-8")
+        (upload_dir / "file-c.txt").write_text("keep", encoding="utf-8")
+
+        class FakeClient:
+            async def upload_directory(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                folder_path: str,
+                create_version_if_missing: bool,
+            ) -> dict[str, object]:
+                assert repository_id == 43
+                assert version_name == "v7"
+                assert folder_path == "payloads"
+                assert create_version_if_missing is False
+                return {"uploaded": ["file-b.txt"], "reused": ["file-a.txt"], "unchanged": ["file-c.txt"]}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "43", "-v", "v7"])
+
+        assert result.exit_code == 0
+        assert "Uploaded" in result.stdout
+        assert "file-b.txt" in result.stdout
+        assert "Reused" in result.stdout
+        assert "file-a.txt" in result.stdout
+        assert "Unchanged" in result.stdout
+        assert "file-c.txt" in result.stdout
+
+
+def test_resource_upload_renders_preflight_failure(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 43, "version": "v7"}), encoding="utf-8")
+        upload_dir = Path("payloads")
+        upload_dir.mkdir()
+        (upload_dir / "file-c.txt").write_text("new", encoding="utf-8")
+
+        class FakeClient:
+            async def upload_directory(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                folder_path: str,
+                create_version_if_missing: bool,
+            ) -> dict[str, object]:
+                raise UploadPreflightError(conflicts=["file-c.txt", "file-d.txt"])
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "43", "-v", "v7"])
+
+        assert result.exit_code == 1
+        assert "Error" in result.stdout
+        assert "No files were uploaded" in result.stdout
+        assert "file-c.txt" in result.stdout
+        assert "file-d.txt" in result.stdout
 
 
 def test_resource_download_uses_registered_repository_and_version(monkeypatch, tmp_path: Path) -> None:

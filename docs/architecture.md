@@ -115,9 +115,9 @@ Typical upload flow:
 
 1. A CLI resource command calls the SDK client.
 2. The SDK resolves repository and version context.
-3. The CLI checks whether the repository already has a reusable artifact at the same path with the same checksum and size.
-4. If a reusable artifact exists, the backend attaches it directly to the target version and no storage upload occurs.
-5. Otherwise the backend creates or resumes an upload session.
+3. The CLI preflights the full folder against the target version before any mutation.
+4. Same-version exact matches are classified as unchanged, same-version path conflicts abort the whole upload, and reusable repository artifacts from other versions are staged for attach.
+5. If preflight succeeds, reusable artifacts are attached directly to the target version and only the remaining files enter upload-session handling.
 6. The CLI uploads missing file parts sequentially and can resume by skipping already-recorded parts.
 7. Upload parts are recorded and finalized through the storage adapter.
 8. Artifact metadata with a required storage object version ID is attached to the target version.

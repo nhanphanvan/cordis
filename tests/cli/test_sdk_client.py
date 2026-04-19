@@ -6,7 +6,7 @@ import httpx
 
 from cordis.constants import DEFAULT_TRANSFER_CHUNK_SIZE
 from cordis.sdk import CordisClient
-from cordis.sdk.errors import ApiError, TransportError
+from cordis.sdk.errors import ApiError, TransportError, UploadPreflightError
 
 
 class FakeHttpxService:
@@ -17,6 +17,16 @@ class FakeHttpxService:
     async def request(self, method: str, path: str, **kwargs: object) -> httpx.Response:
         self.calls.append((method, path, kwargs))
         return self.response
+
+
+async def fake_list_version_artifacts(
+    self,
+    *,
+    repository_id: int,
+    version_name: str,
+) -> list[dict[str, object]]:
+    _ = self, repository_id, version_name
+    return []
 
 
 def test_login_uses_httpx_transport_and_authorization_headers() -> None:
@@ -255,6 +265,7 @@ def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_p
         return {}
 
     monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
     monkeypatch.setattr(CordisClient, "request", fake_request)
     monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
 
@@ -266,7 +277,7 @@ def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_p
         )
     )
 
-    assert result == {"uploaded": ["keep.txt"], "reused": []}
+    assert result == {"uploaded": ["keep.txt"], "reused": [], "unchanged": []}
     assert requests[0] == (
         "POST",
         "/api/v1/resources/check",
@@ -316,6 +327,7 @@ def test_upload_directory_splits_large_file_into_multiple_parts(monkeypatch, tmp
         return {}
 
     monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
     monkeypatch.setattr(CordisClient, "request", fake_request)
     monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
 
@@ -327,7 +339,7 @@ def test_upload_directory_splits_large_file_into_multiple_parts(monkeypatch, tmp
         )
     )
 
-    assert result == {"uploaded": ["large.bin"], "reused": []}
+    assert result == {"uploaded": ["large.bin"], "reused": [], "unchanged": []}
     assert requests[0][1] == "/api/v1/resources/check"
     assert requests[2:4] == [
         (
@@ -375,6 +387,7 @@ def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatc
         return {}
 
     monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
     monkeypatch.setattr(CordisClient, "request", fake_request)
     monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
 
@@ -386,7 +399,7 @@ def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatc
         )
     )
 
-    assert result == {"uploaded": ["resume.bin"], "reused": []}
+    assert result == {"uploaded": ["resume.bin"], "reused": [], "unchanged": []}
     assert requests[0][1] == "/api/v1/resources/check"
     assert requests[2:3] == [
         (
@@ -429,6 +442,7 @@ def test_upload_directory_reuses_matching_repository_artifact_without_upload(mon
         raise AssertionError(f"unexpected request: {method} {path}")
 
     monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
     monkeypatch.setattr(CordisClient, "request", fake_request)
 
     result = asyncio.run(
@@ -439,7 +453,7 @@ def test_upload_directory_reuses_matching_repository_artifact_without_upload(mon
         )
     )
 
-    assert result == {"uploaded": [], "reused": ["keep.txt"]}
+    assert result == {"uploaded": [], "reused": ["keep.txt"], "unchanged": []}
     assert requests == [
         (
             "POST",
@@ -457,3 +471,176 @@ def test_upload_directory_reuses_matching_repository_artifact_without_upload(mon
             {"artifact_id": "artifact-1"},
         ),
     ]
+
+
+def test_upload_directory_aborts_before_mutation_when_preflight_finds_conflict(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    (root / "c.txt").write_text("updated-c", encoding="utf-8")
+    (root / "d.txt").write_text("new-d", encoding="utf-8")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        assert repository_id == 7
+        assert name == "v1"
+        return {"id": "version-1", "name": "v1"}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        return [{"path": "c.txt", "checksum": "sha256:old-c", "size": 5}]
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/resources/check":
+            assert payload == {
+                "version_id": "version-1",
+                "path": "d.txt",
+                "checksum": "sha256:3e80321e7d0454d79644f2b10cf718dffcaf1a69bc8621a19ad0f63e31eb5d93",
+                "size": 5,
+            }
+            return {"status": "missing", "artifact_id": None}
+        raise AssertionError(f"unexpected request: {method} {path}")
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+
+    try:
+        asyncio.run(client.upload_directory(repository_id=7, version_name="v1", folder_path=str(root)))
+    except UploadPreflightError as exc:
+        assert exc.conflicts == ["c.txt"]
+        assert "No files were uploaded" in exc.user_message
+    else:
+        raise AssertionError("expected UploadPreflightError")
+
+    assert requests == [
+        (
+            "POST",
+            "/api/v1/resources/check",
+            {
+                "version_id": "version-1",
+                "path": "d.txt",
+                "checksum": "sha256:3e80321e7d0454d79644f2b10cf718dffcaf1a69bc8621a19ad0f63e31eb5d93",
+                "size": 5,
+            },
+        )
+    ]
+
+
+def test_upload_directory_reports_unchanged_files_and_uploads_new_files(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    (root / "keep.txt").write_text("keep", encoding="utf-8")
+    (root / "new.txt").write_text("new", encoding="utf-8")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        return {"id": "version-1", "name": name}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "path": "keep.txt",
+                "checksum": "sha256:6ca7ea2feefc88ecb5ed6356ed963f47dc9137f82526fdd25d618ea626d0803f",
+                "size": 4,
+            }
+        ]
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/resources/check":
+            return {"status": "missing", "artifact_id": None}
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1", "parts": []}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(client.upload_directory(repository_id=7, version_name="v1", folder_path=str(root)))
+
+    assert result == {"uploaded": ["new.txt"], "reused": [], "unchanged": ["keep.txt"]}
+    assert requests[0] == (
+        "POST",
+        "/api/v1/resources/check",
+        {
+                "version_id": "version-1",
+                "path": "new.txt",
+                "checksum": "sha256:11507a0e2f5e69d5dfa40a62a1bd7b6ee57e6bcd85c67c9b8431b36fff21c437",
+                "size": 3,
+            },
+        )
+
+
+def test_upload_directory_reports_all_preflight_conflicts(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    (root / "a.txt").write_text("new-a", encoding="utf-8")
+    (root / "b.txt").write_text("new-b", encoding="utf-8")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        return {"id": "version-1", "name": name}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        return [
+            {"path": "a.txt", "checksum": "sha256:old-a", "size": 5},
+            {"path": "b.txt", "checksum": "sha256:old-b", "size": 5},
+        ]
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        raise AssertionError(f"preflight should fail before request mutation checks: {method} {path}")
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+
+    try:
+        asyncio.run(client.upload_directory(repository_id=7, version_name="v1", folder_path=str(root)))
+    except UploadPreflightError as exc:
+        assert exc.conflicts == ["a.txt", "b.txt"]
+        assert "a.txt" in exc.user_message
+        assert "b.txt" in exc.user_message
+    else:
+        raise AssertionError("expected UploadPreflightError")

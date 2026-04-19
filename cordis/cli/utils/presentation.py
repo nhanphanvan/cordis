@@ -15,7 +15,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from cordis.cli.errors import CordisCliError
+from cordis.sdk.errors import CordisError
 
 
 def _get_console() -> Console:
@@ -34,7 +34,7 @@ def print_success(message: str) -> None:
     _get_console().print(Panel.fit(message, title="Success", box=box.ASCII))
 
 
-def print_error(error: CordisCliError) -> None:
+def print_error(error: CordisError) -> None:
     message = error.user_message
     if error.status_line:
         message = f"{message}\n\n{error.status_line}"

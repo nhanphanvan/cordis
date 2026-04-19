@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from cordis.cli.utils.files import copy_from_cache, iter_file_chunks, iter_files, save_to_cache, sha256_file
-from cordis.sdk.errors import ApiError, TransportError
+from cordis.sdk.errors import ApiError, TransportError, UploadPreflightError
 
 if TYPE_CHECKING:
     from cordis.sdk.client import CordisClient
@@ -37,9 +37,27 @@ class TransferHelper:
         root = Path(folder_path)
         uploaded: list[str] = []
         reused: list[str] = []
-        for file_path, relative_path in iter_files(root):
+        unchanged: list[str] = []
+        upload_candidates: list[tuple[Path, str, str, int]] = []
+        reuse_candidates: list[tuple[str, str]] = []
+        conflicts: list[str] = []
+
+        existing_artifacts = await self.client.list_version_artifacts(
+            repository_id=repository_id,
+            version_name=version_name,
+        )
+        existing_by_path = {str(artifact["path"]): artifact for artifact in existing_artifacts}
+
+        for file_path, relative_path in sorted(iter_files(root), key=lambda item: item[1]):
             checksum = sha256_file(file_path)
             size = file_path.stat().st_size
+            existing = existing_by_path.get(relative_path)
+            if existing is not None:
+                if str(existing["checksum"]) == checksum and int(existing["size"]) == size:
+                    unchanged.append(relative_path)
+                else:
+                    conflicts.append(relative_path)
+                continue
             resource = await self.client.check_resource(
                 version_id=str(version["id"]),
                 path=relative_path,
@@ -47,12 +65,21 @@ class TransferHelper:
                 size=size,
             )
             if resource.get("status") == "exists" and resource.get("artifact_id") is not None:
-                await self.client.attach_artifact(
-                    version_id=str(version["id"]),
-                    artifact_id=str(resource["artifact_id"]),
-                )
-                reused.append(relative_path)
+                reuse_candidates.append((relative_path, str(resource["artifact_id"])))
                 continue
+            upload_candidates.append((file_path, relative_path, checksum, size))
+
+        if conflicts:
+            raise UploadPreflightError(conflicts=sorted(conflicts))
+
+        for relative_path, artifact_id in reuse_candidates:
+            await self.client.attach_artifact(
+                version_id=str(version["id"]),
+                artifact_id=artifact_id,
+            )
+            reused.append(relative_path)
+
+        for file_path, relative_path, checksum, size in upload_candidates:
             session = await self.client.request(
                 method="POST",
                 path="/api/v1/uploads/sessions",
@@ -74,7 +101,7 @@ class TransferHelper:
             await self.client.request(method="POST", path=f"/api/v1/uploads/sessions/{session['id']}/complete")
             save_to_cache(str(repository_id), checksum, file_path)
             uploaded.append(relative_path)
-        return {"uploaded": uploaded, "reused": reused}
+        return {"uploaded": uploaded, "reused": reused, "unchanged": unchanged}
 
     async def download_version(self, *, repository_id: int, version_name: str, save_dir: str) -> dict[str, Any]:
         artifacts = await self.client.list_version_artifacts(repository_id=repository_id, version_name=version_name)
