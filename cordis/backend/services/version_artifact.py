@@ -24,6 +24,11 @@ class VersionArtifactService:
         associations = await self.uow.version_artifacts.list_for_version(version.id)
         return [association.artifact for association in associations]
 
+    async def clear_for_version(self, *, version: Version) -> int:
+        deleted = await self.uow.version_artifacts.delete_for_version(version.id)
+        await self.uow.commit()
+        return deleted
+
     async def check_resource(
         self,
         *,

@@ -296,7 +296,7 @@ Special cases:
 
 ## Download Workflow
 
-Cordis download is version-oriented and cache-aware. The CLI tries to avoid remote network transfer when a matching local cached object already exists.
+Cordis download is version-oriented and cache-aware. The CLI tries to avoid unnecessary work in this order: matching destination file first, then local cache reuse, then remote network transfer.
 
 ### Operator entrypoints
 
@@ -314,15 +314,17 @@ The deeper end-to-end workflow described below applies to `cordis resource downl
 For `cordis resource download --path <folder> ...`, the CLI does this:
 
 1. resolve repository and version from flags or workspace config
-2. call `list_version_artifacts(...)`
-3. for each returned artifact:
+2. if `--force` is enabled, remove the destination root first
+3. call `list_version_artifacts(...)`
+4. for each returned artifact:
    - compute the target destination under the requested folder
-   - attempt cache reuse by `(repository_id, checksum)`
+   - if the destination file already exists and exactly matches the artifact checksum, skip all further work for that artifact
+   - otherwise attempt cache reuse by `(repository_id, checksum)`
    - if cached, copy the file locally and continue
    - if not cached, request a mediated download URL from the backend
    - stream the remote object to disk through `HttpxService.stream_download(...)`
    - save the completed local file back into the cache
-4. return the list of downloaded relative paths
+5. return the list of downloaded relative paths
 
 ### Artifact listing
 
@@ -341,11 +343,24 @@ That requires successful version resolution and download authorization. The resp
 The CLI uses:
 
 - `path` to determine local destination
-- `checksum` to look up the local cache
+- `checksum` to look up the local cache and validate any existing destination file
+
+### Destination-file match behavior
+
+Before touching the cache or requesting a mediated URL, the CLI checks whether the destination file already exists and matches the artifact checksum.
+
+If the destination already matches:
+
+- the file is left in place
+- no cache copy occurs
+- no remote download occurs
+- no progress bar is shown
+
+This optimization is path-local and independent of the global cache.
 
 ### Cache behavior
 
-Cache reuse happens before any remote download request.
+Cache reuse happens only after the destination-file match check has failed.
 
 The cache key is derived from:
 
@@ -361,6 +376,16 @@ If a cached object exists:
 If the cache misses:
 
 - the CLI falls through to the remote download flow
+
+### `--force` destination cleanup
+
+`cordis resource download --force` wipes the destination root before listing artifacts:
+
+- if the destination exists as a directory, it is removed recursively
+- if the destination exists as a file, it is deleted
+- the destination root is then recreated as a clean directory
+
+This makes `--force` a destructive refresh mode for local download output.
 
 ### Mediated download URL creation
 
@@ -470,28 +495,32 @@ The backend response still includes the URL and expiry metadata, so this command
 
 1. Operator runs `cordis resource upload`.
 2. CLI resolves repository/version context.
-3. CLI walks the local folder with `.cordisignore` filtering.
-4. CLI computes checksum and size for each file.
-5. CLI preflights the full folder against the target version and repository reuse surface.
-6. If any same-version conflict exists, the command stops and no files are uploaded or attached.
-7. Otherwise reusable artifacts are attached and the remaining files enter upload-session handling.
-8. Backend validates the upload request and creates or resumes an upload session.
-9. CLI uploads part content to the session.
-10. Backend records uploaded parts and finalizes multipart state.
-11. Backend validates checksum and storage version metadata.
-12. Backend creates or reuses the repository artifact and attaches it to the version.
-13. CLI saves the local file into the cache.
+3. If `--force` is set, the CLI clears the target version contents by deleting only `version_artifact` associations.
+4. CLI walks the local folder with `.cordisignore` filtering.
+5. CLI computes checksum and size for each file.
+6. CLI preflights the full folder against the target version and repository reuse surface.
+7. If any same-version conflict exists, the command stops and no files are uploaded or attached.
+8. Otherwise reusable artifacts are attached and the remaining files enter upload-session handling.
+9. Backend validates the upload request and creates or resumes an upload session.
+10. CLI uploads part content to the session.
+11. Backend records uploaded parts and finalizes multipart state.
+12. Backend validates checksum and storage version metadata.
+13. Backend creates or reuses the repository artifact and attaches it to the version.
+14. CLI saves the local file into the cache.
 
 ### Download sequence
 
 1. Operator runs `cordis resource download`.
-2. CLI lists version artifacts.
-3. CLI checks the local cache for each checksum.
-4. Cache hits are copied locally and finish immediately.
-5. Cache misses ask the backend for mediated download URLs.
-6. CLI streams remote content through the shared HTTP transport.
-7. Transport retries or resumes if the remote stream is interrupted.
-8. CLI stores the finished file in the cache.
+2. If `--force` is set, the CLI wipes the destination root first.
+3. CLI lists version artifacts.
+4. CLI checks whether each destination file already matches the artifact checksum.
+5. Matching destination files are left in place and finish immediately.
+6. Remaining artifacts check the local cache by checksum.
+7. Cache hits are copied locally and finish immediately.
+8. Cache misses ask the backend for mediated download URLs.
+9. CLI streams remote content through the shared HTTP transport.
+10. Transport retries or resumes if the remote stream is interrupted.
+11. CLI stores the finished file in the cache.
 
 ## Operational Invariants
 
@@ -500,9 +529,11 @@ The following rules are important to preserve when changing transfer code:
 - `.cordisignore` is the only upload ignore file in the current design
 - same-version path conflicts abort the full CLI upload before mutation
 - exact same-content paths already in the target version are treated as unchanged, not errors
+- `resource upload --force` clears only version associations, not shared artifact rows
 - upload-session state is the backend source of truth for multipart ingest
 - completed artifacts require `storage_version_id`
-- version download is cache-aware and checksum-based
+- version download checks destination-file checksum first, then cache, then remote transfer
+- `resource download --force` wipes the destination root before download begins
 - remote artifact downloads stream through `cordis.sdk.httpx_service.HttpxService`, not ad-hoc network helpers in the transfer layer
 - the CLI should keep human-friendly output and typed error behavior around transfer failures
 - the backend storage adapter must preserve provider object version IDs so completed artifacts keep durable storage lineage

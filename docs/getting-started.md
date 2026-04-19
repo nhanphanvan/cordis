@@ -58,6 +58,8 @@ The CLI entrypoint is `cordis`, with command groups for users, repositories, ver
 If the upload folder contains files you do not want to send, add a `.cordisignore` file there. Cordis uses Gitignore-style matching rules for upload exclusion.
 If you upload a later version where a file is unchanged at the same repository path, Cordis can now reuse the existing artifact and skip the storage upload for that file.
 If you upload to the same target version and one path already exists there with different content, Cordis rejects the whole folder before starting any upload or attach operations.
+If you use `cordis resource upload --force`, Cordis clears the target version contents first by removing version-to-artifact associations, then uploads the folder as the new version contents.
+If you use `cordis resource download --force`, Cordis wipes the target directory before downloading. Without `--force`, it keeps unrelated files in place and can skip work entirely when a destination file already matches the artifact checksum.
 
 ## Important Local Paths
 

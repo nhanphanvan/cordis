@@ -93,6 +93,7 @@ Core routes:
 - `POST /artifacts`
 - `GET /artifacts/{artifact_id}`
 - `POST /versions/{version_id}/artifacts`
+- `DELETE /versions/{version_id}/artifacts`
 - `GET /versions/{version_id}/artifacts`
 - `GET /versions/{version_id}/artifacts/by-path?path=<path>`
 
@@ -101,6 +102,7 @@ Resource existence checks are exposed through:
 - `POST /resources/check`
 
 This allows the backend to answer whether a proposed file already matches content registered in the target version, or whether an existing repository artifact at the same path can be reused for the target version without uploading again.
+`DELETE /versions/{version_id}/artifacts` clears the target version contents by deleting only version-to-artifact associations. It does not delete artifact records themselves and is used by `resource upload --force`.
 
 Artifact creation requires `storage_version_id`. Cordis treats that as the durable reference to the exact stored object version behind the artifact metadata.
 
@@ -118,7 +120,7 @@ Core routes:
 
 Upload sessions track the target version, path, checksum, size, upload state, and uploaded parts. Finalization creates or resolves artifact metadata and associates it to the target version. Completion also requires the storage backend to return a real object version ID; if that metadata is missing, finalization fails and the session is marked failed.
 
-Before creating an upload session, the CLI may call `POST /resources/check` and, when the backend finds a repository-scoped artifact at the same path with identical checksum and size, attach that artifact directly to the target version through `POST /versions/{version_id}/artifacts` instead of uploading the file again.
+Before creating an upload session, the CLI may call `POST /resources/check` and, when the backend finds a repository-scoped artifact at the same path with identical checksum and size, attach that artifact directly to the target version through `POST /versions/{version_id}/artifacts` instead of uploading the file again. When the operator uses `resource upload --force`, the CLI first calls `DELETE /versions/{version_id}/artifacts` so upload starts from an empty version.
 
 Read [Transfer Workflows](./transfer-workflows.md) for the detailed upload sequence from CLI file discovery through backend session completion.
 
@@ -132,7 +134,7 @@ Core routes:
 - `GET /versions/{version_id}/artifacts/by-path?path=<path>`
 - `POST /versions/{version_id}/artifacts/{artifact_id}/download`
 
-The backend returns a mediated download URL plus expiry metadata, so the client does not need direct knowledge of storage-provider internals.
+The backend returns a mediated download URL plus expiry metadata, so the client does not need direct knowledge of storage-provider internals. The CLI only requests that URL when neither the destination file nor the local cache already satisfies the artifact.
 
 Read [Transfer Workflows](./transfer-workflows.md) for the detailed download sequence, including cache reuse, mediated download URL creation, and CLI-side streamed download behavior.
 

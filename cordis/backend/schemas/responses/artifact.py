@@ -29,3 +29,7 @@ class ArtifactDownloadResponse(BaseModel):
     artifact_id: UUID
     download_url: str
     expires_in: int
+
+
+class VersionArtifactClearResponse(BaseModel):
+    deleted: int

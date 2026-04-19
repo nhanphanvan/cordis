@@ -40,6 +40,7 @@ Backend tests focus on:
 - auth and authorization rules
 - repository, version, tag, and artifact workflows
 - repository-scoped artifact reuse checks and upload attach behavior for unchanged files
+- version-content clearing for forced uploads without deleting shared artifacts
 - upload and download behavior
 - storage boundary behavior
 - admin and management routes
@@ -50,7 +51,7 @@ CLI tests focus on:
 - config-driven defaults
 - repository registration behavior
 - tag/version/repository workflows
-- resource upload and download command behavior, including reuse-vs-upload decisions
+- resource upload and download command behavior, including force modes and destination-match skip decisions
 
 ## When Adding Features
 

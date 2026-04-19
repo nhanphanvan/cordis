@@ -42,6 +42,7 @@ def list_resources(
 @handle_cli_errors
 def download_resources(
     path: str = typer.Option(..., "--path", "-p"),
+    force: bool = typer.Option(False, "--force"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
     version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
@@ -50,6 +51,7 @@ def download_resources(
             repository_id=get_registered_repo_id(repo_id),
             version_name=get_registered_version(version_name),
             save_dir=path,
+            force=force,
         )
     )
     print_path_summary("Downloaded", [str(item) for item in result["downloaded"]])
@@ -60,6 +62,7 @@ def download_resources(
 def upload_resources(
     path: str = typer.Option(..., "--path", "-p"),
     create_version: bool = typer.Option(False, "--create-version"),
+    force: bool = typer.Option(False, "--force"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
     version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
@@ -69,6 +72,7 @@ def upload_resources(
             version_name=get_registered_version(version_name),
             folder_path=path,
             create_version_if_missing=create_version,
+            force=force,
         )
     )
     print_path_summary("Uploaded", [str(item) for item in result["uploaded"]])

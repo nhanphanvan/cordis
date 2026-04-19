@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -24,6 +25,7 @@ class TransferHelper:
         version_name: str,
         folder_path: str,
         create_version_if_missing: bool = False,
+        force: bool = False,
     ) -> dict[str, Any]:
         try:
             version = await self.client.get_version(repository_id=repository_id, name=version_name)
@@ -33,6 +35,9 @@ class TransferHelper:
             if not create_version_if_missing:
                 raise
             version = await self.client.create_version(repository_id=repository_id, name=version_name)
+
+        if force:
+            await self.client.clear_version_artifacts(version_id=str(version["id"]))
 
         root = Path(folder_path)
         uploaded: list[str] = []
@@ -103,14 +108,33 @@ class TransferHelper:
             uploaded.append(relative_path)
         return {"uploaded": uploaded, "reused": reused, "unchanged": unchanged}
 
-    async def download_version(self, *, repository_id: int, version_name: str, save_dir: str) -> dict[str, Any]:
+    async def download_version(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        save_dir: str,
+        force: bool = False,
+    ) -> dict[str, Any]:
         artifacts = await self.client.list_version_artifacts(repository_id=repository_id, version_name=version_name)
         save_root = Path(save_dir)
+        if force:
+            if save_root.exists():
+                if save_root.is_dir():
+                    shutil.rmtree(save_root)
+                else:
+                    save_root.unlink()
+            save_root.mkdir(parents=True, exist_ok=True)
         downloaded: list[str] = []
         for artifact in artifacts:
             artifact_path = str(artifact["path"])
             checksum = str(artifact["checksum"])
+            size = int(artifact["size"])
             destination = save_root / artifact_path
+            if destination.exists() and destination.is_file() and destination.stat().st_size == size:
+                if sha256_file(destination) == checksum:
+                    downloaded.append(artifact_path)
+                    continue
             if copy_from_cache(str(repository_id), checksum, destination):
                 downloaded.append(artifact_path)
                 continue

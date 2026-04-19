@@ -128,10 +128,12 @@ Read [Transfer Workflows](./transfer-workflows.md) for the full upload sequence,
 Typical download flow:
 
 1. The CLI lists version artifacts.
-2. Cached content is reused when possible.
-3. Missing content is resolved through a backend download endpoint.
-4. The backend returns a mediated download URL.
-5. The CLI streams the file locally through the shared HTTP transport with retry, resume, and progress support.
-6. The CLI stores the completed file in cache.
+2. If `--force` is set, the CLI wipes the destination root first.
+3. Existing destination files that already match the artifact checksum are treated as satisfied and skipped.
+4. Cached content is reused when possible for the remaining artifacts.
+5. Missing content is resolved through a backend download endpoint.
+6. The backend returns a mediated download URL.
+7. The CLI streams the file locally through the shared HTTP transport with retry, resume, and progress support.
+8. The CLI stores the completed file in cache.
 
 Read [Transfer Workflows](./transfer-workflows.md) for the full download sequence and the distinction between cache hits, mediated download URLs, and streamed remote transfers.

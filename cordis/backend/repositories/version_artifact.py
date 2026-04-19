@@ -1,6 +1,8 @@
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -36,3 +38,10 @@ class VersionArtifactRepository(BaseRepository[VersionArtifact]):
             .options(selectinload(VersionArtifact.artifact))
         )
         return list(result.scalars().all())
+
+    async def delete_for_version(self, version_id: UUID) -> int:
+        result = cast(
+            CursorResult[Any],
+            await self.session.execute(delete(VersionArtifact).where(VersionArtifact.version_id == version_id)),
+        )
+        return int(result.rowcount or 0)

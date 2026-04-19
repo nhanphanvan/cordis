@@ -98,6 +98,9 @@ class CordisClient:
     async def attach_artifact(self, *, version_id: str, artifact_id: str) -> dict[str, Any]:
         return await self.versions.attach_artifact(version_id=version_id, artifact_id=artifact_id)
 
+    async def clear_version_artifacts(self, *, version_id: str) -> dict[str, Any]:
+        return await self.versions.clear_version_artifacts(version_id=version_id)
+
     async def delete_version(self, *, repository_id: int, name: str) -> None:
         await self.versions.delete_version(repository_id=repository_id, name=name)
 
@@ -138,19 +141,29 @@ class CordisClient:
         version_name: str,
         folder_path: str,
         create_version_if_missing: bool = False,
+        force: bool = False,
     ) -> dict[str, Any]:
         return await self.transfers.upload_directory(
             repository_id=repository_id,
             version_name=version_name,
             folder_path=folder_path,
             create_version_if_missing=create_version_if_missing,
+            force=force,
         )
 
-    async def download_version(self, *, repository_id: int, version_name: str, save_dir: str) -> dict[str, Any]:
+    async def download_version(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        save_dir: str,
+        force: bool = False,
+    ) -> dict[str, Any]:
         return await self.transfers.download_version(
             repository_id=repository_id,
             version_name=version_name,
             save_dir=save_dir,
+            force=force,
         )
 
     async def request(self, *, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:

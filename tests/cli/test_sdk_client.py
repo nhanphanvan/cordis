@@ -237,6 +237,140 @@ def test_download_version_uses_transport_stream_download_for_remote_file(
     assert destination.read_bytes() == b"payload"
 
 
+def test_download_version_skips_all_work_when_destination_already_matches_artifact(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    destination = tmp_path / "downloads" / "models" / "file.bin"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text("payload", encoding="utf-8")
+
+    async def fake_list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        return [
+            {
+                "path": "models/file.bin",
+                "checksum": "sha256:239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5",
+                "size": 7,
+            }
+        ]
+
+    async def fake_download_item(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        path: str,
+        save_path: str,
+    ) -> dict[str, object]:
+        raise AssertionError(f"download_item should not be called for matching destination: {path} -> {save_path}")
+
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "download_item", fake_download_item)
+    monkeypatch.setattr(
+        "cordis.sdk.transfers.copy_from_cache",
+        lambda repo_id, checksum, target: (_ for _ in ()).throw(AssertionError("cache copy should not be called")),
+    )
+
+    result = asyncio.run(
+        client.download_version(repository_id=7, version_name="v1", save_dir=str(tmp_path / "downloads"))
+    )
+
+    assert result == {"downloaded": ["models/file.bin"]}
+    assert destination.read_text(encoding="utf-8") == "payload"
+
+
+def test_download_version_force_wipes_destination_before_downloading(monkeypatch, tmp_path: Path) -> None:
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    streamed: list[tuple[str, Path]] = []
+    destination_root = tmp_path / "downloads"
+    stale_file = destination_root / "stale.txt"
+    stale_file.parent.mkdir(parents=True, exist_ok=True)
+    stale_file.write_text("stale", encoding="utf-8")
+
+    class FakeTransport:
+        def stream_download(self, *, path: str, save_path: Path, show_progress: bool = False) -> None:
+            assert show_progress is True
+            streamed.append((path, save_path))
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_text("payload", encoding="utf-8")
+
+    async def fake_list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
+        return [{"path": "models/file.bin", "checksum": "sha256:file", "size": 7}]
+
+    async def fake_download_item(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        path: str,
+        save_path: str,
+    ) -> dict[str, object]:
+        return {"download_url": "https://example.com/download/file.bin"}
+
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "download_item", fake_download_item)
+    monkeypatch.setattr("cordis.sdk.transfers.copy_from_cache", lambda repo_id, checksum, destination: False)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+    client.transport = FakeTransport()  # type: ignore[assignment]
+
+    result = asyncio.run(
+        client.download_version(repository_id=7, version_name="v1", save_dir=str(destination_root), force=True)
+    )
+
+    assert result == {"downloaded": ["models/file.bin"]}
+    assert not stale_file.exists()
+    assert streamed == [("https://example.com/download/file.bin", destination_root / "models" / "file.bin")]
+
+
+def test_upload_directory_force_clears_version_before_preflight(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    (root / "file.txt").write_text("hello", encoding="utf-8")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        return {"id": "version-1", "name": name}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        return []
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/versions/version-1/artifacts" and method == "DELETE":
+            return {"deleted": 2}
+        if path == "/api/v1/resources/check":
+            return {"status": "missing", "artifact_id": None}
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1", "parts": []}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(client.upload_directory(repository_id=7, version_name="v1", folder_path=str(root), force=True))
+
+    assert result == {"uploaded": ["file.txt"], "reused": [], "unchanged": []}
+    assert requests[0] == ("DELETE", "/api/v1/versions/version-1/artifacts", None)
+
+
 def test_upload_directory_skips_files_ignored_by_cordisignore(monkeypatch, tmp_path: Path) -> None:
     root = tmp_path / "payloads"
     root.mkdir()
@@ -593,12 +727,12 @@ def test_upload_directory_reports_unchanged_files_and_uploads_new_files(monkeypa
         "POST",
         "/api/v1/resources/check",
         {
-                "version_id": "version-1",
-                "path": "new.txt",
-                "checksum": "sha256:11507a0e2f5e69d5dfa40a62a1bd7b6ee57e6bcd85c67c9b8431b36fff21c437",
-                "size": 3,
-            },
-        )
+            "version_id": "version-1",
+            "path": "new.txt",
+            "checksum": "sha256:11507a0e2f5e69d5dfa40a62a1bd7b6ee57e6bcd85c67c9b8431b36fff21c437",
+            "size": 3,
+        },
+    )
 
 
 def test_upload_directory_reports_all_preflight_conflicts(monkeypatch, tmp_path: Path) -> None:

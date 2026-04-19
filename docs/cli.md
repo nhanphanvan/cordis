@@ -73,17 +73,18 @@ Running `cordis version` without a subcommand prints the CLI package version.
 ## Resource Commands
 
 - `cordis resource ls [--repo-id <id>] [--version <name>]`
-- `cordis resource upload --path <folder> [--create-version] [--repo-id <id>] [--version <name>]`
-- `cordis resource download --path <folder> [--repo-id <id>] [--version <name>]`
+- `cordis resource upload --path <folder> [--create-version] [--force] [--repo-id <id>] [--version <name>]`
+- `cordis resource download --path <folder> [--force] [--repo-id <id>] [--version <name>]`
 - `cordis resource download-item --path <artifact-path> --save-path <local-path> [--repo-id <id>] [--version <name>]`
 
 Resource commands use the registered repository and version when explicit values are not provided.
 `cordis resource upload` reads `.cordisignore` from the upload root and skips matching files using Gitignore-style rules.
 `cordis resource upload` now preflights the entire folder before mutating anything in the target version.
 During preflight, files already present in the target version with identical content are treated as `Unchanged`, files reusable from other versions are staged for direct attach, and any target-version path conflict with different metadata aborts the whole upload before later files are attached or uploaded.
+`cordis resource upload --force` clears the target version contents first by deleting only `version_artifact` associations, then runs the normal upload flow against the empty version.
 When preflight succeeds, uploads are session-based and use sequential resumable multipart transfer with a shared `8 MiB` chunk size.
 When artifact responses include `public_url`, `cordis resource ls` shows that raw provider-native URL in the default table output.
-Remote version downloads stream through the shared SDK HTTP transport with retry, resume, and Rich progress behavior, while cached file copies stay local and quiet. `cordis resource download-item` still resolves and prints the mediated URL only.
+Remote version downloads first check whether the destination file already exists and exactly matches the artifact checksum. Matching destination files are left in place and skipped entirely. For the remaining artifacts, cached file copies stay local and quiet, and cache misses stream through the shared SDK HTTP transport with retry, resume, and Rich progress behavior. `cordis resource download --force` wipes the destination root before downloading. `cordis resource download-item` still resolves and prints the mediated URL only.
 Read [Transfer Workflows](./transfer-workflows.md) for the full end-to-end upload and download sequence, including cache behavior, upload sessions, and mediated download URLs.
 
 ## Common Workflows
@@ -114,8 +115,10 @@ cordis tag create --name stable -v v2 -id 7
 
 ```bash
 cordis resource upload -p ./payloads --create-version
+cordis resource upload -p ./payloads --force -id 7 -v v2
 cordis resource ls -id 7 -v v2
 cordis resource download -p ./downloads -id 7 -v v2
+cordis resource download -p ./downloads --force -id 7 -v v2
 cordis resource download-item -p models/file.bin --save-path ./downloads/file.bin -id 7 -v v2
 ```
 
@@ -136,10 +139,12 @@ Cordis always skips `.cordis/` metadata and `.cordisignore` itself during upload
 For a deeper explanation of:
 
 - how `resource upload` preflights a folder and aborts atomically on conflicts
+- how `resource upload --force` clears version contents before upload
 - how `resource upload` creates or resumes upload sessions after preflight succeeds
 - how multipart upload chunks are skipped on resume
 - how completion creates artifacts and attaches them to versions
-- how `resource download` reuses cache and then streams through the shared HTTP transport
+- how `resource download` skips exact destination matches, reuses cache, and then streams through the shared HTTP transport
+- how `resource download --force` wipes the destination root first
 - how `resource download-item` differs from full file download
 
 read [Transfer Workflows](./transfer-workflows.md).
@@ -152,7 +157,10 @@ read [Transfer Workflows](./transfer-workflows.md).
 - transfer helpers reuse cached file content when checksums match
 - upload traversal honors `.cordisignore` using Gitignore-style matching rules
 - upload preflight is atomic at the CLI workflow level: conflicting same-version paths abort the whole folder before mutation
+- `resource upload --force` clears the target version contents before upload by removing only version associations
 - uploads use sequential resumable multipart transfer with a shared `8 MiB` chunk size
+- `resource download` skips work when the destination file already matches the artifact checksum
+- `resource download --force` wipes the destination root before downloading
 - remote version downloads stream through the shared HTTP transport with retry, resume, and Rich progress
 - `resource download-item` still prints the mediated URL rather than streaming the file
 

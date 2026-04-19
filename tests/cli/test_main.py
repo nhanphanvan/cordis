@@ -606,11 +606,13 @@ def test_resource_upload_uses_registered_repository_and_version(monkeypatch, tmp
                 version_name: str,
                 folder_path: str,
                 create_version_if_missing: bool,
+                force: bool = False,
             ) -> dict[str, object]:
                 assert repository_id == 41
                 assert version_name == "v5"
                 assert folder_path == "payloads"
                 assert create_version_if_missing is False
+                assert force is False
                 return {"uploaded": ["file.txt"]}
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
@@ -642,11 +644,13 @@ def test_resource_upload_can_create_missing_version(monkeypatch, tmp_path: Path)
                 version_name: str,
                 folder_path: str,
                 create_version_if_missing: bool,
+                force: bool = False,
             ) -> dict[str, object]:
                 assert repository_id == 43
                 assert version_name == "v7"
                 assert folder_path == "payloads"
                 assert create_version_if_missing is True
+                assert force is False
                 return {"uploaded": ["file.txt"]}
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
@@ -682,11 +686,13 @@ def test_resource_upload_renders_uploaded_and_reused_paths(monkeypatch, tmp_path
                 version_name: str,
                 folder_path: str,
                 create_version_if_missing: bool,
+                force: bool = False,
             ) -> dict[str, object]:
                 assert repository_id == 43
                 assert version_name == "v7"
                 assert folder_path == "payloads"
                 assert create_version_if_missing is False
+                assert force is False
                 return {"uploaded": ["file-b.txt"], "reused": ["file-a.txt"]}
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
@@ -722,11 +728,13 @@ def test_resource_upload_renders_uploaded_reused_and_unchanged_paths(monkeypatch
                 version_name: str,
                 folder_path: str,
                 create_version_if_missing: bool,
+                force: bool = False,
             ) -> dict[str, object]:
                 assert repository_id == 43
                 assert version_name == "v7"
                 assert folder_path == "payloads"
                 assert create_version_if_missing is False
+                assert force is False
                 return {"uploaded": ["file-b.txt"], "reused": ["file-a.txt"], "unchanged": ["file-c.txt"]}
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
@@ -762,6 +770,7 @@ def test_resource_upload_renders_preflight_failure(monkeypatch, tmp_path: Path) 
                 version_name: str,
                 folder_path: str,
                 create_version_if_missing: bool,
+                force: bool = False,
             ) -> dict[str, object]:
                 raise UploadPreflightError(conflicts=["file-c.txt", "file-d.txt"])
 
@@ -792,20 +801,91 @@ def test_resource_download_uses_registered_repository_and_version(monkeypatch, t
                 repository_id: int,
                 version_name: str,
                 save_dir: str,
+                force: bool = False,
             ) -> dict[str, object]:
                 assert repository_id == 42
                 assert version_name == "v6"
                 assert save_dir == "downloads"
+                assert force is False
                 return {"downloaded": ["models/a.bin", "README.md"]}
 
         monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
 
         result = runner.invoke(app, ["resource", "download", "-p", "downloads", "-id", "42", "-v", "v6"])
 
+    assert result.exit_code == 0
+    assert "Downloaded" in result.stdout
+    assert "models/a.bin" in result.stdout
+    assert "README.md" in result.stdout
+
+
+def test_resource_upload_force_passes_force_flag(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 44, "version": "v8"}), encoding="utf-8")
+        upload_dir = Path("payloads")
+        upload_dir.mkdir()
+        (upload_dir / "file.txt").write_text("hello", encoding="utf-8")
+
+        class FakeClient:
+            async def upload_directory(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                folder_path: str,
+                create_version_if_missing: bool,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert repository_id == 44
+                assert version_name == "v8"
+                assert folder_path == "payloads"
+                assert create_version_if_missing is False
+                assert force is True
+                return {"uploaded": ["file.txt"], "reused": [], "unchanged": []}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "44", "-v", "v8", "--force"])
+
+        assert result.exit_code == 0
+        assert "Uploaded" in result.stdout
+
+
+def test_resource_download_force_passes_force_flag(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 45, "version": "v9"}), encoding="utf-8")
+
+        class FakeClient:
+            async def download_version(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                save_dir: str,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert repository_id == 45
+                assert version_name == "v9"
+                assert save_dir == "downloads"
+                assert force is True
+                return {"downloaded": ["models/a.bin"]}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["resource", "download", "-p", "downloads", "-id", "45", "-v", "v9", "--force"])
+
         assert result.exit_code == 0
         assert "Downloaded" in result.stdout
-        assert "models/a.bin" in result.stdout
-        assert "README.md" in result.stdout
 
 
 def test_login_command_awaits_async_client_call(monkeypatch, tmp_path: Path) -> None:
