@@ -18,6 +18,37 @@ class TransferHelper:
     def __init__(self, client: CordisClient) -> None:
         self.client = client
 
+    async def _upload_file(
+        self,
+        *,
+        repository_id: int,
+        version_id: str,
+        file_path: Path,
+        target_path: str,
+    ) -> None:
+        checksum = sha256_file(file_path)
+        size = file_path.stat().st_size
+        session = await self.client.request(
+            method="POST",
+            path="/api/v1/uploads/sessions",
+            payload={"version_id": version_id, "path": target_path, "checksum": checksum, "size": size},
+        )
+        uploaded_parts = {
+            int(part["part_number"])
+            for part in session.get("parts", [])
+            if isinstance(part, dict) and "part_number" in part
+        }
+        for part_number, chunk in iter_file_chunks(file_path):
+            if part_number in uploaded_parts:
+                continue
+            await self.client.request(
+                method="POST",
+                path=f"/api/v1/uploads/sessions/{session['id']}/parts",
+                payload={"part_number": part_number, "content_base64": base64.b64encode(chunk).decode("ascii")},
+            )
+        await self.client.request(method="POST", path=f"/api/v1/uploads/sessions/{session['id']}/complete")
+        save_to_cache(str(repository_id), checksum, file_path)
+
     async def upload_directory(
         self,
         *,
@@ -43,7 +74,7 @@ class TransferHelper:
         uploaded: list[str] = []
         reused: list[str] = []
         unchanged: list[str] = []
-        upload_candidates: list[tuple[Path, str, str, int]] = []
+        upload_candidates: list[tuple[Path, str]] = []
         reuse_candidates: list[tuple[str, str]] = []
         conflicts: list[str] = []
 
@@ -72,7 +103,7 @@ class TransferHelper:
             if resource.get("status") == "exists" and resource.get("artifact_id") is not None:
                 reuse_candidates.append((relative_path, str(resource["artifact_id"])))
                 continue
-            upload_candidates.append((file_path, relative_path, checksum, size))
+            upload_candidates.append((file_path, relative_path))
 
         if conflicts:
             raise UploadPreflightError(conflicts=sorted(conflicts))
@@ -84,29 +115,82 @@ class TransferHelper:
             )
             reused.append(relative_path)
 
-        for file_path, relative_path, checksum, size in upload_candidates:
-            session = await self.client.request(
-                method="POST",
-                path="/api/v1/uploads/sessions",
-                payload={"version_id": version["id"], "path": relative_path, "checksum": checksum, "size": size},
+        for file_path, relative_path in upload_candidates:
+            await self._upload_file(
+                repository_id=repository_id,
+                version_id=str(version["id"]),
+                file_path=file_path,
+                target_path=relative_path,
             )
-            uploaded_parts = {
-                int(part["part_number"])
-                for part in session.get("parts", [])
-                if isinstance(part, dict) and "part_number" in part
-            }
-            for part_number, chunk in iter_file_chunks(file_path):
-                if part_number in uploaded_parts:
-                    continue
-                await self.client.request(
-                    method="POST",
-                    path=f"/api/v1/uploads/sessions/{session['id']}/parts",
-                    payload={"part_number": part_number, "content_base64": base64.b64encode(chunk).decode("ascii")},
-                )
-            await self.client.request(method="POST", path=f"/api/v1/uploads/sessions/{session['id']}/complete")
-            save_to_cache(str(repository_id), checksum, file_path)
             uploaded.append(relative_path)
         return {"uploaded": uploaded, "reused": reused, "unchanged": unchanged}
+
+    async def upload_item(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        source_path: str,
+        target_path: str,
+        create_version_if_missing: bool = False,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        try:
+            version = await self.client.get_version(repository_id=repository_id, name=version_name)
+        except ApiError as error:
+            if error.http_status != 404 and error.app_status_code != 1400:
+                raise
+            if not create_version_if_missing:
+                raise
+            version = await self.client.create_version(repository_id=repository_id, name=version_name)
+
+        file_path = Path(source_path)
+        if not file_path.is_file():
+            raise FileNotFoundError(f"Upload source file not found: {source_path}")
+
+        normalized_target_path = target_path.strip("/")
+        checksum = sha256_file(file_path)
+        size = file_path.stat().st_size
+        if force:
+            try:
+                await self.client.request(
+                    method="DELETE",
+                    path=f"/api/v1/versions/{version['id']}/artifacts/by-path",
+                    payload={"path": normalized_target_path},
+                )
+            except ApiError as error:
+                if error.http_status != 404 and error.app_status_code != 1600:
+                    raise
+
+        existing_artifacts = await self.client.list_version_artifacts(
+            repository_id=repository_id,
+            version_name=version_name,
+        )
+        existing = next(
+            (artifact for artifact in existing_artifacts if str(artifact["path"]) == normalized_target_path), None
+        )
+        if existing is not None and str(existing["checksum"]) == checksum and int(existing["size"]) == size:
+            return {"uploaded": [], "reused": [], "unchanged": [normalized_target_path]}
+        if existing is not None:
+            raise UploadPreflightError(conflicts=[normalized_target_path])
+
+        resource = await self.client.check_resource(
+            version_id=str(version["id"]),
+            path=normalized_target_path,
+            checksum=checksum,
+            size=size,
+        )
+        if resource.get("status") == "exists" and resource.get("artifact_id") is not None:
+            await self.client.attach_artifact(version_id=str(version["id"]), artifact_id=str(resource["artifact_id"]))
+            return {"uploaded": [], "reused": [normalized_target_path], "unchanged": []}
+
+        await self._upload_file(
+            repository_id=repository_id,
+            version_id=str(version["id"]),
+            file_path=file_path,
+            target_path=normalized_target_path,
+        )
+        return {"uploaded": [normalized_target_path], "reused": [], "unchanged": []}
 
     async def download_version(
         self,

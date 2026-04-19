@@ -722,7 +722,10 @@ def test_storage_factory_builds_aws_s3_adapter_for_real_s3(monkeypatch: pytest.M
     ]
 
 
-def test_storage_factory_requires_minio_connection_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_storage_factory_requires_minio_connection_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CORDIS_STORAGE_PROVIDER", "minio")
     monkeypatch.delenv("CORDIS_STORAGE_ENDPOINT", raising=False)
     monkeypatch.delenv("CORDIS_STORAGE_ACCESS_KEY", raising=False)

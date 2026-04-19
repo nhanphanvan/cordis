@@ -15,6 +15,10 @@ class VersionArtifactCreateRequest(BaseModel):
     artifact_id: UUID
 
 
+class VersionArtifactPathClearRequest(BaseModel):
+    path: str
+
+
 class ResourceCheckRequest(BaseModel):
     version_id: UUID
     path: str

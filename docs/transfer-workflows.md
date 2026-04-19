@@ -19,7 +19,7 @@ That split is why the transfer flow is more than a single HTTP request.
 ### CLI side
 
 - `cordis.cli.commands.resource`
-  Runs the operator-facing `resource upload`, `resource download`, and `resource download-item` commands.
+  Runs the operator-facing `resource upload`, `resource upload-item`, `resource download`, and `resource download-item` commands.
 - `cordis.sdk.transfers.TransferHelper`
   Orchestrates upload and download workflows after command input has been resolved.
 - `cordis.cli.transfer.files`
@@ -69,6 +69,12 @@ The main operator command is:
 cordis resource upload --path <folder> [--create-version] [--repo-id <id>] [--version <name>]
 ```
 
+Cordis also supports a single-file variant:
+
+```bash
+cordis resource upload-item --source-path <local-file> --target-path <artifact-path> [--create-version] [--repo-id <id>] [--version <name>]
+```
+
 The command resolves repository and version context first:
 
 - `--repo-id` and `--version` can be provided explicitly
@@ -106,6 +112,25 @@ Preflight classification rules:
 - otherwise the file is marked for normal upload-session handling
 
 If any file is classified as a conflict, the CLI aborts the whole command before attaching reusable artifacts or creating upload sessions. This makes `resource upload` atomic at the CLI workflow level for same-version path conflicts.
+
+### Single-file upload behavior
+
+`resource upload-item` skips folder traversal and `.cordisignore` handling. Instead it:
+
+- resolves one local source file from `--source-path`
+- treats `--target-path` as the explicit repository path to mutate
+- reports `Unchanged` when that exact target version path already has the same checksum and size
+- reuses a repository-scoped artifact at the same repository path when checksum and size match
+- otherwise creates or resumes an upload session for that one file
+
+Unlike folder upload, this command is not atomic across multiple paths because it only operates on one target path.
+
+### Force behavior differences
+
+The two upload commands intentionally use different `--force` scopes:
+
+- `resource upload --force` clears the entire target version by deleting all `version_artifact` associations first
+- `resource upload-item --force` removes only the existing association at `--target-path` before running the single-file flow
 
 ### Upload request sequence
 
@@ -489,6 +514,23 @@ It does not currently:
 
 The backend response still includes the URL and expiry metadata, so this command is effectively a URL-resolution helper at the moment.
 
+## `upload-item` Workflow
+
+`cordis resource upload-item` is the single-file counterpart to `resource upload`.
+
+Current behavior:
+
+- the CLI resolves repository and version context
+- it validates that `--source-path` points to one local file
+- it uses `--target-path` as the explicit repository path
+- if `--force` is enabled, it deletes only that target version path association first
+- it checks for exact same-content match in the target version and reports `Unchanged` when found
+- it asks the backend whether an existing repository artifact at that same repository path can be reused
+- if reuse is possible, it attaches the artifact directly
+- otherwise it creates or resumes an upload session and streams the file in sequential multipart chunks
+
+This means `upload-item` shares the same resumable multipart backend contract as folder upload, but without folder-wide preflight semantics.
+
 ## End-to-End Sequence Summaries
 
 ### Upload sequence
@@ -507,6 +549,20 @@ The backend response still includes the URL and expiry metadata, so this command
 12. Backend validates checksum and storage version metadata.
 13. Backend creates or reuses the repository artifact and attaches it to the version.
 14. CLI saves the local file into the cache.
+
+### Upload-item sequence
+
+1. Operator runs `cordis resource upload-item`.
+2. CLI resolves repository/version context.
+3. If `--force` is set, the CLI deletes only the target version association for `--target-path`.
+4. CLI computes checksum and size for the one local source file.
+5. If the target version already contains the same path with the same checksum and size, the command reports `Unchanged`.
+6. Otherwise the CLI asks `POST /resources/check` whether a reusable repository artifact already exists at that repository path.
+7. If reusable, the artifact is attached directly to the target version.
+8. Otherwise the CLI creates or resumes an upload session for that one path.
+9. CLI uploads missing parts sequentially and completes the session.
+10. Backend finalizes multipart state, creates or resolves artifact metadata, and attaches it to the version.
+11. CLI saves the local file into the cache.
 
 ### Download sequence
 
@@ -530,6 +586,7 @@ The following rules are important to preserve when changing transfer code:
 - same-version path conflicts abort the full CLI upload before mutation
 - exact same-content paths already in the target version are treated as unchanged, not errors
 - `resource upload --force` clears only version associations, not shared artifact rows
+- `resource upload-item --force` clears only the requested target path association, not the full version
 - upload-session state is the backend source of truth for multipart ingest
 - completed artifacts require `storage_version_id`
 - version download checks destination-file checksum first, then cache, then remote transfer

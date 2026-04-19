@@ -151,6 +151,25 @@ class CordisClient:
             force=force,
         )
 
+    async def upload_item(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        source_path: str,
+        target_path: str,
+        create_version_if_missing: bool = False,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        return await self.transfers.upload_item(
+            repository_id=repository_id,
+            version_name=version_name,
+            source_path=source_path,
+            target_path=target_path,
+            create_version_if_missing=create_version_if_missing,
+            force=force,
+        )
+
     async def download_version(
         self,
         *,

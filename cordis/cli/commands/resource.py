@@ -82,6 +82,33 @@ def upload_resources(
         print_path_summary("Unchanged", [str(item) for item in result["unchanged"]])
 
 
+@app.command("upload-item")
+@handle_cli_errors
+def upload_item(
+    source_path: str = typer.Option(..., "--source-path", "-p"),
+    target_path: str = typer.Option(..., "--target-path"),
+    create_version: bool = typer.Option(False, "--create-version"),
+    force: bool = typer.Option(False, "--force"),
+    repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
+    version_name: str | None = typer.Option(None, "--version", "-v"),
+) -> None:
+    result = run_async(
+        get_client().upload_item(
+            repository_id=get_registered_repo_id(repo_id),
+            version_name=get_registered_version(version_name),
+            source_path=source_path,
+            target_path=target_path,
+            create_version_if_missing=create_version,
+            force=force,
+        )
+    )
+    print_path_summary("Uploaded", [str(item) for item in result["uploaded"]])
+    if result.get("reused"):
+        print_path_summary("Reused", [str(item) for item in result["reused"]])
+    if result.get("unchanged"):
+        print_path_summary("Unchanged", [str(item) for item in result["unchanged"]])
+
+
 @app.command("download-item")
 @handle_cli_errors
 def download_item(

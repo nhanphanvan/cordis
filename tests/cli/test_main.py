@@ -306,6 +306,181 @@ def test_resource_download_item_uses_registered_repository_and_version(monkeypat
         assert "download.invalid/file" in result.stdout
 
 
+def test_resource_upload_item_uses_registered_repository_and_version(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 9, "version": "v2"}), encoding="utf-8")
+        Path("artifact.bin").write_bytes(b"payload")
+
+        class FakeClient:
+            async def upload_item(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                source_path: str,
+                target_path: str,
+                create_version_if_missing: bool,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert repository_id == 9
+                assert version_name == "v2"
+                assert source_path == "artifact.bin"
+                assert target_path == "models/file.bin"
+                assert create_version_if_missing is False
+                assert force is False
+                return {"uploaded": ["models/file.bin"], "reused": [], "unchanged": []}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(
+            app,
+            [
+                "resource",
+                "upload-item",
+                "--source-path",
+                "artifact.bin",
+                "--target-path",
+                "models/file.bin",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Uploaded" in result.stdout
+        assert "models/file.bin" in result.stdout
+
+
+def test_resource_upload_item_renders_reused_and_unchanged_paths(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 9, "version": "v2"}), encoding="utf-8")
+        Path("artifact.bin").write_bytes(b"payload")
+
+        class ReusedClient:
+            async def upload_item(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                source_path: str,
+                target_path: str,
+                create_version_if_missing: bool,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert source_path == "artifact.bin"
+                assert target_path == "models/file.bin"
+                assert create_version_if_missing is False
+                assert force is False
+                return {"uploaded": [], "reused": ["models/file.bin"], "unchanged": []}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: ReusedClient())
+
+        reused_result = runner.invoke(
+            app,
+            [
+                "resource",
+                "upload-item",
+                "--source-path",
+                "artifact.bin",
+                "--target-path",
+                "models/file.bin",
+            ],
+        )
+
+        assert reused_result.exit_code == 0
+        assert "Reused" in reused_result.stdout
+        assert "models/file.bin" in reused_result.stdout
+
+        class UnchangedClient:
+            async def upload_item(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                source_path: str,
+                target_path: str,
+                create_version_if_missing: bool,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert source_path == "artifact.bin"
+                assert target_path == "models/file.bin"
+                return {"uploaded": [], "reused": [], "unchanged": ["models/file.bin"]}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: UnchangedClient())
+
+        unchanged_result = runner.invoke(
+            app,
+            [
+                "resource",
+                "upload-item",
+                "--source-path",
+                "artifact.bin",
+                "--target-path",
+                "models/file.bin",
+            ],
+        )
+
+        assert unchanged_result.exit_code == 0
+        assert "Unchanged" in unchanged_result.stdout
+        assert "models/file.bin" in unchanged_result.stdout
+
+
+def test_resource_upload_item_force_passes_force_flag(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 44, "version": "v8"}), encoding="utf-8")
+        Path("artifact.bin").write_bytes(b"payload")
+
+        class FakeClient:
+            async def upload_item(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                source_path: str,
+                target_path: str,
+                create_version_if_missing: bool,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert repository_id == 44
+                assert version_name == "v8"
+                assert source_path == "artifact.bin"
+                assert target_path == "models/file.bin"
+                assert create_version_if_missing is False
+                assert force is True
+                return {"uploaded": ["models/file.bin"], "reused": [], "unchanged": []}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(
+            app,
+            [
+                "resource",
+                "upload-item",
+                "--source-path",
+                "artifact.bin",
+                "--target-path",
+                "models/file.bin",
+                "--force",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Uploaded" in result.stdout
+
+
 def test_repository_versions_and_users_use_registered_repository(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
     runner = CliRunner()

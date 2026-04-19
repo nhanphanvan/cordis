@@ -12,7 +12,7 @@ from cordis.backend.exceptions import AppStatus
 from cordis.backend.models import User
 from cordis.backend.policies import DownloadPolicy, VersionPolicy, authorize
 from cordis.backend.repositories.unit_of_work import UnitOfWork
-from cordis.backend.schemas.requests.artifact import VersionArtifactCreateRequest
+from cordis.backend.schemas.requests.artifact import VersionArtifactCreateRequest, VersionArtifactPathClearRequest
 from cordis.backend.schemas.requests.version import VersionCreateRequest
 from cordis.backend.schemas.responses.artifact import (
     ArtifactDownloadResponse,
@@ -246,6 +246,27 @@ async def clear_version_artifacts(
     )
     await authorize(current_user, VersionPolicy.delete, access)
     deleted = await VersionArtifactService(uow).clear_for_version(version=version)
+    return VersionArtifactClearResponse(deleted=deleted)
+
+
+@router.delete("/{version_id}/artifacts/by-path", response_model=VersionArtifactClearResponse)
+async def clear_version_artifact_by_path(
+    version_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    request: VersionArtifactPathClearRequest | None = None,
+    path: Annotated[str | None, Query()] = None,
+) -> VersionArtifactClearResponse:
+    version = await VersionReadValidator.validate(uow=uow, version_id=version_id)
+    access = await RepositoryAccessValidator.validate(
+        uow=uow,
+        repository_id=version.repository_id,
+        current_user=current_user,
+    )
+    await authorize(current_user, VersionPolicy.delete, access)
+    normalized_path = path if path is not None else request.path if request is not None else ""
+    await VersionArtifactPathReadValidator.validate(uow=uow, version=version, path=normalized_path)
+    deleted = await VersionArtifactService(uow).clear_for_path(version=version, path=normalized_path)
     return VersionArtifactClearResponse(deleted=deleted)
 
 

@@ -74,6 +74,7 @@ Running `cordis version` without a subcommand prints the CLI package version.
 
 - `cordis resource ls [--repo-id <id>] [--version <name>]`
 - `cordis resource upload --path <folder> [--create-version] [--force] [--repo-id <id>] [--version <name>]`
+- `cordis resource upload-item --source-path <local-file> --target-path <artifact-path> [--create-version] [--force] [--repo-id <id>] [--version <name>]`
 - `cordis resource download --path <folder> [--force] [--repo-id <id>] [--version <name>]`
 - `cordis resource download-item --path <artifact-path> --save-path <local-path> [--repo-id <id>] [--version <name>]`
 
@@ -82,6 +83,8 @@ Resource commands use the registered repository and version when explicit values
 `cordis resource upload` now preflights the entire folder before mutating anything in the target version.
 During preflight, files already present in the target version with identical content are treated as `Unchanged`, files reusable from other versions are staged for direct attach, and any target-version path conflict with different metadata aborts the whole upload before later files are attached or uploaded.
 `cordis resource upload --force` clears the target version contents first by deleting only `version_artifact` associations, then runs the normal upload flow against the empty version.
+`cordis resource upload-item` uploads one local file to one explicit repository artifact path. It reports `Unchanged` for exact same-content matches already present in the target version, reuses an existing repository artifact at the same repository path when checksum and size match, and otherwise falls through to the normal upload-session flow.
+`cordis resource upload-item --force` is path-scoped: it removes only the target version association for `--target-path` before running the single-file upload logic.
 When preflight succeeds, uploads are session-based and use sequential resumable multipart transfer with a shared `8 MiB` chunk size.
 When artifact responses include `public_url`, `cordis resource ls` shows that raw provider-native URL in the default table output.
 Remote version downloads first check whether the destination file already exists and exactly matches the artifact checksum. Matching destination files are left in place and skipped entirely. For the remaining artifacts, cached file copies stay local and quiet, and cache misses stream through the shared SDK HTTP transport with retry, resume, and Rich progress behavior. `cordis resource download --force` wipes the destination root before downloading. `cordis resource download-item` still resolves and prints the mediated URL only.
@@ -116,6 +119,8 @@ cordis tag create --name stable -v v2 -id 7
 ```bash
 cordis resource upload -p ./payloads --create-version
 cordis resource upload -p ./payloads --force -id 7 -v v2
+cordis resource upload-item --source-path ./dist/model.bin --target-path models/model.bin -id 7 -v v2
+cordis resource upload-item --source-path ./dist/model.bin --target-path models/model.bin --force -id 7 -v v2
 cordis resource ls -id 7 -v v2
 cordis resource download -p ./downloads -id 7 -v v2
 cordis resource download -p ./downloads --force -id 7 -v v2
@@ -140,6 +145,7 @@ For a deeper explanation of:
 
 - how `resource upload` preflights a folder and aborts atomically on conflicts
 - how `resource upload --force` clears version contents before upload
+- how `resource upload-item` differs from folder upload and reuses the same session pipeline
 - how `resource upload` creates or resumes upload sessions after preflight succeeds
 - how multipart upload chunks are skipped on resume
 - how completion creates artifacts and attaches them to versions
@@ -158,6 +164,7 @@ read [Transfer Workflows](./transfer-workflows.md).
 - upload traversal honors `.cordisignore` using Gitignore-style matching rules
 - upload preflight is atomic at the CLI workflow level: conflicting same-version paths abort the whole folder before mutation
 - `resource upload --force` clears the target version contents before upload by removing only version associations
+- `resource upload-item --force` replaces only the target version path rather than clearing the full version
 - uploads use sequential resumable multipart transfer with a shared `8 MiB` chunk size
 - `resource download` skips work when the destination file already matches the artifact checksum
 - `resource download --force` wipes the destination root before downloading

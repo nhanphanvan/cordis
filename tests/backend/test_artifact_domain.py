@@ -349,6 +349,103 @@ def test_developer_can_clear_version_artifacts_without_deleting_shared_artifact(
     assert artifact_get_response.json()["id"] == artifact_id
 
 
+def test_developer_can_clear_single_version_artifact_path_without_deleting_shared_artifact(
+    monkeypatch, tmp_path: Path
+) -> None:
+    db_path = tmp_path / "cordis-version-artifact-clear-path.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
+    repository_id = asyncio.run(_create_repository(name="repo-version-clear-path"))
+    asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "developer@example.com", "password123")
+    version_1_id = _create_version(client, headers, repository_id, "v1")
+    version_2_id = _create_version(client, headers, repository_id, "v2")
+    artifact_response = client.post(
+        "/api/v1/artifacts",
+        json={
+            "repository_id": repository_id,
+            "path": "models/model.bin",
+            "checksum": "sha256:same",
+            "size": 256,
+            "storage_version_id": "object-v1",
+        },
+        headers=headers,
+    )
+    artifact_id = artifact_response.json()["id"]
+    client.post(
+        f"/api/v1/versions/{version_1_id}/artifacts",
+        json={"artifact_id": artifact_id},
+        headers=headers,
+    )
+    client.post(
+        f"/api/v1/versions/{version_2_id}/artifacts",
+        json={"artifact_id": artifact_id},
+        headers=headers,
+    )
+
+    clear_response = client.delete(
+        f"/api/v1/versions/{version_1_id}/artifacts/by-path",
+        params={"path": "models/model.bin"},
+        headers=headers,
+    )
+    version_1_list_response = client.get(f"/api/v1/versions/{version_1_id}/artifacts", headers=headers)
+    version_2_list_response = client.get(f"/api/v1/versions/{version_2_id}/artifacts", headers=headers)
+    artifact_get_response = client.get(f"/api/v1/artifacts/{artifact_id}", headers=headers)
+
+    assert clear_response.status_code == 200
+    assert clear_response.json() == {"deleted": 1}
+    assert version_1_list_response.status_code == 200
+    assert version_1_list_response.json() == {"items": []}
+    assert version_2_list_response.status_code == 200
+    assert version_2_list_response.json()["items"] == [
+        {
+            "id": artifact_id,
+            "repository_id": repository_id,
+            "path": "models/model.bin",
+            "name": "model.bin",
+            "checksum": "sha256:same",
+            "size": 256,
+            "storage_version_id": "object-v1",
+            "public_url": None,
+        }
+    ]
+    assert artifact_get_response.status_code == 200
+    assert artifact_get_response.json()["id"] == artifact_id
+
+
+def test_developer_cannot_clear_missing_version_artifact_path(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-version-artifact-clear-path-missing.db"
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    build_config.cache_clear()
+    get_engine.cache_clear()
+    get_session_factory.cache_clear()
+    asyncio.run(_reset_database())
+    asyncio.run(_seed_roles())
+    developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
+    repository_id = asyncio.run(_create_repository(name="repo-version-clear-path-missing"))
+    asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
+
+    client = TestClient(create_app())
+    headers = _auth_header(client, "developer@example.com", "password123")
+    version_id = _create_version(client, headers, repository_id, "v1")
+
+    clear_response = client.delete(
+        f"/api/v1/versions/{version_id}/artifacts/by-path",
+        params={"path": "models/missing.bin"},
+        headers=headers,
+    )
+
+    assert clear_response.status_code == 404
+    assert clear_response.json()["detail"] == "Artifact not found in version"
+
+
 def test_artifact_response_includes_public_url_and_reused_artifact_keeps_same_url(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "cordis-artifact-public-url.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")

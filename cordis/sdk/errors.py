@@ -35,7 +35,7 @@ class UploadPreflightError(CordisError):
     def __init__(self, *, conflicts: list[str]) -> None:
         conflict_lines = "\n".join(conflicts)
         super().__init__(
-            user_message=(f"Upload preflight failed. No files were uploaded.\n\nConflicting paths:\n{conflict_lines}"),
+            user_message=f"Upload preflight failed. No files were uploaded.\n\nConflicting paths:\n{conflict_lines}",
             status_line="UPLOAD PREFLIGHT",
         )
         self.conflicts = conflicts

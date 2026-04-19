@@ -548,6 +548,241 @@ def test_upload_directory_resumes_by_skipping_existing_uploaded_parts(monkeypatc
     assert requests[3] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)
 
 
+def test_upload_item_reuses_existing_repository_artifact_without_multipart_upload(monkeypatch, tmp_path: Path) -> None:
+    source_file = tmp_path / "artifact.bin"
+    source_file.write_bytes(b"payload")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        assert repository_id == 7
+        assert name == "v1"
+        return {"id": "version-1", "name": "v1"}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        return []
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/resources/check":
+            return {"status": "exists", "artifact_id": "artifact-1"}
+        if path == "/api/v1/versions/version-1/artifacts":
+            return {"id": "artifact-1"}
+        raise AssertionError(f"unexpected request: {method} {path}")
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+
+    result = asyncio.run(
+        client.upload_item(
+            repository_id=7,
+            version_name="v1",
+            source_path=str(source_file),
+            target_path="models/file.bin",
+        )
+    )
+
+    assert result == {"uploaded": [], "reused": ["models/file.bin"], "unchanged": []}
+    assert requests == [
+        (
+            "POST",
+            "/api/v1/resources/check",
+            {
+                "version_id": "version-1",
+                "path": "models/file.bin",
+                "checksum": "sha256:239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5",
+                "size": 7,
+            },
+        ),
+        (
+            "POST",
+            "/api/v1/versions/version-1/artifacts",
+            {"artifact_id": "artifact-1"},
+        ),
+    ]
+
+
+def test_upload_item_returns_unchanged_when_target_version_already_has_matching_artifact(
+    monkeypatch, tmp_path: Path
+) -> None:
+    source_file = tmp_path / "artifact.bin"
+    source_file.write_bytes(b"payload")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        return {"id": "version-1", "name": name}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "path": "models/file.bin",
+                "checksum": "sha256:239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5",
+                "size": 7,
+            }
+        ]
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        raise AssertionError(f"request should not be called: {method} {path} {payload}")
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+
+    result = asyncio.run(
+        client.upload_item(
+            repository_id=7,
+            version_name="v1",
+            source_path=str(source_file),
+            target_path="models/file.bin",
+        )
+    )
+
+    assert result == {"uploaded": [], "reused": [], "unchanged": ["models/file.bin"]}
+
+
+def test_upload_item_force_clears_only_target_path_before_upload(monkeypatch, tmp_path: Path) -> None:
+    source_file = tmp_path / "artifact.bin"
+    source_file.write_bytes(b"payload")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        return {"id": "version-1", "name": name}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        return []
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/versions/version-1/artifacts/by-path" and method == "DELETE":
+            return {"deleted": 1}
+        if path == "/api/v1/resources/check":
+            return {"status": "missing", "artifact_id": None}
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1", "parts": []}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(
+        client.upload_item(
+            repository_id=7,
+            version_name="v1",
+            source_path=str(source_file),
+            target_path="models/file.bin",
+            force=True,
+        )
+    )
+
+    assert result == {"uploaded": ["models/file.bin"], "reused": [], "unchanged": []}
+    assert requests[0] == (
+        "DELETE",
+        "/api/v1/versions/version-1/artifacts/by-path",
+        {"path": "models/file.bin"},
+    )
+
+
+def test_upload_item_uploads_source_file_through_resumable_session(monkeypatch, tmp_path: Path) -> None:
+    source_file = tmp_path / "artifact.bin"
+    source_file.write_bytes(b"a" * DEFAULT_TRANSFER_CHUNK_SIZE + b"b" * 3)
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    requests: list[tuple[str, str, dict[str, object] | None]] = []
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        return {"id": "version-1", "name": name}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        return []
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        requests.append((method, path, payload))
+        if path == "/api/v1/resources/check":
+            return {"status": "missing", "artifact_id": None}
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1", "parts": [{"part_number": 1, "etag": "etag-1"}]}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(
+        client.upload_item(
+            repository_id=7,
+            version_name="v1",
+            source_path=str(source_file),
+            target_path="models/file.bin",
+        )
+    )
+
+    assert result == {"uploaded": ["models/file.bin"], "reused": [], "unchanged": []}
+    assert requests[0][1] == "/api/v1/resources/check"
+    assert requests[2] == (
+        "POST",
+        "/api/v1/uploads/sessions/session-1/parts",
+        {
+            "part_number": 2,
+            "content_base64": base64.b64encode(b"b" * 3).decode("ascii"),
+        },
+    )
+    assert requests[3] == ("POST", "/api/v1/uploads/sessions/session-1/complete", None)
+
+
 def test_upload_directory_reuses_matching_repository_artifact_without_upload(monkeypatch, tmp_path: Path) -> None:
     root = tmp_path / "payloads"
     root.mkdir()

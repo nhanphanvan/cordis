@@ -118,7 +118,14 @@ def test_database_config_uses_sqlite_safe_engine_args_for_sqlite_urls() -> None:
     assert database.database_engine_args == {"pool_pre_ping": True}
 
 
-def test_build_config_groups_app_database_and_storage_defaults() -> None:
+def test_build_config_groups_app_database_and_storage_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CORDIS_DB_URL", raising=False)
+    monkeypatch.delenv("CORDIS_STORAGE_PROVIDER", raising=False)
+    monkeypatch.delenv("CORDIS_STORAGE_BUCKET", raising=False)
+    monkeypatch.delenv("CORDIS_STORAGE_ENDPOINT", raising=False)
+    monkeypatch.delenv("CORDIS_STORAGE_ACCESS_KEY", raising=False)
+    monkeypatch.delenv("CORDIS_STORAGE_SECRET_KEY", raising=False)
     build_config.cache_clear()
     config = build_config()
 

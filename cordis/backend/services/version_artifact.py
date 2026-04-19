@@ -29,6 +29,17 @@ class VersionArtifactService:
         await self.uow.commit()
         return deleted
 
+    async def clear_for_path(self, *, version: Version, path: str) -> int:
+        association = await self.uow.version_artifacts.get_for_version_and_path(
+            version_id=version.id,
+            path=path.strip("/"),
+        )
+        if association is None:
+            return 0
+        await self.uow.version_artifacts.delete(association)
+        await self.uow.commit()
+        return 1
+
     async def check_resource(
         self,
         *,
