@@ -2,7 +2,7 @@ import asyncio
 import functools
 import importlib
 from collections.abc import Callable, Coroutine
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar, cast
 
 import typer
 
@@ -44,6 +44,25 @@ def get_registered_version(explicit_version: str | None = None) -> str:
     return str(registered_version)
 
 
+def prompt_required_text(value: str | None, *, prompt: str, hide_input: bool = False) -> str:
+    if value is not None:
+        return value
+    resolved = cast(str, typer.prompt(prompt, hide_input=hide_input)).strip()
+    if not resolved:
+        raise typer.BadParameter(f"{prompt} cannot be empty")
+    return resolved
+
+
+def prompt_choice(value: str | None, *, prompt: str, choices: tuple[str, ...]) -> str:
+    if value is not None:
+        return value
+    resolved = cast(str, typer.prompt(prompt)).strip()
+    if resolved not in choices:
+        allowed = ", ".join(choices)
+        raise typer.BadParameter(f"{prompt} must be one of: {allowed}")
+    return resolved
+
+
 def handle_cli_errors(function: Callable[P, None]) -> Callable[P, None]:
     @functools.wraps(function)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> None:
@@ -64,6 +83,8 @@ __all__ = [
     "print_detail",
     "print_error",
     "print_path_summary",
+    "prompt_choice",
+    "prompt_required_text",
     "print_success",
     "print_table",
     "run_async",

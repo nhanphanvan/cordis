@@ -8,6 +8,7 @@ from cordis.cli.commands.common import (
     print_detail,
     print_path_summary,
     print_table,
+    prompt_required_text,
     run_async,
 )
 
@@ -41,16 +42,17 @@ def list_resources(
 @app.command("download")
 @handle_cli_errors
 def download_resources(
-    path: str = typer.Option(..., "--path", "-p"),
+    path: str | None = typer.Option(None, "--path", "-p"),
     force: bool = typer.Option(False, "--force"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
     version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
+    resolved_path = prompt_required_text(path, prompt="Path")
     result = run_async(
         get_client().download_version(
             repository_id=get_registered_repo_id(repo_id),
             version_name=get_registered_version(version_name),
-            save_dir=path,
+            save_dir=resolved_path,
             force=force,
         )
     )
@@ -60,17 +62,18 @@ def download_resources(
 @app.command("upload")
 @handle_cli_errors
 def upload_resources(
-    path: str = typer.Option(..., "--path", "-p"),
+    path: str | None = typer.Option(None, "--path", "-p"),
     create_version: bool = typer.Option(False, "--create-version"),
     force: bool = typer.Option(False, "--force"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
     version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
+    resolved_path = prompt_required_text(path, prompt="Path")
     result = run_async(
         get_client().upload_directory(
             repository_id=get_registered_repo_id(repo_id),
             version_name=get_registered_version(version_name),
-            folder_path=path,
+            folder_path=resolved_path,
             create_version_if_missing=create_version,
             force=force,
         )
@@ -85,19 +88,21 @@ def upload_resources(
 @app.command("upload-item")
 @handle_cli_errors
 def upload_item(
-    source_path: str = typer.Option(..., "--source-path", "-p"),
-    target_path: str = typer.Option(..., "--target-path"),
+    source_path: str | None = typer.Option(None, "--source-path", "-p"),
+    target_path: str | None = typer.Option(None, "--target-path"),
     create_version: bool = typer.Option(False, "--create-version"),
     force: bool = typer.Option(False, "--force"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
     version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
+    resolved_source_path = prompt_required_text(source_path, prompt="Source path")
+    resolved_target_path = prompt_required_text(target_path, prompt="Target path")
     result = run_async(
         get_client().upload_item(
             repository_id=get_registered_repo_id(repo_id),
             version_name=get_registered_version(version_name),
-            source_path=source_path,
-            target_path=target_path,
+            source_path=resolved_source_path,
+            target_path=resolved_target_path,
             create_version_if_missing=create_version,
             force=force,
         )
@@ -112,17 +117,19 @@ def upload_item(
 @app.command("download-item")
 @handle_cli_errors
 def download_item(
-    path: str = typer.Option(..., "--path", "-p"),
-    save_path: str = typer.Option(..., "--save-path"),
+    path: str | None = typer.Option(None, "--path", "-p"),
+    save_path: str | None = typer.Option(None, "--save-path"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
     version_name: str | None = typer.Option(None, "--version", "-v"),
 ) -> None:
+    resolved_path = prompt_required_text(path, prompt="Path")
+    resolved_save_path = prompt_required_text(save_path, prompt="Save path")
     result = run_async(
         get_client().download_item(
             repository_id=get_registered_repo_id(repo_id),
             version_name=get_registered_version(version_name),
-            path=path,
-            save_path=save_path,
+            path=resolved_path,
+            save_path=resolved_save_path,
         )
     )
     print_detail("Download", {"URL": result["download_url"]})

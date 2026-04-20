@@ -1,6 +1,13 @@
 import typer
 
-from cordis.cli.commands.common import get_client, handle_cli_errors, print_detail, print_table, run_async
+from cordis.cli.commands.common import (
+    get_client,
+    handle_cli_errors,
+    print_detail,
+    print_table,
+    prompt_required_text,
+    run_async,
+)
 
 app = typer.Typer(help="User commands.")
 
@@ -30,6 +37,7 @@ def list_users_command() -> None:
 
 @app.command("info")
 @handle_cli_errors
-def get_user_info(email: str = typer.Option(..., "--email")) -> None:
-    item = run_async(get_client().get_user_by_email(email=email))
+def get_user_info(email: str | None = typer.Option(None, "--email", "-e")) -> None:
+    resolved_email = prompt_required_text(email, prompt="Email")
+    item = run_async(get_client().get_user_by_email(email=resolved_email))
     print_detail("User", {"ID": item["id"], "Email": item["email"], "Admin": item["is_admin"]})

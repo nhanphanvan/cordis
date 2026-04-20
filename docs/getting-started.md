@@ -49,7 +49,7 @@ The CLI entrypoint is `cordis`, with command groups for users, repositories, ver
 
 1. Start the backend with `make run-backend`.
 2. Inspect the CLI with `make run-cli-help`.
-3. Log in with `cordis login --email <email> --password <password>`.
+3. Log in with `cordis login --email <email> --password <password>` or just `cordis login` and enter the values interactively.
 4. Register a working directory with `cordis repository register --repo-id <id> --version <name>`.
 5. Upload local contents with `cordis resource upload --path <folder>`.
 6. Or upload one file to one explicit repository path with `cordis resource upload-item --source-path <local-file> --target-path <artifact-path>`.
@@ -113,4 +113,5 @@ The host-native CLI can target that backend once it is running:
 
 ```bash
 cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <password>
+cordis login --endpoint http://127.0.0.1:8000
 ```

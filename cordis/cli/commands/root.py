@@ -1,7 +1,7 @@
 import typer
 
 from cordis.cli.client import get_client
-from cordis.cli.commands.common import handle_cli_errors, print_success, run_async
+from cordis.cli.commands.common import handle_cli_errors, print_success, prompt_required_text, run_async
 from cordis.cli.commands.repository import app as repository_app
 from cordis.cli.commands.resource import app as resource_app
 from cordis.cli.commands.tag import app as tag_app
@@ -20,16 +20,18 @@ def main() -> None:
 @app.command()
 @handle_cli_errors
 def login(
-    email: str = typer.Option(..., "--email", "-e"),
-    password: str = typer.Option(..., "--password", "-p", hide_input=True),
+    email: str | None = typer.Option(None, "--email", "-e"),
+    password: str | None = typer.Option(None, "--password", "-p", hide_input=True),
     endpoint: str | None = typer.Option(None, "--endpoint"),
 ) -> None:
+    resolved_email = prompt_required_text(email, prompt="Email")
+    resolved_password = prompt_required_text(password, prompt="Password", hide_input=True)
     if endpoint is not None:
         update_config_value(get_global_config_path(), "endpoint", endpoint)
     client = get_client()
-    token = str(run_async(client.login(email=email, password=password)))
+    token = str(run_async(client.login(email=resolved_email, password=resolved_password)))
     update_config_value(get_global_config_path(), "token", token)
-    update_config_value(get_global_config_path(), "email", email)
+    update_config_value(get_global_config_path(), "email", resolved_email)
     print_success("Login successfully")
 
 

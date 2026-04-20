@@ -8,6 +8,7 @@ from cordis.cli.commands.common import (
     handle_cli_errors,
     print_detail,
     print_success,
+    prompt_required_text,
     run_async,
 )
 
@@ -23,28 +24,35 @@ def version_group(ctx: Context) -> None:
 @app.command("get")
 @handle_cli_errors
 def get_version_command(
-    name: str = typer.Option(..., "--name"),
+    name: str | None = typer.Option(None, "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
-    version_item = run_async(get_client().get_version(repository_id=get_registered_repo_id(repo_id), name=name))
+    resolved_name = prompt_required_text(name, prompt="Name")
+    version_item = run_async(
+        get_client().get_version(repository_id=get_registered_repo_id(repo_id), name=resolved_name)
+    )
     print_detail("Version", {"ID": version_item["id"], "Name": version_item["name"]})
 
 
 @app.command("create")
 @handle_cli_errors
 def create_version_command(
-    name: str = typer.Option(..., "--name"),
+    name: str | None = typer.Option(None, "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
-    version_item = run_async(get_client().create_version(repository_id=get_registered_repo_id(repo_id), name=name))
+    resolved_name = prompt_required_text(name, prompt="Name")
+    version_item = run_async(
+        get_client().create_version(repository_id=get_registered_repo_id(repo_id), name=resolved_name)
+    )
     print_detail("Version", {"ID": version_item["id"], "Name": version_item["name"]})
 
 
 @app.command("delete")
 @handle_cli_errors
 def delete_version_command(
-    name: str = typer.Option(..., "--name"),
+    name: str | None = typer.Option(None, "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
-    run_async(get_client().delete_version(repository_id=get_registered_repo_id(repo_id), name=name))
-    print_success(f"Version {name} deleted")
+    resolved_name = prompt_required_text(name, prompt="Name")
+    run_async(get_client().delete_version(repository_id=get_registered_repo_id(repo_id), name=resolved_name))
+    print_success(f"Version {resolved_name} deleted")

@@ -7,6 +7,7 @@ from cordis.cli.commands.common import (
     print_detail,
     print_success,
     print_table,
+    prompt_required_text,
     run_async,
 )
 
@@ -32,25 +33,28 @@ def list_tags(repo_id: int | None = typer.Option(None, "--repo-id", "-id")) -> N
 @app.command("get")
 @handle_cli_errors
 def get_tag(
-    name: str = typer.Option(..., "--name"),
+    name: str | None = typer.Option(None, "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
-    tag_item = run_async(get_client().get_tag(repository_id=get_registered_repo_id(repo_id), name=name))
+    resolved_name = prompt_required_text(name, prompt="Name")
+    tag_item = run_async(get_client().get_tag(repository_id=get_registered_repo_id(repo_id), name=resolved_name))
     print_detail("Tag", {"ID": tag_item["id"], "Name": tag_item["name"], "Version": tag_item["version_name"]})
 
 
 @app.command("create")
 @handle_cli_errors
 def create_tag(
-    name: str = typer.Option(..., "--name"),
-    version_name: str = typer.Option(..., "--version", "-v"),
+    name: str | None = typer.Option(None, "--name"),
+    version_name: str | None = typer.Option(None, "--version", "-v"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
+    resolved_name = prompt_required_text(name, prompt="Name")
+    resolved_version_name = prompt_required_text(version_name, prompt="Version")
     tag_item = run_async(
         get_client().create_tag(
             repository_id=get_registered_repo_id(repo_id),
-            version_name=version_name,
-            name=name,
+            version_name=resolved_version_name,
+            name=resolved_name,
         )
     )
     print_detail("Tag", {"ID": tag_item["id"], "Name": tag_item["name"], "Version": tag_item["version_name"]})
@@ -59,8 +63,9 @@ def create_tag(
 @app.command("delete")
 @handle_cli_errors
 def delete_tag(
-    name: str = typer.Option(..., "--name"),
+    name: str | None = typer.Option(None, "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
-    run_async(get_client().delete_tag(repository_id=get_registered_repo_id(repo_id), name=name))
-    print_success(f"Tag {name} deleted")
+    resolved_name = prompt_required_text(name, prompt="Name")
+    run_async(get_client().delete_tag(repository_id=get_registered_repo_id(repo_id), name=resolved_name))
+    print_success(f"Tag {resolved_name} deleted")

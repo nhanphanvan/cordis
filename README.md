@@ -111,6 +111,8 @@ The CLI remains host-native in this first pass. Point it at the containerized ba
 cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <password>
 ```
 
+You can also run `cordis login` without `--email` or `--password` and enter those values interactively at the prompt.
+
 ## Project Layout
 
 - `cordis/backend/`: FastAPI application, API routers, policies, validators, services, repositories, security, exception handling, and storage integration
@@ -136,6 +138,8 @@ Common CLI areas include:
 - `cordis resource ...`
 
 Common shared short flags include `-p` for `--path`, `-id` for `--repo-id`, and `-v` for `--version`.
+
+Email-based commands also accept `-e` as the short form of `--email`.
 
 The backend and CLI are designed to work together: the backend owns repository and artifact state, while the CLI handles operator-facing workflows such as authentication, workspace registration, uploads, downloads, and local cache management. The CLI now preflights the full upload folder before mutating anything, so if the target version already contains a conflicting path with different content the whole upload is rejected and no later files are attached or transferred. Exact same-content paths already present in the target version are reported as `Unchanged`, while repository-scoped reuse across versions still skips storage upload when possible. `resource upload --force` first clears the target version's `version_artifact` associations without deleting shared artifact metadata. `resource upload-item` uses the same reuse and resumable multipart flow for one local file and one explicit repository target path; `resource upload-item --force` replaces only that target version path rather than clearing the whole version. On download, Cordis first checks whether the destination file already exists and exactly matches the artifact checksum; if so, it skips both cache copy and remote transfer. `resource download --force` wipes the destination root before materializing the version into a clean directory. When transfer is required, the CLI uses sequential resumable multipart uploads with a shared `8 MiB` transfer chunk size, and streams remote artifact downloads through the shared SDK HTTP transport with retry, resume, and Rich progress. The `resource download-item` command still only resolves and prints the mediated URL; it does not yet stream the file itself. The backend storage layer now supports MinIO and real AWS S3, preserves required object versioning so persisted artifacts always carry a `storage_version_id` that resolves the exact underlying object version, and can expose provider-native raw object URLs when a repository enables `allow_public_object_urls` by synchronizing public read access for that repository's storage prefix.
 

@@ -7,6 +7,8 @@ from cordis.cli.commands.common import (
     print_detail,
     print_success,
     print_table,
+    prompt_choice,
+    prompt_required_text,
     run_async,
 )
 from cordis.cli.utils.files import clear_project_registration, get_project_config_path, read_config, update_config_value
@@ -59,14 +61,20 @@ def list_repositories() -> None:
 @app.command("create")
 @handle_cli_errors
 def create_repository(
-    name: str = typer.Option(..., "--name"),
-    visibility: str = typer.Option("private", "--visibility"),
+    name: str | None = typer.Option(None, "--name"),
+    visibility: str | None = typer.Option(None, "--visibility"),
     allow_public_object_urls: bool = typer.Option(False, "--allow-public-object-urls"),
 ) -> None:
+    resolved_name = prompt_required_text(name, prompt="Repository name")
+    resolved_visibility = prompt_choice(
+        visibility,
+        prompt="Visibility",
+        choices=("private", "authenticated"),
+    )
     created = run_async(
         get_client().create_repository(
-            name=name,
-            visibility=visibility,
+            name=resolved_name,
+            visibility=resolved_visibility,
             allow_public_object_urls=allow_public_object_urls,
         )
     )
@@ -127,21 +135,25 @@ def repository_versions(repo_id: int | None = typer.Option(None, "--repo-id", "-
 @app.command("create-version")
 @handle_cli_errors
 def repository_create_version(
-    name: str = typer.Option(..., "--name"),
+    name: str | None = typer.Option(None, "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
-    version_item = run_async(get_client().create_version(repository_id=get_registered_repo_id(repo_id), name=name))
+    resolved_name = prompt_required_text(name, prompt="Name")
+    version_item = run_async(
+        get_client().create_version(repository_id=get_registered_repo_id(repo_id), name=resolved_name)
+    )
     print_detail("Version", {"ID": version_item["id"], "Name": version_item["name"]})
 
 
 @app.command("delete-version")
 @handle_cli_errors
 def repository_delete_version(
-    name: str = typer.Option(..., "--name"),
+    name: str | None = typer.Option(None, "--name"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
-    run_async(get_client().delete_version(repository_id=get_registered_repo_id(repo_id), name=name))
-    print_success(f"Version {name} deleted")
+    resolved_name = prompt_required_text(name, prompt="Name")
+    run_async(get_client().delete_version(repository_id=get_registered_repo_id(repo_id), name=resolved_name))
+    print_success(f"Version {resolved_name} deleted")
 
 
 @app.command("users")
@@ -158,15 +170,17 @@ def repository_users(repo_id: int | None = typer.Option(None, "--repo-id", "-id"
 @app.command("add-user")
 @handle_cli_errors
 def repository_add_user(
-    email: str = typer.Option(..., "--email"),
-    role: str = typer.Option(..., "--role"),
+    email: str | None = typer.Option(None, "--email", "-e"),
+    role: str | None = typer.Option(None, "--role"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
+    resolved_email = prompt_required_text(email, prompt="Email")
+    resolved_role = prompt_required_text(role, prompt="Role")
     item = run_async(
         get_client().add_repository_member(
             repository_id=get_registered_repo_id(repo_id),
-            email=email,
-            role=role,
+            email=resolved_email,
+            role=resolved_role,
         )
     )
     print_detail("Member", {"Email": item["email"], "Role": item["role"]})
@@ -175,15 +189,17 @@ def repository_add_user(
 @app.command("update-user")
 @handle_cli_errors
 def repository_update_user(
-    email: str = typer.Option(..., "--email"),
-    role: str = typer.Option(..., "--role"),
+    email: str | None = typer.Option(None, "--email", "-e"),
+    role: str | None = typer.Option(None, "--role"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
+    resolved_email = prompt_required_text(email, prompt="Email")
+    resolved_role = prompt_required_text(role, prompt="Role")
     item = run_async(
         get_client().update_repository_member(
             repository_id=get_registered_repo_id(repo_id),
-            email=email,
-            role=role,
+            email=resolved_email,
+            role=resolved_role,
         )
     )
     print_detail("Member", {"Email": item["email"], "Role": item["role"]})
@@ -192,13 +208,14 @@ def repository_update_user(
 @app.command("delete-user")
 @handle_cli_errors
 def repository_delete_user(
-    email: str = typer.Option(..., "--email"),
+    email: str | None = typer.Option(None, "--email", "-e"),
     repo_id: int | None = typer.Option(None, "--repo-id", "-id"),
 ) -> None:
+    resolved_email = prompt_required_text(email, prompt="Email")
     item = run_async(
         get_client().delete_repository_member(
             repository_id=get_registered_repo_id(repo_id),
-            email=email,
+            email=resolved_email,
         )
     )
     print_success(f"Member {item['email']} removed")

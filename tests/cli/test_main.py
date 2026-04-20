@@ -1080,3 +1080,218 @@ def test_login_command_awaits_async_client_call(monkeypatch, tmp_path: Path) -> 
     assert result.exit_code == 0
     assert "Login successfully" in result.stdout
     assert calls == [("async@example.com", "secret")]
+
+
+def test_login_prompts_for_missing_email_and_password(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    calls: list[tuple[str, str]] = []
+
+    class FakeClient:
+        async def login(self, *, email: str, password: str) -> str:
+            calls.append((email, password))
+            return "token-prompted"
+
+    monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["login"], input="prompted@example.com\nsecret123\n")
+
+    assert result.exit_code == 0
+    assert "Email" in result.stdout
+    assert "Password" in result.stdout
+    assert "secret123" not in result.stdout
+    assert "Login successfully" in result.stdout
+    assert calls == [("prompted@example.com", "secret123")]
+
+
+def test_repository_create_prompts_for_missing_name_and_visibility(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    calls: list[tuple[str, str, bool]] = []
+
+    class FakeClient:
+        async def create_repository(
+            self,
+            *,
+            name: str,
+            visibility: str,
+            allow_public_object_urls: bool,
+        ) -> dict[str, object]:
+            calls.append((name, visibility, allow_public_object_urls))
+            return {
+                "id": 18,
+                "name": name,
+                "visibility": visibility,
+                "allow_public_object_urls": allow_public_object_urls,
+            }
+
+    monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["repository", "create"], input="repo-prompted\nauthenticated\n")
+
+    assert result.exit_code == 0
+    assert "Repository name" in result.stdout
+    assert "Visibility" in result.stdout
+    assert "repo-prompted" in result.stdout
+    assert calls == [("repo-prompted", "authenticated", False)]
+
+
+def test_user_info_accepts_short_email_flag(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+
+    class FakeClient:
+        async def get_user_by_email(self, *, email: str) -> dict[str, object]:
+            assert email == "short@example.com"
+            return {"id": 9, "email": email, "is_admin": False}
+
+    monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["user", "info", "-e", "short@example.com"])
+
+    assert result.exit_code == 0
+    assert "short@example.com" in result.stdout
+
+
+def test_repository_add_user_accepts_short_email_flag(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 21}), encoding="utf-8")
+
+        class FakeClient:
+            async def add_repository_member(self, *, repository_id: int, email: str, role: str) -> dict[str, object]:
+                assert repository_id == 21
+                assert email == "member@example.com"
+                assert role == "developer"
+                return {"email": email, "role": role}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(
+            app,
+            ["repository", "add-user", "-e", "member@example.com", "--role", "developer"],
+        )
+
+        assert result.exit_code == 0
+        assert "member@example.com" in result.stdout
+
+
+def test_version_create_prompts_for_missing_name(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 14}), encoding="utf-8")
+
+        class FakeClient:
+            async def create_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+                assert repository_id == 14
+                assert name == "v-prompted"
+                return {"id": "version-prompted", "name": name}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["version", "create"], input="v-prompted\n")
+
+        assert result.exit_code == 0
+        assert "Name" in result.stdout
+        assert "version-prompted" in result.stdout
+
+
+def test_tag_create_prompts_for_missing_name_and_version(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 7}), encoding="utf-8")
+
+        class FakeClient:
+            async def create_tag(self, *, repository_id: int, version_name: str, name: str) -> dict[str, object]:
+                assert repository_id == 7
+                assert version_name == "v-prompted"
+                assert name == "stable-prompted"
+                return {"id": "tag-7", "name": name, "version_name": version_name}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["tag", "create"], input="stable-prompted\nv-prompted\n")
+
+        assert result.exit_code == 0
+        assert "Name" in result.stdout
+        assert "Version" in result.stdout
+        assert "stable-prompted" in result.stdout
+
+
+def test_resource_upload_item_prompts_for_missing_paths(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 9, "version": "v2"}), encoding="utf-8")
+        Path("artifact.bin").write_bytes(b"payload")
+
+        class FakeClient:
+            async def upload_item(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                source_path: str,
+                target_path: str,
+                create_version_if_missing: bool,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert repository_id == 9
+                assert version_name == "v2"
+                assert source_path == "artifact.bin"
+                assert target_path == "models/prompted.bin"
+                assert create_version_if_missing is False
+                assert force is False
+                return {"uploaded": ["models/prompted.bin"], "reused": [], "unchanged": []}
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["resource", "upload-item"], input="artifact.bin\nmodels/prompted.bin\n")
+
+        assert result.exit_code == 0
+        assert "Source path" in result.stdout
+        assert "Target path" in result.stdout
+        assert "models/prompted.bin" in result.stdout
+
+
+def test_resource_upload_item_keeps_missing_registration_error(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("artifact.bin").write_bytes(b"payload")
+
+        class FakeClient:
+            async def upload_item(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                source_path: str,
+                target_path: str,
+                create_version_if_missing: bool,
+                force: bool = False,
+            ) -> dict[str, object]:
+                raise AssertionError("should not reach SDK when registration is missing")
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["resource", "upload-item"], input="artifact.bin\nmodels/prompted.bin\n")
+
+        assert result.exit_code == 1
+        assert "Repository is not registered in this directory" in result.stdout
