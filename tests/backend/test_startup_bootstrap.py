@@ -69,9 +69,9 @@ def test_bootstrap_runtime_fails_for_empty_database_without_required_admin_env(
 ) -> None:
     db_path = tmp_path / "cordis-bootstrap-missing-env.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
-    monkeypatch.delenv("CORDIS_BOOTSTRAP_ADMIN_EMAIL", raising=False)
-    monkeypatch.delenv("CORDIS_BOOTSTRAP_ADMIN_PASSWORD", raising=False)
-    monkeypatch.delenv("CORDIS_BOOTSTRAP_ADMIN_NAME", raising=False)
+    monkeypatch.setenv("CORDIS_BOOTSTRAP_ADMIN_EMAIL", "")
+    monkeypatch.setenv("CORDIS_BOOTSTRAP_ADMIN_PASSWORD", "")
+    monkeypatch.setenv("CORDIS_BOOTSTRAP_ADMIN_NAME", "")
     _clear_cached_state()
     asyncio.run(_reset_database())
 

@@ -57,13 +57,13 @@ The database configuration also exposes a computed `database_engine_args` proper
 
 Backend process logging is configured during startup from `CORDIS_LOG_LEVEL`. The backend uses the logging helper under `cordis.backend.utils.logging` for console output and key application workflow logs.
 
-Security settings are loaded from the same backend config layer. `cordis.backend.settings.setup()` initializes the security core during process startup, and access tokens are signed JWTs configured by:
+Security settings are loaded from the same backend config layer. `cordis.backend.settings.setup()` initializes logging and the security core before the server starts accepting requests, and access tokens are signed JWTs configured by:
 
 - `CORDIS_SECRET_KEY`
 - `CORDIS_JWT_ALGORITHM`
 - `CORDIS_ACCESS_TOKEN_EXPIRE_MINUTES`
 
-Cordis also supports first-run admin bootstrap during backend startup:
+Cordis also supports first-run admin bootstrap during backend startup. This bootstrap runs from the FastAPI application lifespan in `cordis.backend.app`, so it shares the same async event loop as request handling:
 
 - `CORDIS_BOOTSTRAP_ADMIN_EMAIL`
 - `CORDIS_BOOTSTRAP_ADMIN_PASSWORD`

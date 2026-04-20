@@ -51,6 +51,8 @@ The backend registers centralized exception handling from `cordis.backend.except
 
 `cordis.backend.security` owns password hashing, JWT creation and verification, bearer-token authentication backends, and the authenticated `UserInfo` principal type. Backend startup initializes this package through `cordis.backend.settings.setup()`.
 
+`cordis.backend.app` owns the FastAPI application lifespan. Runtime bootstrap, including default role seeding and optional first-admin creation, now runs there so database access stays on the same async event loop as request handling.
+
 ### Models and schemas
 
 - `cordis.backend.models`: persistence models
