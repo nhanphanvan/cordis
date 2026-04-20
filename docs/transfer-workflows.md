@@ -239,12 +239,14 @@ Before finalization, the backend verifies:
 
 1. marks the session as `finalizing`
 2. asks the storage adapter to complete the multipart upload using the recorded parts
-3. validates the completed object checksum against the expected session checksum
-4. requires the storage adapter to return a real `version_id`
+3. requires the storage adapter to return a real `version_id`
+4. validates the completed object checksum only if the storage adapter returns a real checksum value
 5. resolves or creates the repository-scoped artifact
 6. attaches the artifact to the target version
 7. stores the artifact ID back on the session
 8. marks the session `completed`
+
+For the current MinIO/S3 multipart implementation, the storage adapter returns the provider ETag and version ID, but not a file checksum. Cordis does not treat multipart ETags as file SHA-256 values during completion.
 
 ### Artifact resolution during completion
 
@@ -298,14 +300,14 @@ Important upload failure cases include:
 - session already terminal
 - session has no parts at completion time
 - multipart state invalid in storage
-- completed checksum mismatch
+- completed checksum mismatch when the storage adapter returns a real checksum
 - missing storage `version_id` from the storage adapter
 
 Failure effects vary by stage:
 
 - preflight conflicts abort the whole CLI upload before any attach or multipart mutation occurs
 - validation failures are returned immediately as handled backend errors
-- multipart-state, checksum, and storage-version failures mark the session `failed` and record an `error_message`
+- multipart-state, checksum-validation, and storage-version failures mark the session `failed` and record an `error_message`
 - abort explicitly marks the session `aborted`
 
 If the CLI fails mid-upload, the backend session remains the resumable source of truth. A later `resource upload` run for the same version, path, checksum, and size will reuse that session and skip already-recorded parts.
@@ -546,7 +548,7 @@ This means `upload-item` shares the same resumable multipart backend contract as
 9. Backend validates the upload request and creates or resumes an upload session.
 10. CLI uploads part content to the session.
 11. Backend records uploaded parts and finalizes multipart state.
-12. Backend validates checksum and storage version metadata.
+12. Backend requires storage version metadata and validates checksum only when storage returns one explicitly.
 13. Backend creates or reuses the repository artifact and attaches it to the version.
 14. CLI saves the local file into the cache.
 

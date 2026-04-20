@@ -156,6 +156,7 @@ class S3StorageAdapter(StorageAdapter):
         version_id = response.get("version_id")
         return CompletedMultipartUpload(
             etag=str(response["etag"]),
+            checksum=None,
             version_id=None if version_id is None else str(version_id),
         )
 

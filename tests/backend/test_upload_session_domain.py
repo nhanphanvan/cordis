@@ -87,7 +87,8 @@ class FakeStorageAdapter:
     def __init__(self) -> None:
         self._next_upload = 1
         self.parts: dict[str, dict[int, str]] = {}
-        self.completed_etag = "sha256:complete"
+        self.completed_etag = "etag-complete"
+        self.completed_checksum: str | None = None
         self.completed_version_id = "object-v1"
         self.aborted: list[str] = []
 
@@ -111,7 +112,7 @@ class FakeStorageAdapter:
         return type(
             "CompletedMultipartUpload",
             (),
-            {"etag": self.completed_etag, "version_id": self.completed_version_id},
+            {"etag": self.completed_etag, "checksum": self.completed_checksum, "version_id": self.completed_version_id},
         )()
 
     def abort_multipart_upload(self, ref, *, upload_id: str) -> None:
@@ -132,7 +133,8 @@ def test_developer_can_create_resume_and_complete_upload_session(monkeypatch, tm
     asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
 
     fake_storage = FakeStorageAdapter()
-    fake_storage.completed_etag = "sha256:upload-ok"
+    fake_storage.completed_etag = "multipart-etag-1"
+    fake_storage.completed_checksum = None
     monkeypatch.setattr(
         "cordis.backend.services.upload.storage_factory.get_storage_adapter",
         lambda: fake_storage,
@@ -214,7 +216,8 @@ def test_checksum_mismatch_marks_session_failed_without_version_artifact(monkeyp
     asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
 
     fake_storage = FakeStorageAdapter()
-    fake_storage.completed_etag = "sha256:wrong"
+    fake_storage.completed_etag = "multipart-etag-wrong"
+    fake_storage.completed_checksum = "sha256:wrong"
     monkeypatch.setattr(
         "cordis.backend.services.upload.storage_factory.get_storage_adapter",
         lambda: fake_storage,
@@ -308,7 +311,8 @@ def test_missing_storage_version_id_marks_session_failed_without_artifact(monkey
     asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
 
     fake_storage = FakeStorageAdapter()
-    fake_storage.completed_etag = "sha256:upload-ok"
+    fake_storage.completed_etag = "multipart-etag-1"
+    fake_storage.completed_checksum = None
     fake_storage.completed_version_id = None
     monkeypatch.setattr(
         "cordis.backend.services.upload.storage_factory.get_storage_adapter",

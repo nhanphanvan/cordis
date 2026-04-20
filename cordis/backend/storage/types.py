@@ -24,4 +24,5 @@ class UploadedPart:
 @dataclass(frozen=True, slots=True)
 class CompletedMultipartUpload:
     etag: str
+    checksum: str | None
     version_id: str | None

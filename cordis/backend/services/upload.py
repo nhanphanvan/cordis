@@ -121,7 +121,7 @@ class UploadService:
             logger.error("Upload session failed session_id=%s reason=multipart_state_invalid", session.id)
             raise
 
-        if completed.etag != session.checksum:
+        if completed.checksum is not None and completed.checksum != session.checksum:
             session.status = UploadSessionStatus.FAILED
             session.error_message = "Checksum mismatch"
             await self.uow.commit()

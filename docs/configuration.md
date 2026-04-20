@@ -95,6 +95,12 @@ For `CORDIS_STORAGE_PROVIDER=minio`, the backend expects:
 - `CORDIS_STORAGE_SECRET_KEY`
 - `CORDIS_STORAGE_BUCKET`
 
+MinIO endpoint format matters here:
+
+- set `CORDIS_STORAGE_ENDPOINT` to `host:port`, for example `127.0.0.1:9000`
+- do not include a scheme such as `http://` or `https://`
+- use `CORDIS_STORAGE_SECURE=true|false` to control TLS instead of encoding that in the endpoint string
+
 At adapter initialization time, the backend:
 
 - connects to MinIO using the configured endpoint, credentials, region, and secure flag

@@ -453,7 +453,7 @@ def test_s3_storage_adapter_exposes_multipart_primitives() -> None:
 
     assert upload_id == "upload-123"
     assert part == UploadedPart(part_number=1, etag="etag-1")
-    assert completed == CompletedMultipartUpload(etag="complete-etag", version_id="version-1")
+    assert completed == CompletedMultipartUpload(etag="complete-etag", checksum=None, version_id="version-1")
 
 
 def test_minio_storage_client_maps_bucket_and_object_operations() -> None:
