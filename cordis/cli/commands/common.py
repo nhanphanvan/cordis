@@ -56,7 +56,8 @@ def prompt_required_text(value: str | None, *, prompt: str, hide_input: bool = F
 def prompt_choice(value: str | None, *, prompt: str, choices: tuple[str, ...]) -> str:
     if value is not None:
         return value
-    resolved = cast(str, typer.prompt(prompt)).strip()
+    choices_suffix = "/".join(choices)
+    resolved = cast(str, typer.prompt(f"{prompt} [{choices_suffix}]")).strip()
     if resolved not in choices:
         allowed = ", ".join(choices)
         raise typer.BadParameter(f"{prompt} must be one of: {allowed}")

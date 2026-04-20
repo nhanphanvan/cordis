@@ -17,7 +17,7 @@ Common short aliases are available for the highest-frequency shared options:
 - `-v` for `--version`
 - `-e` for `--email`
 
-Several commands now support interactive fallback for required text inputs. If you omit a required value such as login credentials, repository names, version names, tag names, or upload paths, the CLI prompts for it instead of exiting during argument parsing.
+Several commands now support interactive fallback for required text inputs. If you omit a required value such as login credentials, repository names, version names, tag names, or upload paths, the CLI prompts for it instead of exiting during argument parsing. For enum-like prompts, the CLI shows the allowed values inline, for example `Visibility [private/authenticated]`.
 
 ## Global Commands
 
@@ -57,7 +57,7 @@ These commands cover current-user inspection and admin-facing user lookup/listin
 
 Many repository commands can use the workspace registration stored in `.cordis/config.json`.
 If a repository-scoped command runs without a registered repository and no `--repo-id`, the CLI renders a configuration error panel.
-For `repository create`, `create-version`, `delete-version`, and repository member mutations, omitted required text values are prompted interactively.
+For `repository create`, `create-version`, `delete-version`, and repository member mutations, omitted required text values are prompted interactively. When `repository create` needs `visibility`, the prompt shows the allowed values inline before the user enters one.
 
 ## Version Commands
 

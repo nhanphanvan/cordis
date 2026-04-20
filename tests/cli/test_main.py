@@ -1132,6 +1132,7 @@ def test_repository_create_prompts_for_missing_name_and_visibility(monkeypatch, 
     assert result.exit_code == 0
     assert "Repository name" in result.stdout
     assert "Visibility" in result.stdout
+    assert "Visibility [private/authenticated]" in result.stdout
     assert "repo-prompted" in result.stdout
     assert calls == [("repo-prompted", "authenticated", False)]
 
