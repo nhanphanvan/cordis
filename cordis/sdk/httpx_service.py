@@ -104,7 +104,7 @@ class HttpxService:
             TransferSpeedColumn(),
             TimeRemainingColumn(),
             console=Console(color_system=None, force_terminal=False, highlight=False, soft_wrap=True),
-            transient=True,
+            transient=False,
         )
 
     @staticmethod
@@ -136,6 +136,7 @@ class HttpxService:
         save_path: Path,
         chunk_size: int = DEFAULT_TRANSFER_CHUNK_SIZE,
         show_progress: bool = False,
+        on_chunk_downloaded: Callable[[int], None] | None = None,
     ) -> httpx.Response:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         downloaded_size = save_path.stat().st_size if save_path.exists() else 0
@@ -184,6 +185,8 @@ class HttpxService:
                             with save_path.open(open_mode) as handle:
                                 for chunk in response.iter_bytes(chunk_size):
                                     handle.write(chunk)
+                                    if on_chunk_downloaded is not None:
+                                        on_chunk_downloaded(len(chunk))
                                     downloaded_size += len(chunk)
                                     if active_progress is not None and task_id is not None:
                                         active_progress.update(
@@ -219,6 +222,7 @@ class HttpxService:
         save_path: Path,
         chunk_size: int = DEFAULT_TRANSFER_CHUNK_SIZE,
         show_progress: bool = False,
+        on_chunk_downloaded: Callable[[int], None] | None = None,
     ) -> httpx.Response:
         try:
             request_func = cast(
@@ -230,6 +234,7 @@ class HttpxService:
                 save_path=save_path,
                 chunk_size=chunk_size,
                 show_progress=show_progress,
+                on_chunk_downloaded=on_chunk_downloaded,
             )
             if result.status_code >= 400:
                 raise httpx.StreamError(f"Request failed with status code {result.status_code}")

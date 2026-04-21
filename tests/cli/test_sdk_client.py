@@ -180,7 +180,7 @@ def test_download_version_uses_cached_file_before_remote_download(
         client.download_version(repository_id=7, version_name="v1", save_dir=str(tmp_path / "downloads"))
     )
 
-    assert result == {"downloaded": ["models/file.bin"]}
+    assert result == {"downloaded": [], "from_cache": ["models/file.bin"], "existing": []}
 
 
 def test_download_version_uses_transport_stream_download_for_remote_file(
@@ -192,11 +192,20 @@ def test_download_version_uses_transport_stream_download_for_remote_file(
     cached: list[tuple[str, str, Path]] = []
 
     class FakeTransport:
-        def stream_download(self, *, path: str, save_path: Path, show_progress: bool = False) -> None:
+        def stream_download(
+            self,
+            *,
+            path: str,
+            save_path: Path,
+            show_progress: bool = False,
+            on_chunk_downloaded: object = None,
+        ) -> None:
             assert show_progress is True
+            assert on_chunk_downloaded is not None
             streamed.append((path, save_path))
             save_path.parent.mkdir(parents=True, exist_ok=True)
             save_path.write_bytes(b"payload")
+            on_chunk_downloaded(7)
 
     async def fake_list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
         assert repository_id == 7
@@ -231,7 +240,7 @@ def test_download_version_uses_transport_stream_download_for_remote_file(
     )
 
     destination = tmp_path / "downloads" / "models" / "file.bin"
-    assert result == {"downloaded": ["models/file.bin"]}
+    assert result == {"downloaded": ["models/file.bin"], "from_cache": [], "existing": []}
     assert streamed == [("https://example.com/download/file.bin", destination)]
     assert cached == [("7", "sha256:file", destination)]
     assert destination.read_bytes() == b"payload"
@@ -278,7 +287,7 @@ def test_download_version_skips_all_work_when_destination_already_matches_artifa
         client.download_version(repository_id=7, version_name="v1", save_dir=str(tmp_path / "downloads"))
     )
 
-    assert result == {"downloaded": ["models/file.bin"]}
+    assert result == {"downloaded": [], "from_cache": [], "existing": ["models/file.bin"]}
     assert destination.read_text(encoding="utf-8") == "payload"
 
 
@@ -291,11 +300,20 @@ def test_download_version_force_wipes_destination_before_downloading(monkeypatch
     stale_file.write_text("stale", encoding="utf-8")
 
     class FakeTransport:
-        def stream_download(self, *, path: str, save_path: Path, show_progress: bool = False) -> None:
+        def stream_download(
+            self,
+            *,
+            path: str,
+            save_path: Path,
+            show_progress: bool = False,
+            on_chunk_downloaded: object = None,
+        ) -> None:
             assert show_progress is True
+            assert on_chunk_downloaded is not None
             streamed.append((path, save_path))
             save_path.parent.mkdir(parents=True, exist_ok=True)
             save_path.write_text("payload", encoding="utf-8")
+            on_chunk_downloaded(7)
 
     async def fake_list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
         return [{"path": "models/file.bin", "checksum": "sha256:file", "size": 7}]
@@ -320,9 +338,125 @@ def test_download_version_force_wipes_destination_before_downloading(monkeypatch
         client.download_version(repository_id=7, version_name="v1", save_dir=str(destination_root), force=True)
     )
 
-    assert result == {"downloaded": ["models/file.bin"]}
+    assert result == {"downloaded": ["models/file.bin"], "from_cache": [], "existing": []}
     assert not stale_file.exists()
     assert streamed == [("https://example.com/download/file.bin", destination_root / "models" / "file.bin")]
+
+
+def test_download_version_tracks_total_progress_for_local_cache_and_remote(monkeypatch, tmp_path: Path) -> None:
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    progress_events: list[tuple[str, object, object]] = []
+    status_messages: list[str] = []
+    destination = tmp_path / "downloads" / "models" / "existing.bin"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text("payload", encoding="utf-8")
+
+    class FakeConsole:
+        def print(self, message: str) -> None:
+            status_messages.append(message)
+
+    class FakeProgress:
+        def __init__(self) -> None:
+            self.console = FakeConsole()
+
+        def __enter__(self) -> "FakeProgress":
+            progress_events.append(("enter", None, None))
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            progress_events.append(("exit", None, None))
+            return False
+
+        def add_task(self, description: str, *, total: object = None, completed: object = 0) -> int:
+            progress_events.append((description, total, completed))
+            return 1
+
+        def update(
+            self,
+            task_id: int,
+            *,
+            advance: object | None = None,
+            description: object | None = None,
+        ) -> None:
+            progress_events.append((f"update:{task_id}", advance, description))
+
+    class FakeTransport:
+        def stream_download(
+            self,
+            *,
+            path: str,
+            save_path: Path,
+            show_progress: bool = False,
+            on_chunk_downloaded: object = None,
+        ) -> None:
+            assert path == "https://example.com/download/remote.bin"
+            assert show_progress is True
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_bytes(b"payload")
+            assert on_chunk_downloaded is not None
+            on_chunk_downloaded(3)
+            on_chunk_downloaded(4)
+
+    async def fake_list_version_artifacts(self, *, repository_id: int, version_name: str) -> list[dict[str, object]]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        return [
+            {
+                "path": "models/existing.bin",
+                "checksum": "sha256:239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5",
+                "size": 7,
+            },
+            {"path": "models/cached.bin", "checksum": "sha256:cached", "size": 5},
+            {"path": "models/remote.bin", "checksum": "sha256:remote", "size": 7},
+        ]
+
+    async def fake_download_item(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+        path: str,
+        save_path: str,
+    ) -> dict[str, object]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        assert path == "models/remote.bin"
+        assert save_path.endswith("models/remote.bin")
+        return {"download_url": "https://example.com/download/remote.bin"}
+
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "download_item", fake_download_item)
+    monkeypatch.setattr(
+        "cordis.sdk.transfers.copy_from_cache",
+        lambda repo_id, checksum, path: checksum == "sha256:cached",
+    )
+    monkeypatch.setattr("cordis.sdk.transfers.create_download_progress", lambda: FakeProgress())
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+    client.transport = FakeTransport()  # type: ignore[assignment]
+
+    result = asyncio.run(
+        client.download_version(repository_id=7, version_name="v1", save_dir=str(tmp_path / "downloads"))
+    )
+
+    assert result == {
+        "downloaded": ["models/remote.bin"],
+        "from_cache": ["models/cached.bin"],
+        "existing": ["models/existing.bin"],
+    }
+    assert progress_events == [
+        ("enter", None, None),
+        ("Downloading version 0/3 files", 19, 0),
+        ("update:1", 7, "Downloading version 1/3 files"),
+        ("update:1", 5, "Downloading version 2/3 files"),
+        ("update:1", 3, None),
+        ("update:1", 4, None),
+        ("update:1", 0, "Downloading version 3/3 files"),
+        ("exit", None, None),
+    ]
+    assert status_messages == [
+        "Already present: models/existing.bin",
+        "Copied from cache: models/cached.bin",
+    ]
 
 
 def test_upload_directory_force_clears_version_before_preflight(monkeypatch, tmp_path: Path) -> None:

@@ -345,13 +345,14 @@ For `cordis resource download --path <folder> ...`, the CLI does this:
 3. call `list_version_artifacts(...)`
 4. for each returned artifact:
    - compute the target destination under the requested folder
-   - if the destination file already exists and exactly matches the artifact checksum, skip all further work for that artifact
+   - if the destination file already exists and exactly matches the artifact checksum, log `Already present: <path>` and skip all further work for that artifact
    - otherwise attempt cache reuse by `(repository_id, checksum)`
-   - if cached, copy the file locally and continue
+   - if cached, copy the file locally, log `Copied from cache: <path>`, and continue
    - if not cached, request a mediated download URL from the backend
    - stream the remote object to disk through `HttpxService.stream_download(...)`
    - save the completed local file back into the cache
-5. return the list of downloaded relative paths
+5. return categorized relative paths for remote downloads, cache hits, and exact destination matches
+6. print one compact final success summary in the CLI when the version download completes
 
 ### Artifact listing
 
@@ -471,10 +472,10 @@ If a server ignores the range request and returns a full-body `200 OK`:
 
 Remote downloads show Rich progress output.
 
-Progress is displayed only for remote streaming, not for:
+Cache and destination-match hits do not render per-file transfer bars, but they are surfaced as live log lines:
 
-- cache hits
-- local cache copies
+- `Already present: <path>`
+- `Copied from cache: <path>`
 
 If the server exposes enough size metadata, progress tracks total size and speed. If total size is incomplete or unknown, the progress rendering still stays inside the shared Rich-based CLI presentation model.
 

@@ -7,6 +7,7 @@ from cordis.cli.commands.common import (
     handle_cli_errors,
     print_detail,
     print_path_summary,
+    print_success,
     print_table,
     prompt_required_text,
     run_async,
@@ -56,7 +57,14 @@ def download_resources(
             force=force,
         )
     )
-    print_path_summary("Downloaded", [str(item) for item in result["downloaded"]])
+    remote_count = len(result.get("downloaded", []))
+    cache_count = len(result.get("from_cache", []))
+    existing_count = len(result.get("existing", []))
+    total_count = remote_count + cache_count + existing_count
+    print_success(
+        f"Download completed: {total_count} files resolved "
+        f"({remote_count} remote, {cache_count} cache, {existing_count} already present)"
+    )
 
 
 @app.command("upload")

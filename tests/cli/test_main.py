@@ -989,9 +989,54 @@ def test_resource_download_uses_registered_repository_and_version(monkeypatch, t
         result = runner.invoke(app, ["resource", "download", "-p", "downloads", "-id", "42", "-v", "v6"])
 
     assert result.exit_code == 0
-    assert "Downloaded" in result.stdout
-    assert "models/a.bin" in result.stdout
-    assert "README.md" in result.stdout
+    assert "Success" in result.stdout
+    assert "Download completed: 2 files resolved (2 remote, 0 cache, 0 already present)" in result.stdout
+    assert "Downloaded" not in result.stdout
+    assert "models/a.bin" not in result.stdout
+    assert "README.md" not in result.stdout
+
+
+def test_resource_download_prints_categorized_results(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_dir = Path.cwd() / ".cordis"
+        config_dir.mkdir(exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"repo_id": 42, "version": "v6"}), encoding="utf-8")
+
+        class FakeClient:
+            async def download_version(
+                self,
+                *,
+                repository_id: int,
+                version_name: str,
+                save_dir: str,
+                force: bool = False,
+            ) -> dict[str, object]:
+                assert repository_id == 42
+                assert version_name == "v6"
+                assert save_dir == "downloads"
+                assert force is False
+                return {
+                    "downloaded": ["models/remote.bin"],
+                    "from_cache": ["models/cached.bin"],
+                    "existing": ["models/existing.bin"],
+                }
+
+        monkeypatch.setattr("cordis.cli.commands.root.get_client", lambda: FakeClient())
+
+        result = runner.invoke(app, ["resource", "download", "-p", "downloads", "-id", "42", "-v", "v6"])
+
+    assert result.exit_code == 0
+    assert "Success" in result.stdout
+    assert "Download completed: 3 files resolved (1 remote, 1 cache, 1 already present)" in result.stdout
+    assert "Downloaded" not in result.stdout
+    assert "Copied From Cache" not in result.stdout
+    assert "Already Present" not in result.stdout
+    assert "models/remote.bin" not in result.stdout
+    assert "models/cached.bin" not in result.stdout
+    assert "models/existing.bin" not in result.stdout
 
 
 def test_resource_upload_force_passes_force_flag(monkeypatch, tmp_path: Path) -> None:
@@ -1060,7 +1105,8 @@ def test_resource_download_force_passes_force_flag(monkeypatch, tmp_path: Path) 
         result = runner.invoke(app, ["resource", "download", "-p", "downloads", "-id", "45", "-v", "v9", "--force"])
 
         assert result.exit_code == 0
-        assert "Downloaded" in result.stdout
+        assert "Success" in result.stdout
+        assert "Download completed: 1 files resolved (1 remote, 0 cache, 0 already present)" in result.stdout
 
 
 def test_login_command_awaits_async_client_call(monkeypatch, tmp_path: Path) -> None:

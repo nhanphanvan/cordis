@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from cordis.cli.utils.files import copy_from_cache, iter_file_chunks, iter_files, save_to_cache, sha256_file
+from cordis.cli.utils.presentation import create_download_progress
 from cordis.sdk.errors import ApiError, TransportError, UploadPreflightError
 
 if TYPE_CHECKING:
@@ -201,6 +202,8 @@ class TransferHelper:
         force: bool = False,
     ) -> dict[str, Any]:
         artifacts = await self.client.list_version_artifacts(repository_id=repository_id, version_name=version_name)
+        total_files = len(artifacts)
+        total_bytes = sum(int(artifact["size"]) for artifact in artifacts)
         save_root = Path(save_dir)
         if force:
             if save_root.exists():
@@ -209,33 +212,66 @@ class TransferHelper:
                 else:
                     save_root.unlink()
             save_root.mkdir(parents=True, exist_ok=True)
+        completed_files = 0
         downloaded: list[str] = []
-        for artifact in artifacts:
-            artifact_path = str(artifact["path"])
-            checksum = str(artifact["checksum"])
-            size = int(artifact["size"])
-            destination = save_root / artifact_path
-            if destination.exists() and destination.is_file() and destination.stat().st_size == size:
-                if sha256_file(destination) == checksum:
-                    downloaded.append(artifact_path)
+        from_cache: list[str] = []
+        existing: list[str] = []
+
+        def version_description() -> str:
+            return f"Downloading version {completed_files}/{total_files} files"
+
+        with create_download_progress() as progress:
+            version_task_id = progress.add_task(version_description(), total=total_bytes, completed=0)
+
+            for artifact in artifacts:
+                artifact_path = str(artifact["path"])
+                checksum = str(artifact["checksum"])
+                size = int(artifact["size"])
+                destination = save_root / artifact_path
+
+                def mark_completed(*, advance: int) -> None:
+                    nonlocal completed_files
+                    completed_files += 1
+                    progress.update(version_task_id, advance=advance, description=version_description())
+
+                if destination.exists() and destination.is_file() and destination.stat().st_size == size:
+                    if sha256_file(destination) == checksum:
+                        existing.append(artifact_path)
+                        progress.console.print(f"Already present: {artifact_path}")
+                        mark_completed(advance=size)
+                        continue
+                if copy_from_cache(str(repository_id), checksum, destination):
+                    from_cache.append(artifact_path)
+                    progress.console.print(f"Copied from cache: {artifact_path}")
+                    mark_completed(advance=size)
                     continue
-            if copy_from_cache(str(repository_id), checksum, destination):
-                downloaded.append(artifact_path)
-                continue
-            download = await self.client.download_item(
-                repository_id=repository_id,
-                version_name=version_name,
-                path=artifact_path,
-                save_path=str(destination),
-            )
-            try:
-                self.client.transport.stream_download(
-                    path=str(download["download_url"]),
-                    save_path=destination,
-                    show_progress=True,
+                download = await self.client.download_item(
+                    repository_id=repository_id,
+                    version_name=version_name,
+                    path=artifact_path,
+                    save_path=str(destination),
                 )
-            except httpx.HTTPError as error:
-                raise TransportError("Could not download the artifact", detail=str(error)) from error
-            save_to_cache(str(repository_id), checksum, destination)
-            downloaded.append(artifact_path)
-        return {"downloaded": downloaded}
+                remote_downloaded = 0
+
+                def on_chunk_downloaded(delta: int) -> None:
+                    nonlocal remote_downloaded
+                    remote_downloaded += delta
+                    progress.update(version_task_id, advance=delta)
+
+                try:
+                    self.client.transport.stream_download(
+                        path=str(download["download_url"]),
+                        save_path=destination,
+                        show_progress=True,
+                        on_chunk_downloaded=on_chunk_downloaded,
+                    )
+                except httpx.HTTPError as error:
+                    raise TransportError("Could not download the artifact", detail=str(error)) from error
+                save_to_cache(str(repository_id), checksum, destination)
+                downloaded.append(artifact_path)
+                mark_completed(advance=max(0, size - remote_downloaded))
+        return {
+            "downloaded": downloaded,
+            "from_cache": from_cache,
+            "existing": existing,
+        }

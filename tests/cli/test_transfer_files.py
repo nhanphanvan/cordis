@@ -214,3 +214,44 @@ def test_stream_download_updates_progress_when_enabled(monkeypatch, tmp_path: Pa
         ("update:1", 5, 5),
         ("exit", None, None),
     ]
+
+
+def test_download_progress_persists_after_completion() -> None:
+    progress = HttpxService()._create_download_progress()
+
+    assert progress.live.transient is False
+
+
+def test_stream_download_reports_chunk_deltas_to_callback(monkeypatch, tmp_path: Path) -> None:
+    chunk_events: list[int] = []
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            del args, kwargs
+
+        def __enter__(self) -> "FakeClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def stream(self, method: str, url: str, headers: dict[str, str] | None = None):
+            del method, url, headers
+            return _FakeStreamResponse(
+                status_code=200,
+                chunks=[b"ab", b"cde"],
+                headers={"Content-Length": "5"},
+            )
+
+    monkeypatch.setattr("cordis.sdk.httpx_service.httpx.Client", FakeClient)
+    destination = tmp_path / "artifact.bin"
+
+    HttpxService().stream_download(
+        path="https://example.com/artifact.bin",
+        save_path=destination,
+        show_progress=False,
+        on_chunk_downloaded=chunk_events.append,
+    )
+
+    assert destination.read_bytes() == b"abcde"
+    assert chunk_events == [2, 3]
