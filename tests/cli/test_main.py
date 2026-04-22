@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from rich.console import Console
 from typer.testing import CliRunner
 
 from cordis.cli.errors import ApiError, UploadPreflightError
@@ -555,6 +556,10 @@ def test_version_commands_use_registered_repository(monkeypatch, tmp_path: Path)
 
 def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CORDIS_HOME", str(tmp_path / ".cordis-home"))
+    monkeypatch.setattr(
+        "cordis.cli.utils.presentation._get_console",
+        lambda: Console(color_system=None, force_terminal=False, highlight=False, soft_wrap=True, width=80),
+    )
     runner = CliRunner()
 
     with runner.isolated_filesystem(temp_dir=tmp_path):
@@ -572,7 +577,10 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
                         "path": "models/file.bin",
                         "checksum": "sha256:file",
                         "size": 64,
-                        "public_url": "https://storage.invalid/9/models/file.bin",
+                        "public_url": (
+                            "https://storage.invalid/9/models/file.bin"
+                            "?versionId=1234567890abcdefghijklmnopqrstuvwxyz"
+                        ),
                     },
                     {
                         "id": "artifact-2",
@@ -593,6 +601,10 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
         assert "README.md" in result.stdout
         assert "Public URL" in result.stdout
         assert "storage.invalid" in result.stdout
+        assert "https://storage.invalid/9/models/fi" in result.stdout
+        assert "le.bin?versionId=1234567890abcdefgh" in result.stdout
+        assert "ijklmnopqrstuvwxyz" in result.stdout
+        assert "…" not in result.stdout
 
 
 def test_repository_member_mutation_commands_use_registered_repository(monkeypatch, tmp_path: Path) -> None:

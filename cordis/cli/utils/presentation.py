@@ -59,6 +59,17 @@ def print_table(title: str, columns: Sequence[str], rows: Iterable[Sequence[Any]
     _get_console().print(table)
 
 
+def print_resource_table(title: str, rows: Iterable[Sequence[Any]]) -> None:
+    table = Table(title=title, box=box.ASCII)
+    table.add_column("Path", no_wrap=True)
+    table.add_column("Checksum", no_wrap=True)
+    table.add_column("Size", no_wrap=True, justify="right")
+    table.add_column("Public URL", overflow="fold")
+    for row in rows:
+        table.add_row(*[_format_value(value) for value in row])
+    _get_console().print(table)
+
+
 def print_path_summary(title: str, items: Sequence[str]) -> None:
     print_table(title=title, columns=["Path"], rows=[[item] for item in items])
 

@@ -7,8 +7,8 @@ from cordis.cli.commands.common import (
     handle_cli_errors,
     print_detail,
     print_path_summary,
+    print_resource_table,
     print_success,
-    print_table,
     prompt_required_text,
     run_async,
 )
@@ -33,9 +33,8 @@ def list_resources(
             version_name=get_registered_version(version_name),
         )
     )
-    print_table(
+    print_resource_table(
         "Resources",
-        ["Path", "Checksum", "Size", "Public URL"],
         [[item["path"], item["checksum"], item["size"], item.get("public_url", "") or ""] for item in items],
     )
 
