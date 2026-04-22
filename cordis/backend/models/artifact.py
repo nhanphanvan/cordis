@@ -21,7 +21,6 @@ class Artifact(DatabaseModel):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     checksum: Mapped[str] = mapped_column(String(255), nullable=False)
     size: Mapped[int] = mapped_column(Integer(), nullable=False)
-    storage_version_id: Mapped[str] = mapped_column(String(255), nullable=False)
 
     repository_id: Mapped[int] = mapped_column(ForeignKey("repositories.id", ondelete="CASCADE"), nullable=False)
 

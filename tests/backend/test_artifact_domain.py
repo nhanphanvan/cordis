@@ -94,10 +94,8 @@ def _create_version(client: TestClient, headers: dict[str, str], repository_id: 
 
 
 class FakeArtifactPublicStorage:
-    def get_public_url(self, ref, *, storage_version_id: str) -> str:
-        return (
-            f"https://storage.invalid/{ref.repository_id}/{ref.artifact_id}/{ref.path}?versionId={storage_version_id}"
-        )
+    def get_public_url(self, ref) -> str:
+        return f"https://storage.invalid/{ref.repository_id}/{ref.artifact_id}/{ref.path}"
 
 
 def test_developer_can_register_artifact_associate_it_with_version_and_list_version_artifacts(
@@ -129,7 +127,6 @@ def test_developer_can_register_artifact_associate_it_with_version_and_list_vers
             "path": "models/weights.bin",
             "checksum": "sha256:abc123",
             "size": 1024,
-            "storage_version_id": "object-v1",
         },
         headers=headers,
     )
@@ -150,7 +147,6 @@ def test_developer_can_register_artifact_associate_it_with_version_and_list_vers
         "name": "weights.bin",
         "checksum": "sha256:abc123",
         "size": 1024,
-        "storage_version_id": "object-v1",
         "public_url": None,
     }
     assert register_response.status_code == 201
@@ -185,7 +181,6 @@ def test_resource_check_distinguishes_match_conflict_and_missing(monkeypatch, tm
             "path": "models/model.bin",
             "checksum": "sha256:same",
             "size": 256,
-            "storage_version_id": "object-v1",
         },
         headers=headers,
     )
@@ -258,7 +253,6 @@ def test_resource_check_reuses_matching_repository_artifact_from_another_version
             "path": "models/model.bin",
             "checksum": "sha256:same",
             "size": 256,
-            "storage_version_id": "object-v1",
         },
         headers=headers,
     )
@@ -307,7 +301,6 @@ def test_developer_can_clear_version_artifacts_without_deleting_shared_artifact(
             "path": "models/model.bin",
             "checksum": "sha256:same",
             "size": 256,
-            "storage_version_id": "object-v1",
         },
         headers=headers,
     )
@@ -341,7 +334,6 @@ def test_developer_can_clear_version_artifacts_without_deleting_shared_artifact(
             "name": "model.bin",
             "checksum": "sha256:same",
             "size": 256,
-            "storage_version_id": "object-v1",
             "public_url": None,
         }
     ]
@@ -374,7 +366,6 @@ def test_developer_can_clear_single_version_artifact_path_without_deleting_share
             "path": "models/model.bin",
             "checksum": "sha256:same",
             "size": 256,
-            "storage_version_id": "object-v1",
         },
         headers=headers,
     )
@@ -412,7 +403,6 @@ def test_developer_can_clear_single_version_artifact_path_without_deleting_share
             "name": "model.bin",
             "checksum": "sha256:same",
             "size": 256,
-            "storage_version_id": "object-v1",
             "public_url": None,
         }
     ]
@@ -473,7 +463,6 @@ def test_artifact_response_includes_public_url_and_reused_artifact_keeps_same_ur
             "path": "images/logo.png",
             "checksum": "sha256:logo",
             "size": 12,
-            "storage_version_id": "storage-object-v1",
         },
         headers=headers,
     )
@@ -496,7 +485,7 @@ def test_artifact_response_includes_public_url_and_reused_artifact_keeps_same_ur
         headers=headers,
     )
 
-    expected_url = f"https://storage.invalid/{repository_id}/{artifact_id}/images/logo.png?versionId=storage-object-v1"
+    expected_url = f"https://storage.invalid/{repository_id}/{artifact_id}/images/logo.png"
     assert register_response.status_code == 201
     assert register_response.json()["public_url"] == expected_url
     assert get_response.status_code == 200
@@ -542,7 +531,6 @@ def test_viewer_can_read_artifacts_but_cannot_register_or_attach(monkeypatch, tm
             "path": "assets/readme.txt",
             "checksum": "sha256:viewer",
             "size": 64,
-            "storage_version_id": "object-v1",
         },
         headers=developer_headers,
     )
@@ -561,7 +549,6 @@ def test_viewer_can_read_artifacts_but_cannot_register_or_attach(monkeypatch, tm
             "path": "assets/new.txt",
             "checksum": "sha256:new",
             "size": 12,
-            "storage_version_id": "object-v2",
         },
         headers=viewer_headers,
     )
@@ -576,8 +563,8 @@ def test_viewer_can_read_artifacts_but_cannot_register_or_attach(monkeypatch, tm
     assert attach_denied.status_code == 403
 
 
-def test_artifact_registration_requires_storage_version_id(monkeypatch, tmp_path: Path) -> None:
-    db_path = tmp_path / "cordis-artifact-storage-version-required.db"
+def test_artifact_registration_succeeds_without_storage_version_id(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "cordis-artifact-no-storage-version.db"
     monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
     build_config.cache_clear()
     get_engine.cache_clear()
@@ -585,7 +572,7 @@ def test_artifact_registration_requires_storage_version_id(monkeypatch, tmp_path
     asyncio.run(_reset_database())
     asyncio.run(_seed_roles())
     developer_id = asyncio.run(_create_user(email="developer@example.com", password="password123"))
-    repository_id = asyncio.run(_create_repository(name="repo-storage-version-required"))
+    repository_id = asyncio.run(_create_repository(name="repo-no-storage-version"))
     asyncio.run(_add_membership(repository_id=repository_id, user_id=developer_id, role_name="developer"))
 
     client = TestClient(create_app())
@@ -602,4 +589,5 @@ def test_artifact_registration_requires_storage_version_id(monkeypatch, tmp_path
         headers=headers,
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 201
+    assert response.json()["path"] == "models/missing.bin"

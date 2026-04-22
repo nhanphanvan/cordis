@@ -1,8 +1,8 @@
 """create tables
 
-Revision ID: 631185907f73
+Revision ID: 715b952170ff
 Revises:
-Create Date: 2026-04-15 23:00:58.315976
+Create Date: 2026-04-23 22:55:55.066351
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "631185907f73"
+revision: str = "715b952170ff"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -64,7 +64,6 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("checksum", sa.String(length=255), nullable=False),
         sa.Column("size", sa.Integer(), nullable=False),
-        sa.Column("storage_version_id", sa.String(length=255), nullable=False),
         sa.Column("repository_id", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),

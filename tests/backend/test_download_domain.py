@@ -96,7 +96,6 @@ def _create_artifact(client: TestClient, headers: dict[str, str], repository_id:
             "path": path,
             "checksum": "sha256:artifact",
             "size": 128,
-            "storage_version_id": "object-v1",
         },
         headers=headers,
     )
@@ -161,7 +160,6 @@ def test_viewer_can_lookup_version_artifact_by_path_and_request_download(monkeyp
         "name": "weights.bin",
         "checksum": "sha256:artifact",
         "size": 128,
-        "storage_version_id": "object-v1",
         "public_url": None,
     }
     assert download_response.status_code == 200

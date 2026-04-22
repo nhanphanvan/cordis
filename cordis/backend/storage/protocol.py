@@ -26,7 +26,7 @@ class StorageAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_public_url(self, ref: StorageObjectRef, *, storage_version_id: str) -> str:
+    def get_public_url(self, ref: StorageObjectRef) -> str:
         raise NotImplementedError
 
     @abstractmethod

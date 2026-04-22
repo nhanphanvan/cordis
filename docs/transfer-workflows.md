@@ -49,7 +49,7 @@ That split is why the transfer flow is more than a single HTTP request.
 - `Version`
   The repository-scoped version that upload and download workflows target.
 - `Artifact`
-  Metadata about stored content. Persisted artifacts always require `storage_version_id`.
+  Metadata about stored content, with one immutable storage object per artifact.
 - `VersionArtifact`
   The association that makes an artifact part of a specific version.
 - `UploadSession`
@@ -239,14 +239,13 @@ Before finalization, the backend verifies:
 
 1. marks the session as `finalizing`
 2. asks the storage adapter to complete the multipart upload using the recorded parts
-3. requires the storage adapter to return a real `version_id`
-4. validates the completed object checksum only if the storage adapter returns a real checksum value
-5. resolves or creates the repository-scoped artifact
-6. attaches the artifact to the target version
-7. stores the artifact ID back on the session
-8. marks the session `completed`
+3. validates the completed object checksum only if the storage adapter returns a real checksum value
+4. resolves or creates the repository-scoped artifact
+5. attaches the artifact to the target version
+6. stores the artifact ID back on the session
+7. marks the session `completed`
 
-For the current MinIO/S3 multipart implementation, the storage adapter returns the provider ETag and version ID, but not a file checksum. Cordis does not treat multipart ETags as file SHA-256 values during completion.
+For the current MinIO/S3 multipart implementation, the storage adapter returns the provider ETag but not a file checksum. Cordis does not treat multipart ETags as file SHA-256 values during completion.
 
 ### Artifact resolution during completion
 
@@ -265,9 +264,8 @@ When a new artifact is created, it persists:
 - `name`
 - `checksum`
 - `size`
-- `storage_version_id`
 
-That `storage_version_id` is mandatory. Cordis treats it as durable lineage to the exact stored object version behind the artifact.
+Cordis treats those fields plus the artifact ID as the durable application identity for one immutable stored object.
 
 ### Pre-upload repository reuse
 
@@ -301,13 +299,12 @@ Important upload failure cases include:
 - session has no parts at completion time
 - multipart state invalid in storage
 - completed checksum mismatch when the storage adapter returns a real checksum
-- missing storage `version_id` from the storage adapter
 
 Failure effects vary by stage:
 
 - preflight conflicts abort the whole CLI upload before any attach or multipart mutation occurs
 - validation failures are returned immediately as handled backend errors
-- multipart-state, checksum-validation, and storage-version failures mark the session `failed` and record an `error_message`
+- multipart-state and checksum-validation failures mark the session `failed` and record an `error_message`
 - abort explicitly marks the session `aborted`
 
 If the CLI fails mid-upload, the backend session remains the resumable source of truth. A later `resource upload` run for the same version, path, checksum, and size will reuse that session and skip already-recorded parts.
@@ -366,7 +363,6 @@ That requires successful version resolution and download authorization. The resp
 - `path`
 - `checksum`
 - `size`
-- `storage_version_id`
 
 The CLI uses:
 
@@ -549,7 +545,7 @@ This means `upload-item` shares the same resumable multipart backend contract as
 9. Backend validates the upload request and creates or resumes an upload session.
 10. CLI uploads part content to the session.
 11. Backend records uploaded parts and finalizes multipart state.
-12. Backend requires storage version metadata and validates checksum only when storage returns one explicitly.
+12. Backend validates checksum only when storage returns one explicitly.
 13. Backend creates or reuses the repository artifact and attaches it to the version.
 14. CLI saves the local file into the cache.
 
@@ -591,12 +587,11 @@ The following rules are important to preserve when changing transfer code:
 - `resource upload --force` clears only version associations, not shared artifact rows
 - `resource upload-item --force` clears only the requested target path association, not the full version
 - upload-session state is the backend source of truth for multipart ingest
-- completed artifacts require `storage_version_id`
 - version download checks destination-file checksum first, then cache, then remote transfer
 - `resource download --force` wipes the destination root before download begins
 - remote artifact downloads stream through `cordis.sdk.httpx_service.HttpxService`, not ad-hoc network helpers in the transfer layer
 - the CLI should keep human-friendly output and typed error behavior around transfer failures
-- the backend storage adapter must preserve provider object version IDs so completed artifacts keep durable storage lineage
+- the backend storage adapter must keep object keys immutable so one artifact maps to one stored blob
 
 ## Related Guides
 

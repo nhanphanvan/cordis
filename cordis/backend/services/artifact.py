@@ -16,7 +16,6 @@ class ArtifactService:
         name: str,
         checksum: str,
         size: int,
-        storage_version_id: str,
         artifact_id: UUID | None = None,
     ) -> Artifact:
         values = {
@@ -25,7 +24,6 @@ class ArtifactService:
             "name": name,
             "checksum": checksum,
             "size": size,
-            "storage_version_id": storage_version_id,
         }
         if artifact_id is not None:
             values["id"] = artifact_id

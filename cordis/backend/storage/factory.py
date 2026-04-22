@@ -45,7 +45,6 @@ def get_storage_adapter() -> StorageAdapter:
             )
         )
         minio_client.ensure_bucket_exists(bucket=config.bucket, region=config.region)
-        minio_client.ensure_bucket_versioning_enabled(bucket=config.bucket)
         return S3StorageAdapter(client=minio_client, bucket=config.bucket, prefix=config.prefix)
 
     if config.provider == "s3":
@@ -68,11 +67,6 @@ def get_storage_adapter() -> StorageAdapter:
                 app_status=AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED,
             ) from error
 
-        if not aws_client.bucket_versioning_enabled(bucket=config.bucket):
-            raise InternalServerError(
-                "Storage adapter is not configured: S3 bucket versioning must be enabled",
-                app_status=AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED,
-            )
         return S3StorageAdapter(client=aws_client, bucket=config.bucket, prefix=config.prefix)
 
     raise InternalServerError(

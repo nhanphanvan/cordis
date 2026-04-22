@@ -6,7 +6,6 @@ from typing import Any
 from minio import Minio
 from minio.datatypes import Part
 from minio.error import InvalidResponseError, S3Error, ServerError
-from minio.versioningconfig import VersioningConfig
 
 from cordis.backend.storage.errors import (
     StorageAuthorizationError,
@@ -16,8 +15,6 @@ from cordis.backend.storage.errors import (
     StorageProviderError,
     StorageTransientError,
 )
-
-MINIO_VERSIONING_ENABLED = "Enabled"
 
 
 def translate_minio_error(error: Exception) -> Exception:
@@ -58,16 +55,6 @@ class MinioStorageClient:
         except Exception as error:  # pragma: no cover - exercised via mapping tests
             raise translate_minio_error(error) from error
 
-    def ensure_bucket_versioning_enabled(self, *, bucket: str) -> bool:
-        try:
-            versioning = self.client.get_bucket_versioning(bucket)
-            if getattr(versioning, "status", None) == MINIO_VERSIONING_ENABLED:
-                return False
-            self.client.set_bucket_versioning(bucket, VersioningConfig(status=MINIO_VERSIONING_ENABLED))
-            return True
-        except Exception as error:  # pragma: no cover - exercised via mapping tests
-            raise translate_minio_error(error) from error
-
     def head_object(self, *, bucket: str, key: str) -> dict[str, Any]:
         result = self.client.stat_object(bucket, key)
         return {"etag": str(result.etag), "content_length": int(result.size or 0)}
@@ -83,7 +70,6 @@ class MinioStorageClient:
         )
         return {
             "etag": None if result.etag is None else str(result.etag),
-            "version_id": None if result.version_id is None else str(result.version_id),
         }
 
     def delete_object(self, *, bucket: str, key: str) -> None:
@@ -92,11 +78,11 @@ class MinioStorageClient:
     def create_presigned_get_url(self, *, bucket: str, key: str, expires_in: int) -> str:
         return str(self.client.presigned_get_object(bucket, key, expires=timedelta(seconds=expires_in)))
 
-    def create_public_object_url(self, *, bucket: str, key: str, version_id: str) -> str:
+    def create_public_object_url(self, *, bucket: str, key: str) -> str:
         base_url = self.client._base_url  # pylint: disable=protected-access
         scheme = "https" if base_url.is_https else "http"
         host = str(base_url.host)
-        return f"{scheme}://{host}/{bucket}/{key}?versionId={version_id}"
+        return f"{scheme}://{host}/{bucket}/{key}"
 
     def ensure_public_prefix_access(self, *, bucket: str, prefix: str) -> bool:
         policy = self._load_bucket_policy(bucket)
@@ -164,7 +150,6 @@ class MinioStorageClient:
         )
         return {
             "etag": str(result.etag),
-            "version_id": None if result.version_id is None else str(result.version_id),
         }
 
     def abort_multipart_upload(self, *, bucket: str, key: str, upload_id: str) -> None:
@@ -174,7 +159,7 @@ class MinioStorageClient:
         try:
             policy = self.client.get_bucket_policy(bucket)
         except Exception as error:  # pragma: no cover - exercised via mapping tests
-            if isinstance(error, S3Error) and error.code == "NoSuchBucketPolicy":
+            if isinstance(error, S3Error) and error.code == "NoSuchBucketPolicy":  # pylint: disable=no-member
                 return {"Version": "2012-10-17", "Statement": []}
             raise translate_minio_error(error) from error
         if not policy:

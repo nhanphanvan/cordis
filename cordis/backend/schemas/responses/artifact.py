@@ -12,7 +12,6 @@ class ArtifactResponse(BaseModel):
     name: str
     checksum: str
     size: int
-    storage_version_id: str
     public_url: str | None
 
 

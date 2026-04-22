@@ -25,4 +25,3 @@ class UploadedPart:
 class CompletedMultipartUpload:
     etag: str
     checksum: str | None
-    version_id: str | None

@@ -39,7 +39,7 @@ When working on a backend project in this repository, follow these structural pr
 - use `cordis/backend/schemas/requests/` for request models and `cordis/backend/schemas/responses/` for response models
 - prefer the flow `api -> policy -> validator -> service -> repository -> model -> database`
 - keep FastAPI routes thin, keep services focused on orchestration and transactions, and keep persistence access in repositories
-- treat `artifact.storage_version_id` as required durable storage lineage; do not model persisted artifacts without an exact storage object version reference
+- treat each artifact as one immutable stored object addressed by a stable key; do not reintroduce required provider object-version metadata into the artifact model
 - keep repository API visibility separate from raw storage exposure: use repository `visibility` for Cordis read authorization and `allow_public_object_urls` only for world-readable provider-native object URLs
 - backend utilities should stay backend-runtime-specific; CLI-specific helpers belong under `cordis/cli/`
 - prefer hard-cut refactors over temporary compatibility wrappers unless compatibility is explicitly required

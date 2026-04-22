@@ -268,10 +268,10 @@ def test_uuid_backed_model_columns_use_uuid_python_types() -> None:
     assert upload_session.__table__.c.artifact_id.type.python_type is UUID
 
 
-def test_artifact_storage_version_id_is_non_nullable() -> None:
+def test_artifact_model_no_longer_includes_storage_version_id() -> None:
     artifact = importlib.import_module("cordis.backend.models.artifact").Artifact
 
-    assert artifact.__table__.c.storage_version_id.nullable is False
+    assert "storage_version_id" not in artifact.__table__.c
 
 
 def test_repository_member_relationships_use_explicit_bidirectional_ownership_style() -> None:

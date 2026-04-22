@@ -122,7 +122,7 @@ Typical upload flow:
 5. If preflight succeeds, reusable artifacts are attached directly to the target version and only the remaining files enter upload-session handling.
 6. The CLI uploads missing file parts sequentially and can resume by skipping already-recorded parts.
 7. Upload parts are recorded and finalized through the storage adapter.
-8. Artifact metadata with a required storage object version ID is attached to the target version.
+8. Artifact metadata backed by one immutable storage object is attached to the target version.
 9. The CLI stores reusable file content in the local cache.
 
 Read [Transfer Workflows](./transfer-workflows.md) for the full upload sequence, including validation and upload-session lifecycle details.

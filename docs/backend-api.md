@@ -106,7 +106,7 @@ This allows the backend to answer whether a proposed file already matches conten
 `DELETE /versions/{version_id}/artifacts` clears the target version contents by deleting only version-to-artifact associations. It does not delete artifact records themselves and is used by `resource upload --force`.
 `DELETE /versions/{version_id}/artifacts/by-path` clears only one version-to-artifact association for the provided path. It is used by `resource upload-item --force` and also leaves shared artifact records intact.
 
-Artifact creation requires `storage_version_id`. Cordis treats that as the durable reference to the exact stored object version behind the artifact metadata.
+Artifact creation does not require storage-provider version metadata. Cordis treats the artifact record and its immutable storage key as the durable reference to the stored object behind the artifact metadata.
 
 ## Upload Sessions
 
@@ -120,7 +120,7 @@ Core routes:
 - `POST /uploads/sessions/{session_id}/complete`
 - `POST /uploads/sessions/{session_id}/abort`
 
-Upload sessions track the target version, path, checksum, size, upload state, and uploaded parts. Finalization creates or resolves artifact metadata and associates it to the target version. Completion also requires the storage backend to return a real object version ID; if that metadata is missing, finalization fails and the session is marked failed.
+Upload sessions track the target version, path, checksum, size, upload state, and uploaded parts. Finalization creates or resolves artifact metadata and associates it to the target version. Completion does not depend on storage-provider object version metadata; immutable object keys are the durable storage identity.
 
 Before creating an upload session, the CLI may call `POST /resources/check` and, when the backend finds a repository-scoped artifact at the same path with identical checksum and size, attach that artifact directly to the target version through `POST /versions/{version_id}/artifacts` instead of uploading the file again. When the operator uses `resource upload --force`, the CLI first calls `DELETE /versions/{version_id}/artifacts` so upload starts from an empty version. When the operator uses `resource upload-item --force`, the CLI first calls `DELETE /versions/{version_id}/artifacts/by-path` so only the requested path is replaced.
 

@@ -8,7 +8,6 @@ class ArtifactCreateRequest(BaseModel):
     path: str
     checksum: str
     size: int
-    storage_version_id: str
 
 
 class VersionArtifactCreateRequest(BaseModel):

@@ -31,8 +31,8 @@ A version tag binds a stable name to a repository-scoped version.
 
 ### Artifact
 
-An artifact represents file content metadata such as path, checksum, size, repository ownership, and the required `storage_version_id` that identifies the exact underlying object version in storage.
-Artifacts are repository-scoped and path-sensitive: the same repository path can be reused across multiple versions when checksum and size match exactly. When a repository enables `allow_public_object_urls`, an artifact also has one stable provider-native `public_url`, shared across every Cordis version that attaches that artifact. Public raw-object exposure is prefix-scoped within the shared storage bucket, not a bucket-wide public mode.
+An artifact represents file content metadata such as path, checksum, size, and repository ownership.
+Artifacts are repository-scoped and path-sensitive: the same repository path can be reused across multiple versions when checksum and size match exactly. Stored objects use immutable keys derived from repository ID, artifact ID, and artifact path, so the artifact record itself is the durable identity for the underlying blob. When a repository enables `allow_public_object_urls`, an artifact also has one stable provider-native `public_url`, shared across every Cordis version that attaches that artifact. Public raw-object exposure is prefix-scoped within the shared storage bucket, not a bucket-wide public mode.
 
 ### Version Artifact
 
@@ -61,6 +61,6 @@ An upload session part records uploaded multipart progress for resumable uploads
 
 - repository boundaries drive authorization
 - version boundaries drive content lifecycle and retrieval
-- artifact metadata lets content be reasoned about independently from transfer transport while still preserving exact storage object lineage through `storage_version_id`
+- artifact metadata lets content be reasoned about independently from transfer transport while still mapping cleanly to one immutable storage object
 - repository-scoped artifact reuse lets unchanged files at the same path be attached to later versions without re-uploading
 - upload sessions make large-file workflows explicit and resumable

@@ -105,9 +105,6 @@ At adapter initialization time, the backend:
 
 - connects to MinIO using the configured endpoint, credentials, region, and secure flag
 - creates the configured bucket if it does not already exist
-- enables bucket versioning if it is not already enabled
-
-This versioning behavior is required because completed artifacts must persist a real `storage_version_id`. If MinIO cannot provide an object version ID for a completed upload, upload finalization fails.
 
 When a repository enables `allow_public_object_urls`, Cordis updates the bucket policy for only that repository's storage prefix inside the shared bucket. For MinIO, this is a prefix-scoped public-read policy for object fetches, not a bucket-wide public/private toggle. If the bucket does not have any policy yet, Cordis initializes an empty policy document and then adds the repository-scoped allow statement; operators do not need to pre-create a bucket policy just to enable the first public repository prefix.
 
@@ -116,11 +113,10 @@ For `CORDIS_STORAGE_PROVIDER=s3`, the backend uses `boto3` and expects a pre-pro
 Operational expectations for `s3`:
 
 - the configured bucket must already exist
-- bucket versioning must already be enabled
-- the backend validates those conditions during storage adapter initialization
-- the backend does not create AWS buckets or enable AWS bucket versioning automatically
+- the backend validates bucket accessibility during storage adapter initialization
+- the backend does not create AWS buckets automatically
 
-If the S3 bucket is missing, inaccessible, or not versioned, adapter initialization fails.
+If the S3 bucket is missing or inaccessible, adapter initialization fails.
 
 When a repository enables `allow_public_object_urls`, Cordis applies the same prefix-scoped policy model for S3. The repository flag updates public read access only for that repository's object prefix in the shared bucket. Disabling the flag removes the Cordis-managed allow statement for that prefix; it does not write a blanket deny policy.
 

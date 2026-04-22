@@ -3,8 +3,6 @@ from typing import Any
 
 from botocore.client import BaseClient
 
-S3_VERSIONING_ENABLED = "Enabled"
-
 
 class AwsS3StorageClient:
     def __init__(self, client: BaseClient):
@@ -13,10 +11,6 @@ class AwsS3StorageClient:
     def bucket_exists(self, *, bucket: str) -> bool:
         self.client.head_bucket(Bucket=bucket)
         return True
-
-    def bucket_versioning_enabled(self, *, bucket: str) -> bool:
-        response = self.client.get_bucket_versioning(Bucket=bucket)
-        return bool(response.get("Status") == S3_VERSIONING_ENABLED)
 
     def head_object(self, *, bucket: str, key: str) -> dict[str, Any]:
         response = self.client.head_object(Bucket=bucket, Key=key)
@@ -30,7 +24,6 @@ class AwsS3StorageClient:
         response = self.client.put_object(Bucket=bucket, Key=key, Body=body, ChecksumSHA256=checksum_sha256)
         return {
             "etag": str(response["ETag"]).strip('"'),
-            "version_id": None if response.get("VersionId") is None else str(response["VersionId"]),
         }
 
     def delete_object(self, *, bucket: str, key: str) -> None:
@@ -45,17 +38,17 @@ class AwsS3StorageClient:
             )
         )
 
-    def create_public_object_url(self, *, bucket: str, key: str, version_id: str) -> str:
+    def create_public_object_url(self, *, bucket: str, key: str) -> str:
         meta = getattr(self.client, "meta", None)
         endpoint_url = getattr(meta, "endpoint_url", None)
         if isinstance(endpoint_url, str):
             host = endpoint_url.rstrip("/")
-            return f"{host}/{bucket}/{key}?versionId={version_id}"
+            return f"{host}/{bucket}/{key}"
 
         region_name = getattr(getattr(meta, "config", None), "region_name", None)
         if region_name:
-            return f"https://{bucket}.s3.{region_name}.amazonaws.com/{key}?versionId={version_id}"
-        return f"https://{bucket}.s3.amazonaws.com/{key}?versionId={version_id}"
+            return f"https://{bucket}.s3.{region_name}.amazonaws.com/{key}"
+        return f"https://{bucket}.s3.amazonaws.com/{key}"
 
     def ensure_public_prefix_access(self, *, bucket: str, prefix: str) -> bool:
         self._assert_public_policy_allowed(bucket)
@@ -132,7 +125,6 @@ class AwsS3StorageClient:
         )
         return {
             "etag": str(response["ETag"]).strip('"'),
-            "version_id": None if response.get("VersionId") is None else str(response["VersionId"]),
         }
 
     def abort_multipart_upload(self, *, bucket: str, key: str, upload_id: str) -> None:

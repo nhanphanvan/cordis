@@ -577,10 +577,7 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
                         "path": "models/file.bin",
                         "checksum": "sha256:file",
                         "size": 64,
-                        "public_url": (
-                            "https://storage.invalid/9/models/file.bin"
-                            "?versionId=1234567890abcdefghijklmnopqrstuvwxyz"
-                        ),
+                        "public_url": "https://storage.invalid/9/models/file.bin",
                     },
                     {
                         "id": "artifact-2",
@@ -601,9 +598,8 @@ def test_resource_ls_uses_registered_repository_and_version(monkeypatch, tmp_pat
         assert "README.md" in result.stdout
         assert "Public URL" in result.stdout
         assert "storage.invalid" in result.stdout
-        assert "https://storage.invalid/9/models/fi" in result.stdout
-        assert "le.bin?versionId=1234567890abcdefgh" in result.stdout
-        assert "ijklmnopqrstuvwxyz" in result.stdout
+        assert "https://storage.invalid/9/mo" in result.stdout
+        assert "dels/file.bin" in result.stdout
         assert "…" not in result.stdout
 
 

@@ -26,7 +26,7 @@ class S3ClientProtocol(Protocol):
 
     def create_presigned_get_url(self, *, bucket: str, key: str, expires_in: int) -> str: ...
 
-    def create_public_object_url(self, *, bucket: str, key: str, version_id: str) -> str: ...
+    def create_public_object_url(self, *, bucket: str, key: str) -> str: ...
 
     def ensure_public_prefix_access(self, *, bucket: str, prefix: str) -> bool: ...
 
@@ -89,13 +89,12 @@ class S3StorageAdapter(StorageAdapter):
             )
         )
 
-    def get_public_url(self, ref: StorageObjectRef, *, storage_version_id: str) -> str:
+    def get_public_url(self, ref: StorageObjectRef) -> str:
         return str(
             self._call(
                 self.client.create_public_object_url,
                 bucket=self.bucket,
                 key=self._build_key(ref),
-                version_id=storage_version_id,
             )
         )
 
@@ -153,11 +152,9 @@ class S3StorageAdapter(StorageAdapter):
             upload_id=upload_id,
             parts=[{"part_number": part.part_number, "etag": part.etag} for part in parts],
         )
-        version_id = response.get("version_id")
         return CompletedMultipartUpload(
             etag=str(response["etag"]),
             checksum=None,
-            version_id=None if version_id is None else str(version_id),
         )
 
     def abort_multipart_upload(self, ref: StorageObjectRef, *, upload_id: str) -> None:
@@ -173,8 +170,8 @@ class S3StorageAdapter(StorageAdapter):
             part
             for part in (
                 self.prefix,
-                f"repositories/{ref.repository_id}",
-                f"artifacts/{ref.artifact_id}",
+                str(ref.repository_id),
+                str(ref.artifact_id),
                 ref.path.strip("/"),
             )
             if part
@@ -182,7 +179,7 @@ class S3StorageAdapter(StorageAdapter):
         return "/".join(parts)
 
     def _build_repository_prefix(self, repository_id: int) -> str:
-        parts = [part for part in (self.prefix, f"repositories/{repository_id}") if part]
+        parts = [part for part in (self.prefix, str(repository_id)) if part]
         return "/".join(parts)
 
     def _call(self, operation: Any, **kwargs: Any) -> Any:

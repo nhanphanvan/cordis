@@ -67,11 +67,11 @@ class FakeS3Client:
             raise FakeProviderError(self.mode)
         return f"https://example.invalid/{bucket}/{key}?expires={expires_in}"
 
-    def create_public_object_url(self, *, bucket: str, key: str, version_id: str) -> str:
-        self.calls.append(("create_public_object_url", bucket, key, version_id))
+    def create_public_object_url(self, *, bucket: str, key: str) -> str:
+        self.calls.append(("create_public_object_url", bucket, key))
         if self.mode != "ok":
             raise FakeProviderError(self.mode)
-        return f"https://example.invalid/{bucket}/{key}?versionId={version_id}"
+        return f"https://example.invalid/{bucket}/{key}"
 
     def ensure_public_prefix_access(self, *, bucket: str, prefix: str) -> bool:
         self.calls.append(("ensure_public_prefix_access", bucket, prefix))
@@ -177,7 +177,7 @@ class FakeMinioSdk:
         self.calls.append(("put_object", bucket_name, object_name, payload, length, content_type))
         if self.mode != "ok":
             raise FakeProviderError(self.mode)
-        return type("PutObjectResult", (), {"etag": "sha256:abc123", "version_id": "version-put-1"})()
+        return type("PutObjectResult", (), {"etag": "sha256:abc123", "version_id": None})()
 
     def remove_object(self, bucket_name: str, object_name: str) -> None:
         self.calls.append(("remove_object", bucket_name, object_name))
@@ -402,7 +402,7 @@ def test_s3_storage_adapter_builds_object_keys_and_maps_object_operations() -> N
     metadata = adapter.stat_object(ref)
     upload_etag = adapter.put_object(ref, body=b"payload", checksum="sha256:abc123")
     download_url = adapter.get_download_url(ref, expires_in=900)
-    public_url = adapter.get_public_url(ref, storage_version_id="version-1")
+    public_url = adapter.get_public_url(ref)
     published = adapter.ensure_repository_public_access(repository_id=42)
     unpublished = adapter.disable_repository_public_access(repository_id=42)
     adapter.delete_object(ref)
@@ -410,46 +410,41 @@ def test_s3_storage_adapter_builds_object_keys_and_maps_object_operations() -> N
     assert metadata == ObjectMetadata(etag="sha256:abc123", size=1024)
     assert upload_etag == "sha256:abc123"
     assert download_url == (
-        "https://example.invalid/cordis-artifacts/"
-        "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin?expires=900"
+        "https://example.invalid/cordis-artifacts/" "tenant-a/42/artifact-123/models/weights.bin?expires=900"
     )
-    assert public_url == (
-        "https://example.invalid/cordis-artifacts/"
-        "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin?versionId=version-1"
-    )
+    assert public_url == ("https://example.invalid/cordis-artifacts/" "tenant-a/42/artifact-123/models/weights.bin")
     assert published is True
     assert unpublished is True
     assert client.calls == [
         (
             "head_object",
             "cordis-artifacts",
-            "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin",
+            "tenant-a/42/artifact-123/models/weights.bin",
         ),
         (
             "put_object",
             "cordis-artifacts",
-            "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin",
+            "tenant-a/42/artifact-123/models/weights.bin",
             b"payload",
             "sha256:abc123",
         ),
         (
             "create_presigned_get_url",
             "cordis-artifacts",
-            "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin",
+            "tenant-a/42/artifact-123/models/weights.bin",
             900,
         ),
         (
             "create_public_object_url",
             "cordis-artifacts",
-            "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin",
-            "version-1",
+            "tenant-a/42/artifact-123/models/weights.bin",
         ),
-        ("ensure_public_prefix_access", "cordis-artifacts", "tenant-a/repositories/42"),
-        ("disable_public_prefix_access", "cordis-artifacts", "tenant-a/repositories/42"),
+        ("ensure_public_prefix_access", "cordis-artifacts", "tenant-a/42"),
+        ("disable_public_prefix_access", "cordis-artifacts", "tenant-a/42"),
         (
             "delete_object",
             "cordis-artifacts",
-            "tenant-a/repositories/42/artifacts/artifact-123/models/weights.bin",
+            "tenant-a/42/artifact-123/models/weights.bin",
         ),
     ]
 
@@ -466,32 +461,29 @@ def test_s3_storage_adapter_exposes_multipart_primitives() -> None:
 
     assert upload_id == "upload-123"
     assert part == UploadedPart(part_number=1, etag="etag-1")
-    assert completed == CompletedMultipartUpload(etag="complete-etag", checksum=None, version_id="version-1")
+    assert completed == CompletedMultipartUpload(etag="complete-etag", checksum=None)
 
 
 def test_minio_storage_client_maps_bucket_and_object_operations() -> None:
     sdk = FakeMinioSdk("localhost:9000", access_key="minioadmin", secret_key="minioadmin", secure=False)
     sdk.bucket_exists_result = False
-    sdk.versioning_status = None
     client = MinioStorageClient(sdk)
 
     assert client.ensure_bucket_exists(bucket="cordis-artifacts", region="us-east-1") is True
-    client.ensure_bucket_versioning_enabled(bucket="cordis-artifacts")
     assert client.head_object(bucket="cordis-artifacts", key="path/file.bin") == {
         "etag": "sha256:abc123",
         "content_length": 1024,
     }
     assert client.put_object(bucket="cordis-artifacts", key="path/file.bin", body=b"payload", checksum=None) == {
         "etag": "sha256:abc123",
-        "version_id": "version-put-1",
     }
     assert (
         client.create_presigned_get_url(bucket="cordis-artifacts", key="path/file.bin", expires_in=900)
         == "https://example.invalid/cordis-artifacts/path/file.bin?expires=900"
     )
     assert (
-        client.create_public_object_url(bucket="cordis-artifacts", key="path/file.bin", version_id="version-1")
-        == "http://localhost:9000/cordis-artifacts/path/file.bin?versionId=version-1"
+        client.create_public_object_url(bucket="cordis-artifacts", key="path/file.bin")
+        == "http://localhost:9000/cordis-artifacts/path/file.bin"
     )
     assert client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
     assert client.disable_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
@@ -509,7 +501,7 @@ def test_minio_storage_client_maps_bucket_and_object_operations() -> None:
         key="path/file.bin",
         upload_id="upload-123",
         parts=[{"part_number": 1, "etag": "etag-1"}],
-    ) == {"etag": "complete-etag", "version_id": "version-1"}
+    ) == {"etag": "complete-etag"}
     client.abort_multipart_upload(bucket="cordis-artifacts", key="path/file.bin", upload_id="upload-123")
     client.delete_object(bucket="cordis-artifacts", key="path/file.bin")
 
@@ -607,7 +599,6 @@ def test_aws_s3_storage_client_maps_bucket_and_object_operations() -> None:
     client = AwsS3StorageClient(sdk)
 
     assert client.bucket_exists(bucket="cordis-artifacts") is True
-    assert client.bucket_versioning_enabled(bucket="cordis-artifacts") is True
     assert client.head_object(bucket="cordis-artifacts", key="path/file.bin") == {
         "etag": "sha256:abc123",
         "content_length": 1024,
@@ -619,15 +610,14 @@ def test_aws_s3_storage_client_maps_bucket_and_object_operations() -> None:
         checksum="sha256:abc123",
     ) == {
         "etag": "sha256:abc123",
-        "version_id": "version-put-1",
     }
     assert (
         client.create_presigned_get_url(bucket="cordis-artifacts", key="path/file.bin", expires_in=900)
         == "https://example.invalid/cordis-artifacts/path/file.bin?expires=900"
     )
     assert (
-        client.create_public_object_url(bucket="cordis-artifacts", key="path/file.bin", version_id="version-1")
-        == "https://s3.us-east-1.amazonaws.com/cordis-artifacts/path/file.bin?versionId=version-1"
+        client.create_public_object_url(bucket="cordis-artifacts", key="path/file.bin")
+        == "https://s3.us-east-1.amazonaws.com/cordis-artifacts/path/file.bin"
     )
     assert client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
     assert client.disable_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42") is True
@@ -644,7 +634,7 @@ def test_aws_s3_storage_client_maps_bucket_and_object_operations() -> None:
         key="path/file.bin",
         upload_id="upload-123",
         parts=[{"part_number": 1, "etag": "etag-1"}],
-    ) == {"etag": "complete-etag", "version_id": "version-1"}
+    ) == {"etag": "complete-etag"}
     client.abort_multipart_upload(bucket="cordis-artifacts", key="path/file.bin", upload_id="upload-123")
     client.delete_object(bucket="cordis-artifacts", key="path/file.bin")
 
@@ -717,7 +707,6 @@ def test_aws_s3_storage_client_disable_public_prefix_access_removes_only_cordis_
 def test_storage_factory_builds_minio_backed_adapter_and_bootstraps_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_sdk = FakeMinioSdk()
     fake_sdk.bucket_exists_result = False
-    fake_sdk.versioning_status = None
     monkeypatch.setenv("CORDIS_STORAGE_PROVIDER", "minio")
     monkeypatch.setenv("CORDIS_STORAGE_ENDPOINT", "localhost:9000")
     monkeypatch.setenv("CORDIS_STORAGE_ACCESS_KEY", "minioadmin")
@@ -732,12 +721,10 @@ def test_storage_factory_builds_minio_backed_adapter_and_bootstraps_bucket(monke
     adapter = storage_factory.get_storage_adapter()
     assert isinstance(adapter, S3StorageAdapter)
     assert isinstance(adapter.client, MinioStorageClient)
-    assert fake_sdk.calls[:3] == [
+    assert fake_sdk.calls[:2] == [
         ("bucket_exists", "cordis-artifacts"),
         ("make_bucket", "cordis-artifacts", "us-east-1", False),
-        ("get_bucket_versioning", "cordis-artifacts"),
     ]
-    assert fake_sdk.calls[3] == ("set_bucket_versioning", "cordis-artifacts", "Enabled")
 
 
 def test_storage_factory_builds_aws_s3_adapter_for_real_s3(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -752,10 +739,7 @@ def test_storage_factory_builds_aws_s3_adapter_for_real_s3(monkeypatch: pytest.M
     adapter = storage_factory.get_storage_adapter()
     assert isinstance(adapter, S3StorageAdapter)
     assert isinstance(adapter.client, AwsS3StorageClient)
-    assert fake_sdk.calls[:2] == [
-        ("head_bucket", "cordis-artifacts"),
-        ("get_bucket_versioning", "cordis-artifacts"),
-    ]
+    assert fake_sdk.calls[:1] == [("head_bucket", "cordis-artifacts")]
 
 
 def test_storage_factory_requires_minio_connection_settings(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
@@ -773,7 +757,7 @@ def test_storage_factory_requires_minio_connection_settings(monkeypatch: pytest.
     assert error_info.value.app_status == AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED
 
 
-def test_storage_factory_requires_existing_s3_bucket_and_enabled_versioning(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_storage_factory_requires_existing_s3_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_sdk = FakeAwsSdk()
     fake_sdk.mode = "NoSuchBucket"
     monkeypatch.setenv("CORDIS_STORAGE_PROVIDER", "s3")
@@ -786,17 +770,6 @@ def test_storage_factory_requires_existing_s3_bucket_and_enabled_versioning(monk
         storage_factory.get_storage_adapter()
 
     assert bucket_error.value.app_status == AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED
-
-    fake_sdk = FakeAwsSdk()
-    fake_sdk.versioning_status = None
-    monkeypatch.setattr("cordis.backend.storage.factory.boto3.client", lambda *args, **kwargs: fake_sdk)
-    build_config.cache_clear()
-    storage_factory.get_storage_adapter.cache_clear()
-
-    with pytest.raises(InternalServerError) as versioning_error:
-        storage_factory.get_storage_adapter()
-
-    assert versioning_error.value.app_status == AppStatus.ERROR_STORAGE_ADAPTER_NOT_CONFIGURED
 
 
 @pytest.mark.parametrize(

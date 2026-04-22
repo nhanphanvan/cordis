@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import base64
 import shutil
+from collections.abc import Callable
 from contextlib import nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -141,6 +142,7 @@ class TransferHelper:
                     console.print(f"Reused: {relative_path}")
 
             for file_path, relative_path in upload_candidates:
+
                 def on_chunk_uploaded(delta: int) -> None:
                     if progress is not None and upload_task_id is not None:
                         progress.update(upload_task_id, advance=delta)
