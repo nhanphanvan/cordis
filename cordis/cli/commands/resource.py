@@ -86,11 +86,14 @@ def upload_resources(
             force=force,
         )
     )
-    print_path_summary("Uploaded", [str(item) for item in result["uploaded"]])
-    if result.get("reused"):
-        print_path_summary("Reused", [str(item) for item in result["reused"]])
-    if result.get("unchanged"):
-        print_path_summary("Unchanged", [str(item) for item in result["unchanged"]])
+    uploaded_count = len(result.get("uploaded", []))
+    reused_count = len(result.get("reused", []))
+    unchanged_count = len(result.get("unchanged", []))
+    total_count = uploaded_count + reused_count + unchanged_count
+    print_success(
+        f"Upload completed: {total_count} files resolved "
+        f"({uploaded_count} uploaded, {reused_count} reused, {unchanged_count} unchanged)"
+    )
 
 
 @app.command("upload-item")

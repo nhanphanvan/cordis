@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import base64
 import shutil
+from contextlib import nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import httpx
 
 from cordis.cli.utils.files import copy_from_cache, iter_file_chunks, iter_files, save_to_cache, sha256_file
-from cordis.cli.utils.presentation import create_download_progress
+from cordis.cli.utils.presentation import create_download_progress, create_upload_progress
 from cordis.sdk.errors import ApiError, TransportError, UploadPreflightError
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ class TransferHelper:
         version_id: str,
         file_path: Path,
         target_path: str,
+        on_chunk_uploaded: Callable[[int], None] | None = None,
     ) -> None:
         checksum = sha256_file(file_path)
         size = file_path.stat().st_size
@@ -47,6 +49,8 @@ class TransferHelper:
                 path=f"/api/v1/uploads/sessions/{session['id']}/parts",
                 payload={"part_number": part_number, "content_base64": base64.b64encode(chunk).decode("ascii")},
             )
+            if on_chunk_uploaded is not None:
+                on_chunk_uploaded(len(chunk))
         await self.client.request(method="POST", path=f"/api/v1/uploads/sessions/{session['id']}/complete")
         save_to_cache(str(repository_id), checksum, file_path)
 
@@ -109,21 +113,49 @@ class TransferHelper:
         if conflicts:
             raise UploadPreflightError(conflicts=sorted(conflicts))
 
-        for relative_path, artifact_id in reuse_candidates:
-            await self.client.attach_artifact(
-                version_id=str(version["id"]),
-                artifact_id=artifact_id,
-            )
-            reused.append(relative_path)
+        total_uploads = len(upload_candidates)
+        total_upload_bytes = sum(file_path.stat().st_size for file_path, _ in upload_candidates)
+        completed_uploads = 0
+        progress_context = create_upload_progress() if total_uploads > 0 else nullcontext()
 
-        for file_path, relative_path in upload_candidates:
-            await self._upload_file(
-                repository_id=repository_id,
-                version_id=str(version["id"]),
-                file_path=file_path,
-                target_path=relative_path,
-            )
-            uploaded.append(relative_path)
+        def upload_description() -> str:
+            return f"Uploading version {completed_uploads}/{total_uploads} files"
+
+        with progress_context as progress:
+            upload_task_id = None
+            console = progress.console if progress is not None else None
+            if progress is not None:
+                upload_task_id = progress.add_task(upload_description(), total=total_upload_bytes, completed=0)
+
+            for relative_path in unchanged:
+                if console is not None:
+                    console.print(f"Unchanged: {relative_path}")
+
+            for relative_path, artifact_id in reuse_candidates:
+                await self.client.attach_artifact(
+                    version_id=str(version["id"]),
+                    artifact_id=artifact_id,
+                )
+                reused.append(relative_path)
+                if console is not None:
+                    console.print(f"Reused: {relative_path}")
+
+            for file_path, relative_path in upload_candidates:
+                def on_chunk_uploaded(delta: int) -> None:
+                    if progress is not None and upload_task_id is not None:
+                        progress.update(upload_task_id, advance=delta)
+
+                await self._upload_file(
+                    repository_id=repository_id,
+                    version_id=str(version["id"]),
+                    file_path=file_path,
+                    target_path=relative_path,
+                    on_chunk_uploaded=on_chunk_uploaded,
+                )
+                uploaded.append(relative_path)
+                completed_uploads += 1
+                if progress is not None and upload_task_id is not None:
+                    progress.update(upload_task_id, advance=0, description=upload_description())
         return {"uploaded": uploaded, "reused": reused, "unchanged": unchanged}
 
     async def upload_item(

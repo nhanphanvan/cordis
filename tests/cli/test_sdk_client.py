@@ -1104,6 +1104,105 @@ def test_upload_directory_reports_unchanged_files_and_uploads_new_files(monkeypa
     )
 
 
+def test_upload_directory_tracks_progress_and_logs_reused_and_unchanged(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "payloads"
+    root.mkdir()
+    (root / "keep.txt").write_text("keep", encoding="utf-8")
+    (root / "reuse.txt").write_text("reuse", encoding="utf-8")
+    (root / "new.txt").write_text("new", encoding="utf-8")
+
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    progress_events: list[tuple[str, object, object]] = []
+    status_messages: list[str] = []
+
+    class FakeConsole:
+        def print(self, message: str) -> None:
+            status_messages.append(message)
+
+    class FakeProgress:
+        def __init__(self) -> None:
+            self.console = FakeConsole()
+
+        def __enter__(self) -> "FakeProgress":
+            progress_events.append(("enter", None, None))
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            progress_events.append(("exit", None, None))
+            return False
+
+        def add_task(self, description: str, *, total: object = None, completed: object = 0) -> int:
+            progress_events.append((description, total, completed))
+            return 1
+
+        def update(
+            self,
+            task_id: int,
+            *,
+            advance: object | None = None,
+            description: object | None = None,
+        ) -> None:
+            progress_events.append((f"update:{task_id}", advance, description))
+
+    async def fake_get_version(self, *, repository_id: int, name: str) -> dict[str, object]:
+        assert repository_id == 7
+        assert name == "v1"
+        return {"id": "version-1", "name": name}
+
+    async def fake_list_version_artifacts(
+        self,
+        *,
+        repository_id: int,
+        version_name: str,
+    ) -> list[dict[str, object]]:
+        assert repository_id == 7
+        assert version_name == "v1"
+        return [
+            {
+                "path": "keep.txt",
+                "checksum": "sha256:6ca7ea2feefc88ecb5ed6356ed963f47dc9137f82526fdd25d618ea626d0803f",
+                "size": 4,
+            }
+        ]
+
+    async def fake_request(
+        self,
+        *,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        if path == "/api/v1/resources/check":
+            assert payload is not None
+            if payload["path"] == "reuse.txt":
+                return {"status": "exists", "artifact_id": "artifact-1"}
+            return {"status": "missing", "artifact_id": None}
+        if path == "/api/v1/uploads/sessions":
+            return {"id": "session-1", "parts": []}
+        return {}
+
+    monkeypatch.setattr(CordisClient, "get_version", fake_get_version)
+    monkeypatch.setattr(CordisClient, "list_version_artifacts", fake_list_version_artifacts)
+    monkeypatch.setattr(CordisClient, "request", fake_request)
+    monkeypatch.setattr("cordis.sdk.transfers.create_upload_progress", lambda: FakeProgress())
+    monkeypatch.setattr("cordis.sdk.transfers.save_to_cache", lambda repository_key, checksum, source_path: None)
+
+    result = asyncio.run(client.upload_directory(repository_id=7, version_name="v1", folder_path=str(root)))
+
+    assert result == {"uploaded": ["new.txt"], "reused": ["reuse.txt"], "unchanged": ["keep.txt"]}
+    assert progress_events == [
+        ("enter", None, None),
+        ("Uploading version 0/1 files", 3, 0),
+        ("update:1", 3, None),
+        ("update:1", 0, "Uploading version 1/1 files"),
+        ("exit", None, None),
+    ]
+    assert status_messages == [
+        "Unchanged: keep.txt",
+        "Reused: reuse.txt",
+    ]
+
+
 def test_upload_directory_reports_all_preflight_conflicts(monkeypatch, tmp_path: Path) -> None:
     root = tmp_path / "payloads"
     root.mkdir()

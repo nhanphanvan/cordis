@@ -795,8 +795,10 @@ def test_resource_upload_uses_registered_repository_and_version(monkeypatch, tmp
         result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "41", "-v", "v5"])
 
         assert result.exit_code == 0
-        assert "Uploaded" in result.stdout
-        assert "file.txt" in result.stdout
+        assert "Success" in result.stdout
+        assert "Upload completed: 1 files resolved (1 uploaded, 0 reused, 0 unchanged)" in result.stdout
+        assert "Uploaded" not in result.stdout
+        assert "file.txt" not in result.stdout
 
 
 def test_resource_upload_can_create_missing_version(monkeypatch, tmp_path: Path) -> None:
@@ -836,8 +838,8 @@ def test_resource_upload_can_create_missing_version(monkeypatch, tmp_path: Path)
         )
 
         assert result.exit_code == 0
-        assert "Uploaded" in result.stdout
-        assert "file.txt" in result.stdout
+        assert "Success" in result.stdout
+        assert "Upload completed: 1 files resolved (1 uploaded, 0 reused, 0 unchanged)" in result.stdout
 
 
 def test_resource_upload_renders_uploaded_and_reused_paths(monkeypatch, tmp_path: Path) -> None:
@@ -875,10 +877,12 @@ def test_resource_upload_renders_uploaded_and_reused_paths(monkeypatch, tmp_path
         result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "43", "-v", "v7"])
 
         assert result.exit_code == 0
-        assert "Uploaded" in result.stdout
-        assert "file-b.txt" in result.stdout
-        assert "Reused" in result.stdout
-        assert "file-a.txt" in result.stdout
+        assert "Success" in result.stdout
+        assert "Upload completed: 2 files resolved (1 uploaded, 1 reused, 0 unchanged)" in result.stdout
+        assert "Uploaded" not in result.stdout
+        assert "Reused" not in result.stdout
+        assert "file-b.txt" not in result.stdout
+        assert "file-a.txt" not in result.stdout
 
 
 def test_resource_upload_renders_uploaded_reused_and_unchanged_paths(monkeypatch, tmp_path: Path) -> None:
@@ -917,12 +921,14 @@ def test_resource_upload_renders_uploaded_reused_and_unchanged_paths(monkeypatch
         result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "43", "-v", "v7"])
 
         assert result.exit_code == 0
-        assert "Uploaded" in result.stdout
-        assert "file-b.txt" in result.stdout
-        assert "Reused" in result.stdout
-        assert "file-a.txt" in result.stdout
-        assert "Unchanged" in result.stdout
-        assert "file-c.txt" in result.stdout
+        assert "Success" in result.stdout
+        assert "Upload completed: 3 files resolved (1 uploaded, 1 reused, 1 unchanged)" in result.stdout
+        assert "Uploaded" not in result.stdout
+        assert "Reused" not in result.stdout
+        assert "Unchanged" not in result.stdout
+        assert "file-b.txt" not in result.stdout
+        assert "file-a.txt" not in result.stdout
+        assert "file-c.txt" not in result.stdout
 
 
 def test_resource_upload_renders_preflight_failure(monkeypatch, tmp_path: Path) -> None:
@@ -1073,7 +1079,8 @@ def test_resource_upload_force_passes_force_flag(monkeypatch, tmp_path: Path) ->
         result = runner.invoke(app, ["resource", "upload", "-p", "payloads", "-id", "44", "-v", "v8", "--force"])
 
         assert result.exit_code == 0
-        assert "Uploaded" in result.stdout
+        assert "Success" in result.stdout
+        assert "Upload completed: 1 files resolved (1 uploaded, 0 reused, 0 unchanged)" in result.stdout
 
 
 def test_resource_download_force_passes_force_flag(monkeypatch, tmp_path: Path) -> None:

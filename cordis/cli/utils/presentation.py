@@ -74,3 +74,16 @@ def create_download_progress() -> Progress:
         console=_get_console(),
         transient=True,
     )
+
+
+def create_upload_progress() -> Progress:
+    return Progress(
+        TextColumn("{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TimeRemainingColumn(),
+        console=_get_console(),
+        transient=True,
+    )
