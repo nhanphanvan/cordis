@@ -174,6 +174,8 @@ class MinioStorageClient:
         try:
             policy = self.client.get_bucket_policy(bucket)
         except Exception as error:  # pragma: no cover - exercised via mapping tests
+            if isinstance(error, S3Error) and error.code == "NoSuchBucketPolicy":
+                return {"Version": "2012-10-17", "Statement": []}
             raise translate_minio_error(error) from error
         if not policy:
             return {"Version": "2012-10-17", "Statement": []}

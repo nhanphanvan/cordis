@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 import pytest
+from minio.error import S3Error
 
 from cordis.backend.config import build_config
 from cordis.backend.exceptions import AppStatus, InternalServerError
@@ -133,6 +134,7 @@ class FakeMinioSdk:
         self.kwargs = kwargs
         self.calls: list[tuple[Any, ...]] = []
         self.mode = "ok"
+        self.get_bucket_policy_mode = "ok"
         self.bucket_exists_result = True
         self.versioning_status = "Enabled"
         self.policy_json = ""
@@ -197,6 +199,17 @@ class FakeMinioSdk:
 
     def get_bucket_policy(self, bucket_name: str) -> str:
         self.calls.append(("get_bucket_policy", bucket_name))
+        if self.get_bucket_policy_mode == "NoSuchBucketPolicy":
+            raise S3Error(
+                code="NoSuchBucketPolicy",
+                message="The bucket policy does not exist",
+                resource=f"/{bucket_name}",
+                request_id="test-request-id",
+                host_id="test-host-id",
+                response=None,
+                bucket_name=bucket_name,
+                object_name=None,
+            )
         if self.mode != "ok":
             raise FakeProviderError(self.mode)
         return self.policy_json
@@ -503,6 +516,29 @@ def test_minio_storage_client_maps_bucket_and_object_operations() -> None:
 
 def test_minio_storage_client_uses_prefix_scoped_public_policy_statement() -> None:
     sdk = FakeMinioSdk("localhost:9000", access_key="minioadmin", secret_key="minioadmin", secure=False)
+    client = MinioStorageClient(sdk)
+
+    changed = client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42")
+    policy = json.loads(sdk.policy_json)
+
+    assert changed is True
+    assert policy == {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "CordisPublicPrefixtenant_repositories_42",
+                "Effect": "Allow",
+                "Principal": {"AWS": ["*"]},
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::cordis-artifacts/tenant/repositories/42/*"],
+            }
+        ],
+    }
+
+
+def test_minio_storage_client_initializes_public_policy_when_bucket_policy_is_missing() -> None:
+    sdk = FakeMinioSdk("localhost:9000", access_key="minioadmin", secret_key="minioadmin", secure=False)
+    sdk.get_bucket_policy_mode = "NoSuchBucketPolicy"
     client = MinioStorageClient(sdk)
 
     changed = client.ensure_public_prefix_access(bucket="cordis-artifacts", prefix="tenant/repositories/42")

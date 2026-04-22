@@ -109,7 +109,7 @@ At adapter initialization time, the backend:
 
 This versioning behavior is required because completed artifacts must persist a real `storage_version_id`. If MinIO cannot provide an object version ID for a completed upload, upload finalization fails.
 
-When a repository enables `allow_public_object_urls`, Cordis updates the bucket policy for only that repository's storage prefix inside the shared bucket. For MinIO, this is a prefix-scoped public-read policy for object fetches, not a bucket-wide public/private toggle.
+When a repository enables `allow_public_object_urls`, Cordis updates the bucket policy for only that repository's storage prefix inside the shared bucket. For MinIO, this is a prefix-scoped public-read policy for object fetches, not a bucket-wide public/private toggle. If the bucket does not have any policy yet, Cordis initializes an empty policy document and then adds the repository-scoped allow statement; operators do not need to pre-create a bucket policy just to enable the first public repository prefix.
 
 For `CORDIS_STORAGE_PROVIDER=s3`, the backend uses `boto3` and expects a pre-provisioned AWS S3 bucket.
 
@@ -195,3 +195,4 @@ The repository includes a `migrate` Compose service, but schema migration execut
 - Repository `visibility` and storage public access are separate controls.
 - `visibility` governs Cordis API read authorization.
 - `allow_public_object_urls` governs whether artifact responses include provider-native `public_url` values and whether the backend syncs prefix-scoped storage read access for that repository.
+- On MinIO, the first enablement can create the bucket policy lazily if none exists yet.
