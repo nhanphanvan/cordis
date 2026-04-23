@@ -13,7 +13,6 @@ from cordis.backend.services.role import RoleService
 from cordis.backend.validators.role import RoleCreateValidator, RoleReadValidator, RoleUpdateValidator
 
 router = APIRouter(prefix="/roles", tags=["roles"])
-admin_router = APIRouter(prefix="/admin/roles", tags=["admin-roles"])
 
 
 def _role_response(role: Role) -> RoleResponse:
@@ -40,7 +39,7 @@ async def get_role(
     return _role_response(await RoleReadValidator.validate(uow=uow, role_id=role_id))
 
 
-@admin_router.post("", response_model=RoleResponse, status_code=201)
+@router.post("", response_model=RoleResponse, status_code=201)
 async def create_role(
     request: RoleCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -56,7 +55,7 @@ async def create_role(
     return _role_response(await RoleService(uow).create_role(name=request.name, description=request.description))
 
 
-@admin_router.patch("/{role_id}", response_model=RoleResponse)
+@router.patch("/{role_id}", response_model=RoleResponse)
 async def update_role(
     role_id: int,
     request: RoleUpdateRequest,
@@ -75,7 +74,7 @@ async def update_role(
     return _role_response(role)
 
 
-@admin_router.delete("/{role_id}", response_model=RoleResponse)
+@router.delete("/{role_id}", response_model=RoleResponse)
 async def delete_role(
     role_id: int,
     current_user: Annotated[User, Depends(get_current_user)],

@@ -124,6 +124,33 @@ def test_client_exposes_domain_apis_and_facade_methods_delegate() -> None:
     assert token == "token-from-auth-api"
 
 
+def test_list_users_requests_merged_users_path() -> None:
+    response = httpx.Response(
+        status_code=200,
+        json={"items": [{"id": 1, "email": "admin@example.com"}]},
+        request=httpx.Request("GET", "http://127.0.0.1:8000/api/v1/users"),
+    )
+    transport = FakeHttpxService(response)
+    client = CordisClient(base_url="http://127.0.0.1:8000")
+    client.transport = transport  # type: ignore[assignment]
+
+    result = asyncio.run(client.list_users())
+
+    assert result == [{"id": 1, "email": "admin@example.com"}]
+    assert transport.calls == [
+        (
+            "GET",
+            "/api/v1/users",
+            {
+                "json": None,
+                "headers": {
+                    "Content-Type": "application/json",
+                },
+            },
+        )
+    ]
+
+
 def test_repository_facade_delegates_visibility_and_public_object_flags() -> None:
     client = CordisClient(base_url="http://127.0.0.1:8000")
 

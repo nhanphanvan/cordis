@@ -36,7 +36,7 @@ If login fails because of backend auth or connectivity problems, the CLI renders
 - `cordis user ls`
 - `cordis user info [--email|-e <email>]`
 
-These commands cover current-user inspection and admin-facing user lookup/listing workflows.
+These commands cover current-user inspection plus admin-gated user lookup and listing workflows through the shared `/users` API surface.
 
 ## Repository Commands
 

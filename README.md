@@ -7,6 +7,7 @@ Full project documentation lives under [`docs/`](./docs/index.md).
 ## What It Includes
 
 - A FastAPI backend with versioned API routes under `/api/v1`
+- Shared `/users` and `/roles` API resources with per-endpoint admin gating for management operations
 - A Typer CLI for login, repository, version, tag, user, and resource workflows
 - Rich-rendered CLI tables, detail views, success panels, typed error output, streamed remote download progress, and compact download completion summaries
 - Artifact metadata, upload-session, and download flows for large object handling

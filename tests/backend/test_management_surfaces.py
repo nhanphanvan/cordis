@@ -135,11 +135,11 @@ def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
     client = TestClient(create_app())
     admin_headers = _auth_header(client, "admin@example.com", "password123")
 
-    list_response = client.get("/api/v1/admin/users", headers=admin_headers)
+    list_response = client.get("/api/v1/users", headers=admin_headers)
     get_response = client.get(f"/api/v1/users/{user_id}", headers=admin_headers)
     get_by_email_response = client.get("/api/v1/users/emails/existing@example.com", headers=admin_headers)
     create_response = client.post(
-        "/api/v1/admin/users",
+        "/api/v1/users",
         json={
             "email": "new@example.com",
             "name": "New User",
@@ -151,11 +151,11 @@ def test_admin_can_manage_users(monkeypatch, tmp_path: Path) -> None:
     )
     created_id = create_response.json()["id"]
     update_response = client.patch(
-        f"/api/v1/admin/users/{created_id}",
+        f"/api/v1/users/{created_id}",
         json={"is_admin": True, "name": "Promoted User"},
         headers=admin_headers,
     )
-    delete_response = client.delete(f"/api/v1/admin/users/{created_id}", headers=admin_headers)
+    delete_response = client.delete(f"/api/v1/users/{created_id}", headers=admin_headers)
 
     assert list_response.status_code == 200
     assert list_response.json()["items"][0]["id"] == admin_id
@@ -197,18 +197,18 @@ def test_admin_can_manage_roles(monkeypatch, tmp_path: Path) -> None:
 
     list_response = client.get("/api/v1/roles", headers=admin_headers)
     create_response = client.post(
-        "/api/v1/admin/roles",
+        "/api/v1/roles",
         json={"name": "tester", "description": "test role"},
         headers=admin_headers,
     )
     role_id = create_response.json()["id"]
     get_response = client.get(f"/api/v1/roles/{role_id}", headers=admin_headers)
     update_response = client.patch(
-        f"/api/v1/admin/roles/{role_id}",
+        f"/api/v1/roles/{role_id}",
         json={"description": "updated role"},
         headers=admin_headers,
     )
-    delete_response = client.delete(f"/api/v1/admin/roles/{role_id}", headers=admin_headers)
+    delete_response = client.delete(f"/api/v1/roles/{role_id}", headers=admin_headers)
 
     assert list_response.status_code == 200
     assert {item["name"] for item in list_response.json()["items"]} == {"owner", "developer", "viewer"}
@@ -235,7 +235,7 @@ def test_admin_user_creation_hashes_password(monkeypatch, tmp_path: Path) -> Non
     client = TestClient(create_app())
     admin_headers = _auth_header(client, "admin@example.com", "password123")
     create_response = client.post(
-        "/api/v1/admin/users",
+        "/api/v1/users",
         json={
             "email": "hashed@example.com",
             "name": "Hashed User",

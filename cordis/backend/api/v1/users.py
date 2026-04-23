@@ -23,7 +23,6 @@ from cordis.backend.validators.user import (
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
-admin_router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
 def _user_response(user: User) -> UserResponse:
@@ -84,7 +83,7 @@ async def get_user(
     return _user_response(await UserReadValidator.validate(uow=uow, user_id=user_id))
 
 
-@admin_router.get("", response_model=UserListResponse)
+@router.get("", response_model=UserListResponse)
 async def list_users(
     current_user: Annotated[User, Depends(get_current_user)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
@@ -99,7 +98,7 @@ async def list_users(
     return UserListResponse(items=[_user_response(user) for user in users])
 
 
-@admin_router.post("", response_model=UserResponse, status_code=201)
+@router.post("", response_model=UserResponse, status_code=201)
 async def create_user(
     request: UserCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -122,7 +121,7 @@ async def create_user(
     return _user_response(user)
 
 
-@admin_router.patch("/{user_id}", response_model=UserResponse)
+@router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,
     request: UserUpdateRequest,
@@ -147,7 +146,7 @@ async def update_user(
     return _user_response(user)
 
 
-@admin_router.delete("/{user_id}", response_model=UserResponse)
+@router.delete("/{user_id}", response_model=UserResponse)
 async def delete_user(
     user_id: int,
     current_user: Annotated[User, Depends(get_current_user)],

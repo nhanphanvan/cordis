@@ -8,7 +8,7 @@ class UsersAPI(BaseAPI):
         return await self._request(method="GET", path="/api/v1/users/me")
 
     async def list_users(self) -> list[dict[str, Any]]:
-        response = await self._request(method="GET", path="/api/v1/admin/users")
+        response = await self._request(method="GET", path="/api/v1/users")
         return list(response.get("items", []))
 
     async def get_user(self, *, user_id: int) -> dict[str, Any]:

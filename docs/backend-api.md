@@ -142,14 +142,12 @@ Read [Transfer Workflows](./transfer-workflows.md) for the detailed download seq
 
 ## Users and Roles
 
-Current user and admin surfaces include:
+Current user and role surfaces include:
 
 - `/users`
-- `/admin/users`
 - `/roles`
-- `/admin/roles`
 
-These routes support self-service inspection plus admin-facing user and role management workflows.
+These routes support self-service inspection plus admin-gated user and role management workflows on shared resource paths.
 
 ## Error and Access Behavior
 
