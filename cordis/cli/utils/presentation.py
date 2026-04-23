@@ -96,5 +96,5 @@ def create_upload_progress() -> Progress:
         TransferSpeedColumn(),
         TimeRemainingColumn(),
         console=_get_console(),
-        transient=True,
+        transient=False,
     )

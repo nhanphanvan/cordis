@@ -114,21 +114,32 @@ class TransferHelper:
         if conflicts:
             raise UploadPreflightError(conflicts=sorted(conflicts))
 
+        total_files = len(unchanged) + len(reuse_candidates) + len(upload_candidates)
         total_uploads = len(upload_candidates)
         total_upload_bytes = sum(file_path.stat().st_size for file_path, _ in upload_candidates)
+        resolved_files = 0
         completed_uploads = 0
-        progress_context = create_upload_progress() if total_uploads > 0 else nullcontext()
+        progress_context = create_upload_progress() if total_files > 0 else nullcontext()
+
+        def resolve_description() -> str:
+            return f"Resolving version {resolved_files}/{total_files} files"
 
         def upload_description() -> str:
             return f"Uploading version {completed_uploads}/{total_uploads} files"
 
         with progress_context as progress:
+            resolve_task_id = None
             upload_task_id = None
             console = progress.console if progress is not None else None
             if progress is not None:
-                upload_task_id = progress.add_task(upload_description(), total=total_upload_bytes, completed=0)
+                resolve_task_id = progress.add_task(resolve_description(), total=total_files, completed=0)
+                if total_uploads > 0:
+                    upload_task_id = progress.add_task(upload_description(), total=total_upload_bytes, completed=0)
 
             for relative_path in unchanged:
+                resolved_files += 1
+                if progress is not None and resolve_task_id is not None:
+                    progress.update(resolve_task_id, advance=1, description=resolve_description())
                 if console is not None:
                     console.print(f"Unchanged: {relative_path}")
 
@@ -138,6 +149,9 @@ class TransferHelper:
                     artifact_id=artifact_id,
                 )
                 reused.append(relative_path)
+                resolved_files += 1
+                if progress is not None and resolve_task_id is not None:
+                    progress.update(resolve_task_id, advance=1, description=resolve_description())
                 if console is not None:
                     console.print(f"Reused: {relative_path}")
 
@@ -156,8 +170,11 @@ class TransferHelper:
                 )
                 uploaded.append(relative_path)
                 completed_uploads += 1
+                resolved_files += 1
                 if progress is not None and upload_task_id is not None:
                     progress.update(upload_task_id, advance=0, description=upload_description())
+                if progress is not None and resolve_task_id is not None:
+                    progress.update(resolve_task_id, advance=1, description=resolve_description())
         return {"uploaded": uploaded, "reused": reused, "unchanged": unchanged}
 
     async def upload_item(
