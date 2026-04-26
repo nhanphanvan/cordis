@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI service and backend-owned runtime concerns such as config, exception handling, storage integration, and migration helpers, `cordis/cli/` for the Typer CLI and CLI-owned local behavior, and `cordis/sdk/` for the public Python SDK and shared transport. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, `README.md`, `Dockerfile`, `compose.yml`, and `alembic.ini` define tooling and local workflow.
+Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI service and backend-owned runtime concerns such as config, exception handling, storage integration, and migration helpers, `cordis/cli/` for the Typer CLI and CLI-owned local behavior, and `cordis/sdk/` for the public Python SDK and shared transport. Keep modules focused and colocate related behavior. Tests live under `tests/`, split into `tests/backend/` and `tests/cli/`. Root files such as `pyproject.toml`, `Makefile`, `README.md`, and `alembic.ini` define tooling and local workflow, while Docker assets live under `dockers/`.
 
 ## Build, Test, and Development Commands
 
@@ -15,8 +15,8 @@ Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI se
 - `make build`: build the CLI/SDK-focused source distribution and wheel.
 - `make run-backend`: start the backend with `python -m cordis.backend`.
 - `make run-cli-help`: inspect the CLI entrypoint and available commands.
-- `docker compose config`: validate the Docker Compose stack definition.
-- `docker compose up --build postgres minio backend`: run the containerized backend stack.
+- `docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example config`: validate the Docker Compose stack definition.
+- `docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend`: run the containerized backend stack.
 
 ## Coding Style & Naming Conventions
 

@@ -5,6 +5,7 @@ Cordis is a file and artifact management platform with a FastAPI backend and a T
 ## Start Here
 
 - [Getting Started](./getting-started.md): install dependencies, run the backend, inspect the CLI, and complete a first local workflow
+- [Docker Guide](./docker.md): container layout, startup commands, migration workflow, and host-native CLI usage
 - [Configuration](./configuration.md): backend environment settings, CLI config files, workspace registration, and cache behavior
 - [CLI Guide](./cli.md): command groups and common operator workflows
 - [Backend API](./backend-api.md): guide-first walkthrough of the current HTTP API surface

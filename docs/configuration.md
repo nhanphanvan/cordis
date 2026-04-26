@@ -79,7 +79,7 @@ Bootstrap behavior:
 
 There is no separate backend storage-policy environment variable for public object exposure. Raw provider-native object exposure is controlled per repository through the repository-level `allow_public_object_urls` flag.
 
-For Docker and Compose workflows, Cordis keeps the same `CORDIS_*` contract instead of introducing a second container-specific config layer. The repository now includes `.env.docker.example` as the baseline local stack environment.
+For Docker and Compose workflows, Cordis keeps the same `CORDIS_*` contract instead of introducing a second container-specific config layer. The repository now includes `dockers/.env.docker.example` as the baseline local stack environment.
 
 ## MinIO Storage Behavior
 
@@ -179,7 +179,7 @@ The current Docker/Compose workflow is backend-focused:
 - the CLI stays host-native for now
 
 The Compose example standardizes on PostgreSQL plus MinIO even though Cordis still supports SQLite and real AWS S3 outside Docker.
-The repository includes a `migrate` Compose service, but schema migration execution should currently be treated as a manual operator step rather than an assumed automatic bootstrap phase.
+The repository includes a `migrate` Compose service under `dockers/compose.yml`, but schema migration execution should currently be treated as a manual operator step rather than an assumed automatic bootstrap phase. See [Docker Guide](./docker.md) for the canonical commands.
 
 ## Operational Notes
 

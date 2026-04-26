@@ -78,40 +78,10 @@ If you use `cordis resource download --force`, Cordis wipes the target directory
 
 ## Dockerized Local Stack
 
-Cordis also supports a backend-focused Docker Compose workflow built around PostgreSQL and MinIO.
+Cordis also supports a backend-focused Docker workflow built around PostgreSQL and MinIO.
 
-Recommended startup flow:
-
-```bash
-cp .env.docker.example .env
-docker compose up --build postgres minio backend
-```
-
-The bootstrap admin env in `.env.docker.example` is now part of first-run startup. On an empty database, the backend creates the first admin user from:
-
-- `CORDIS_BOOTSTRAP_ADMIN_EMAIL`
-- `CORDIS_BOOTSTRAP_ADMIN_PASSWORD`
-- `CORDIS_BOOTSTRAP_ADMIN_NAME`
-
-If the database has no users and the required bootstrap env is missing or invalid, backend startup fails.
-
-This stack runs:
-
-- `postgres` for the application database
-- `minio` for S3-compatible object storage
-- `backend` as the FastAPI service
-
-If you want to run Alembic from Docker, do it explicitly:
+Use the dedicated [Docker Guide](./docker.md) for the canonical commands, env-file workflow, and migration instructions. The quick-start command is:
 
 ```bash
-docker compose run --rm migrate
-```
-
-Treat that migration step as operator-managed for now. The Docker stack should currently be read as backend packaging plus service orchestration, not as guaranteed fresh-database bootstrap automation.
-
-The host-native CLI can target that backend once it is running:
-
-```bash
-cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <password>
-cordis login --endpoint http://127.0.0.1:8000
+docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
 ```

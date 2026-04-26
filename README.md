@@ -80,39 +80,21 @@ This staged build excludes `cordis/backend`. If you need a full repository build
 
 ## Docker
 
-Cordis now includes a backend-focused Docker workflow for local stacks and deployment packaging.
+Docker assets now live under `dockers/`, with a dedicated guide at [docs/docker.md](./docs/docker.md).
 
-The container stack standardizes on:
-
-- PostgreSQL for the application database
-- MinIO for S3-compatible object storage
-- the FastAPI backend service
-- an explicit Alembic workflow that is still operator-managed
-
-Start the stack:
+Start the local stack from the repo root with:
 
 ```bash
-cp .env.docker.example .env
-docker compose up --build postgres minio backend
+docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
 ```
 
-The backend is then available on `http://127.0.0.1:8000`, MinIO on `http://127.0.0.1:9000`, and the MinIO console on `http://127.0.0.1:9001`.
-
-If you want to run Alembic in the Docker workflow, do it as an explicit operator step:
+Run migrations explicitly when needed:
 
 ```bash
-docker compose run --rm migrate
+docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example run --rm migrate
 ```
 
-That migration flow is still being finalized. Treat it as manual infrastructure work for now rather than assuming the stack will bootstrap a fresh database automatically.
-
-The CLI remains host-native in this first pass. Point it at the containerized backend with:
-
-```bash
-cordis login --endpoint http://127.0.0.1:8000 --email <email> --password <password>
-```
-
-You can also run `cordis login` without `--email` or `--password` and enter those values interactively at the prompt.
+The CLI remains host-native. Point it at the containerized backend with `cordis login --endpoint http://127.0.0.1:8000`.
 
 ## Project Layout
 

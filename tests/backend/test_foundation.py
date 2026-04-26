@@ -142,10 +142,10 @@ def test_build_config_groups_app_database_and_storage_defaults(monkeypatch: pyte
 
 
 def test_docker_assets_exist_for_backend_postgres_and_minio_stack() -> None:
-    dockerfile = Path("Dockerfile")
+    dockerfile = Path("dockers/Dockerfile")
     dockerignore = Path(".dockerignore")
-    compose = Path("compose.yml")
-    docker_env = Path(".env.docker.example")
+    compose = Path("dockers/compose.yml")
+    docker_env = Path("dockers/.env.docker.example")
 
     assert dockerfile.exists()
     assert dockerignore.exists()
@@ -154,7 +154,7 @@ def test_docker_assets_exist_for_backend_postgres_and_minio_stack() -> None:
 
 
 def test_compose_stack_defines_backend_migrate_postgres_and_minio_services() -> None:
-    compose_text = Path("compose.yml").read_text(encoding="utf-8")
+    compose_text = Path("dockers/compose.yml").read_text(encoding="utf-8")
 
     assert "backend:" in compose_text
     assert "migrate:" in compose_text
@@ -164,10 +164,12 @@ def test_compose_stack_defines_backend_migrate_postgres_and_minio_services() -> 
     assert "alembic upgrade head" in compose_text
     assert "postgresql+asyncpg://" in compose_text
     assert "CORDIS_STORAGE_PROVIDER:" in compose_text
+    assert "dockerfile: dockers/Dockerfile" in compose_text
+    assert "service_completed_successfully" not in compose_text
 
 
 def test_docker_env_example_uses_postgres_and_minio_defaults() -> None:
-    env_text = Path(".env.docker.example").read_text(encoding="utf-8")
+    env_text = Path("dockers/.env.docker.example").read_text(encoding="utf-8")
 
     assert "CORDIS_DB_URL=postgresql+asyncpg://" in env_text
     assert "CORDIS_STORAGE_PROVIDER=minio" in env_text
