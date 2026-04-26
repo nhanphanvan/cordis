@@ -121,3 +121,22 @@ def test_bootstrap_runtime_leaves_existing_users_unchanged_but_restores_missing_
     assert users[0].email == "existing@example.com"
     assert users[0].name == "Existing User"
     assert users[0].is_admin is False
+
+
+def test_bootstrap_runtime_rejects_weak_default_password_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "cordis-bootstrap-production.db"
+    monkeypatch.setenv("CORDIS_ENVIRONMENT", "production")
+    monkeypatch.setenv("CORDIS_DB_URL", f"sqlite+aiosqlite:///{db_path}")
+    monkeypatch.setenv("CORDIS_BOOTSTRAP_ADMIN_EMAIL", "admin@example.com")
+    monkeypatch.setenv("CORDIS_BOOTSTRAP_ADMIN_PASSWORD", "password123")
+    monkeypatch.setenv("CORDIS_BOOTSTRAP_ADMIN_NAME", "Admin")
+    _clear_cached_state()
+    asyncio.run(_reset_database())
+
+    from cordis.backend.bootstrap import BootstrapConfigurationError, bootstrap_runtime_state
+
+    with pytest.raises(BootstrapConfigurationError):
+        asyncio.run(bootstrap_runtime_state())

@@ -15,6 +15,7 @@ DEFAULT_ROLES: dict[str, str] = {
     "developer": "mutation access",
     "viewer": "read access",
 }
+DEFAULT_BOOTSTRAP_ADMIN_PASSWORDS = frozenset({"password123"})
 
 
 class BootstrapConfigurationError(RuntimeError):
@@ -28,7 +29,7 @@ class BootstrapAdmin:
     name: str
 
 
-def _validate_bootstrap_admin(config: BootstrapConfig) -> BootstrapAdmin:
+def _validate_bootstrap_admin(config: BootstrapConfig, *, environment: str) -> BootstrapAdmin:
     email = (config.admin_email or "").strip()
     password = config.admin_password or ""
     name = (config.admin_name or "Admin").strip() or "Admin"
@@ -42,6 +43,10 @@ def _validate_bootstrap_admin(config: BootstrapConfig) -> BootstrapAdmin:
     if not password.strip():
         raise BootstrapConfigurationError(
             "Empty database requires CORDIS_BOOTSTRAP_ADMIN_PASSWORD to be set before backend startup."
+        )
+    if environment == "production" and (password in DEFAULT_BOOTSTRAP_ADMIN_PASSWORDS or len(password) < 12):
+        raise BootstrapConfigurationError(
+            "Production bootstrap admin password must be at least 12 characters and must not use the example default."
         )
 
     return BootstrapAdmin(email=email, password=password, name=name)
@@ -70,7 +75,7 @@ async def bootstrap_runtime_state() -> None:
             await session.commit()
             return
 
-        bootstrap_admin = _validate_bootstrap_admin(config.bootstrap)
+        bootstrap_admin = _validate_bootstrap_admin(config.bootstrap, environment=config.app.environment)
         session.add(
             User(
                 email=bootstrap_admin.email,

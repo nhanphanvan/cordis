@@ -35,7 +35,7 @@ services:
       context: ..
       dockerfile: dockers/Dockerfile
     env_file:
-      - ./.env.docker.example
+      - ${CORDIS_ENV_FILE:-./.env.docker.example}
     environment:
       CORDIS_DB_URL: ${CORDIS_DB_URL:-postgresql+asyncpg://cordis:cordis@postgres:5432/cordis}
       CORDIS_STORAGE_PROVIDER: ${CORDIS_STORAGE_PROVIDER:-minio}
@@ -52,7 +52,7 @@ services:
       context: ..
       dockerfile: dockers/Dockerfile
     env_file:
-      - ./.env.docker.example
+      - ${CORDIS_ENV_FILE:-./.env.docker.example}
     environment:
       CORDIS_DB_URL: ${CORDIS_DB_URL:-postgresql+asyncpg://cordis:cordis@postgres:5432/cordis}
       CORDIS_STORAGE_PROVIDER: ${CORDIS_STORAGE_PROVIDER:-minio}

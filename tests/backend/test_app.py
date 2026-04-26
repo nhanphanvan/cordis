@@ -1,5 +1,6 @@
 import logging
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -7,6 +8,7 @@ from cordis.backend.__main__ import main
 from cordis.backend.app import create_app
 from cordis.backend.exceptions import AppStatus, UnauthorizedError, configure_exception_handlers
 from cordis.backend.exceptions.exception_handlers import _custom_unauthorized_error_handler
+from cordis.backend.settings import ProductionConfigurationError
 
 
 def test_health_endpoint_reports_service_status() -> None:
@@ -24,7 +26,7 @@ def test_version_endpoint_reports_project_version() -> None:
     response = client.get("/version")
 
     assert response.status_code == 200
-    assert response.json() == {"name": "cordis", "version": "0.1.0"}
+    assert response.json() == {"name": "cordis", "version": "1.0.0"}
 
 
 def test_versioned_api_router_is_mounted() -> None:
@@ -70,7 +72,8 @@ def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch
         "FakeConfig",
         (),
         {
-            "app": type("FakeAppConfig", (), {"log_level": "WARNING"})(),
+            "app": type("FakeAppConfig", (), {"log_level": "WARNING", "environment": "development"})(),
+            "database": type("FakeDatabaseConfig", (), {"db_url": "sqlite+aiosqlite:///./.cordis/cordis.db"})(),
             "security": type(
                 "FakeSecurityConfig",
                 (),
@@ -104,6 +107,60 @@ def test_backend_settings_setup_builds_config_and_configures_logging(monkeypatch
             },
         ),
     ]
+
+
+def test_backend_settings_setup_rejects_default_secret_in_production(monkeypatch) -> None:
+    fake_config = type(
+        "FakeConfig",
+        (),
+        {
+            "app": type("FakeAppConfig", (), {"log_level": "WARNING", "environment": "production"})(),
+            "database": type("FakeDatabaseConfig", (), {"db_url": "postgresql+asyncpg://db/cordis"})(),
+            "security": type(
+                "FakeSecurityConfig",
+                (),
+                {
+                    "secret_key": "cordis-dev-secret-key",
+                    "jwt_algorithm": "HS256",
+                    "access_token_expire_minutes": 90,
+                },
+            )(),
+        },
+    )()
+
+    monkeypatch.setattr("cordis.backend.settings.build_config", lambda: fake_config)
+
+    from cordis.backend.settings import setup
+
+    with pytest.raises(ProductionConfigurationError):
+        setup()
+
+
+def test_backend_settings_setup_rejects_sqlite_in_production(monkeypatch) -> None:
+    fake_config = type(
+        "FakeConfig",
+        (),
+        {
+            "app": type("FakeAppConfig", (), {"log_level": "WARNING", "environment": "production"})(),
+            "database": type("FakeDatabaseConfig", (), {"db_url": "sqlite+aiosqlite:///./.cordis/cordis.db"})(),
+            "security": type(
+                "FakeSecurityConfig",
+                (),
+                {
+                    "secret_key": "super-secret-production-value",
+                    "jwt_algorithm": "HS256",
+                    "access_token_expire_minutes": 90,
+                },
+            )(),
+        },
+    )()
+
+    monkeypatch.setattr("cordis.backend.settings.build_config", lambda: fake_config)
+
+    from cordis.backend.settings import setup
+
+    with pytest.raises(ProductionConfigurationError):
+        setup()
 
 
 def test_create_app_bootstraps_runtime_state_on_startup(monkeypatch) -> None:

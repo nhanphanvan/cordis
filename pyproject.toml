@@ -1,6 +1,6 @@
 [project]
 name = "cordis"
-version = "0.1.0"
+version = "1.0.0"
 description = "A file and artifact management service built for large-scale objects."
 authors = [
     { name = "nhanphanvan99", email = "nhanphanvan99@gmail.com" }

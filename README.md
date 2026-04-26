@@ -41,6 +41,8 @@ If Poetry is running inside an already-active virtual environment, keep local co
 
 - [Documentation Index](./docs/index.md)
 - [Getting Started](./docs/getting-started.md)
+- [Production Deployment](./docs/production.md)
+- [Release Process](./docs/release.md)
 - [Configuration](./docs/configuration.md)
 - [CLI Guide](./docs/cli.md)
 - [Backend API](./docs/backend-api.md)
@@ -80,18 +82,18 @@ This staged build excludes `cordis/backend`. If you need a full repository build
 
 ## Docker
 
-Docker assets now live under `dockers/`, with a dedicated guide at [docs/docker.md](./docs/docker.md).
+Docker assets now live under `dockers/`, with dedicated guides for [local Docker usage](./docs/docker.md) and [production deployment](./docs/production.md).
 
 Start the local stack from the repo root with:
 
 ```bash
-docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
+CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
 ```
 
 Run migrations explicitly when needed:
 
 ```bash
-docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example run --rm migrate
+CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example run --rm migrate
 ```
 
 The CLI remains host-native. Point it at the containerized backend with `cordis login --endpoint http://127.0.0.1:8000`.

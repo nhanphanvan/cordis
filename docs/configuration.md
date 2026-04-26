@@ -63,6 +63,11 @@ Security settings are loaded from the same backend config layer. `cordis.backend
 - `CORDIS_JWT_ALGORITHM`
 - `CORDIS_ACCESS_TOKEN_EXPIRE_MINUTES`
 
+In `production`, backend startup also enforces two guardrails:
+
+- `CORDIS_SECRET_KEY` must not use the built-in development default
+- `CORDIS_DB_URL` must not point to SQLite
+
 Cordis also supports first-run admin bootstrap during backend startup. This bootstrap runs from the FastAPI application lifespan in `cordis.backend.app`, so it shares the same async event loop as request handling:
 
 - `CORDIS_BOOTSTRAP_ADMIN_EMAIL`
@@ -77,9 +82,12 @@ Bootstrap behavior:
 - if the database already has at least one user, bootstrap admin env values are ignored and existing users are not modified
 - `CORDIS_BOOTSTRAP_ADMIN_NAME` is optional and defaults to `Admin`
 
+In `production`, first-run bootstrap also rejects the example default admin password and requires a password length of at least 12 characters when the database is empty.
+
 There is no separate backend storage-policy environment variable for public object exposure. Raw provider-native object exposure is controlled per repository through the repository-level `allow_public_object_urls` flag.
 
 For Docker and Compose workflows, Cordis keeps the same `CORDIS_*` contract instead of introducing a second container-specific config layer. The repository now includes `dockers/.env.docker.example` as the baseline local stack environment.
+For production deployment, start from `dockers/.env.production.example` and copy it to an operator-local env file before running Compose. The Compose file reads its service env file through `CORDIS_ENV_FILE`, so documented commands set that variable explicitly to keep local and production runs pointed at the intended file.
 
 ## MinIO Storage Behavior
 

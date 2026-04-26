@@ -9,7 +9,7 @@ from cordis.backend.versioning import get_version_payload
 
 
 def test_shared_version_payload_exposes_name_and_version() -> None:
-    assert get_version_payload() == {"name": "cordis", "version": "0.1.0"}
+    assert get_version_payload() == {"name": "cordis", "version": "1.0.0"}
 
 
 def test_shared_package_is_not_importable() -> None:
@@ -146,11 +146,19 @@ def test_docker_assets_exist_for_backend_postgres_and_minio_stack() -> None:
     dockerignore = Path(".dockerignore")
     compose = Path("dockers/compose.yml")
     docker_env = Path("dockers/.env.docker.example")
+    production_env = Path("dockers/.env.production.example")
+    changelog = Path("CHANGELOG.md")
+    production_guide = Path("docs/production.md")
+    release_guide = Path("docs/release.md")
 
     assert dockerfile.exists()
     assert dockerignore.exists()
     assert compose.exists()
     assert docker_env.exists()
+    assert production_env.exists()
+    assert changelog.exists()
+    assert production_guide.exists()
+    assert release_guide.exists()
 
 
 def test_compose_stack_defines_backend_migrate_postgres_and_minio_services() -> None:
@@ -165,17 +173,21 @@ def test_compose_stack_defines_backend_migrate_postgres_and_minio_services() -> 
     assert "postgresql+asyncpg://" in compose_text
     assert "CORDIS_STORAGE_PROVIDER:" in compose_text
     assert "dockerfile: dockers/Dockerfile" in compose_text
+    assert "${CORDIS_ENV_FILE:-./.env.docker.example}" in compose_text
     assert "service_completed_successfully" not in compose_text
 
 
 def test_docker_env_example_uses_postgres_and_minio_defaults() -> None:
     env_text = Path("dockers/.env.docker.example").read_text(encoding="utf-8")
+    production_env_text = Path("dockers/.env.production.example").read_text(encoding="utf-8")
 
     assert "CORDIS_DB_URL=postgresql+asyncpg://" in env_text
     assert "CORDIS_STORAGE_PROVIDER=minio" in env_text
     assert "CORDIS_STORAGE_ENDPOINT=minio:9000" in env_text
     assert "CORDIS_BOOTSTRAP_ADMIN_EMAIL=" in env_text
     assert "CORDIS_BOOTSTRAP_ADMIN_PASSWORD=" in env_text
+    assert "CORDIS_ENVIRONMENT=production" in production_env_text
+    assert "replace-with-a-long-random-secret" in production_env_text
 
 
 def test_app_config_loads_from_env_files(monkeypatch, tmp_path: Path) -> None:

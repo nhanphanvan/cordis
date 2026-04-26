@@ -15,8 +15,8 @@ Application code lives under `cordis/`. Use `cordis/backend/` for the FastAPI se
 - `make build`: build the CLI/SDK-focused source distribution and wheel.
 - `make run-backend`: start the backend with `python -m cordis.backend`.
 - `make run-cli-help`: inspect the CLI entrypoint and available commands.
-- `docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example config`: validate the Docker Compose stack definition.
-- `docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend`: run the containerized backend stack.
+- `CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example config`: validate the Docker Compose stack definition.
+- `CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend`: run the containerized backend stack.
 
 ## Coding Style & Naming Conventions
 

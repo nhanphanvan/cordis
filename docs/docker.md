@@ -5,7 +5,7 @@ Cordis ships a backend-focused Docker workflow under `dockers/`.
 Use Docker from the repo root and pass the Compose file explicitly:
 
 ```bash
-docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example config
+CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example config
 ```
 
 ## Included Services
@@ -19,10 +19,10 @@ The CLI remains host-native in this workflow.
 
 ## Quick Start
 
-Start the stack with the committed example environment:
+Start the local stack with the committed development example environment:
 
 ```bash
-docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
+CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
 ```
 
 The backend is then available on `http://127.0.0.1:8000`, MinIO on `http://127.0.0.1:9000`, and the MinIO console on `http://127.0.0.1:9001`.
@@ -41,10 +41,12 @@ If you want local Docker-only overrides, copy the example to an untracked file a
 
 ```bash
 cp dockers/.env.docker.example dockers/.env.docker.local
-docker compose -f dockers/compose.yml --env-file dockers/.env.docker.local up --build postgres minio backend
+CORDIS_ENV_FILE=./.env.docker.local docker compose -f dockers/compose.yml --env-file dockers/.env.docker.local up --build postgres minio backend
 ```
 
 Keep local override files out of version control.
+
+For production deployment, use the separate guide in [Production Deployment](./production.md) and start from `dockers/.env.production.example` instead of the development example.
 
 ## Migrations
 
@@ -53,7 +55,7 @@ Migrations are operator-managed and do not run automatically when you start `bac
 Run them explicitly when needed:
 
 ```bash
-docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example run --rm migrate
+CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example run --rm migrate
 ```
 
 This keeps schema changes as a deliberate step instead of hiding them behind normal service startup.

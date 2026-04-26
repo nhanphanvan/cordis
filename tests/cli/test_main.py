@@ -15,7 +15,7 @@ def test_version_command_prints_project_version() -> None:
 
     assert result.exit_code == 0
     assert "Version" in result.stdout
-    assert "0.1.0" in result.stdout
+    assert "1.0.0" in result.stdout
 
 
 def test_help_lists_available_commands() -> None:

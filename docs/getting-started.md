@@ -83,5 +83,5 @@ Cordis also supports a backend-focused Docker workflow built around PostgreSQL a
 Use the dedicated [Docker Guide](./docker.md) for the canonical commands, env-file workflow, and migration instructions. The quick-start command is:
 
 ```bash
-docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
+CORDIS_ENV_FILE=./.env.docker.example docker compose -f dockers/compose.yml --env-file dockers/.env.docker.example up --build postgres minio backend
 ```
